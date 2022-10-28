@@ -13,3 +13,7 @@ Config::Config(const std::string_view& a_path)
         assert(configEle != nullptr);
     }
 }
+Config::~Config()
+{
+    
+}

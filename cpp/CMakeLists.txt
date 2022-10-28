@@ -13,6 +13,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/")
 
+find_package(Vulkan REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(MONO REQUIRED mono-2)
@@ -33,11 +34,16 @@ if (GENERATE_CONFIG)
 endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/include/"
+                    "${PROJECT_SOURCE_DIR}/lib/glfw/include/"
+                    "${PROJECT_SOURCE_DIR}/lib/glm/"
                     "${PROJECT_SOURCE_DIR}/lib/tinyxml2/"
+                    ${Vulkan_INCLUDE_DIRS}
                     ${MONO_INCLUDE_DIRS})
 
 file(GLOB SOURCES "src/*.cpp" "lib/tinyxml2/tinyxml2.cpp")
 
+add_subdirectory("lib/glfw")
+
 add_executable(FlashFireNative ${SOURCES})
-target_link_libraries(FlashFireNative ${MONO_LIBRARIES})
+target_link_libraries(FlashFireNative glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES} ${MONO_LIBRARIES})
 target_compile_options(FlashFireNative PUBLIC ${MONO_CFLAGS_OTHER})
