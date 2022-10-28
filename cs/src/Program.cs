@@ -4,6 +4,6 @@ class Program
 {
     static void Main()
     {
-        Console.WriteLine("FlashFireCS: Init");
+        Console.WriteLine("FlareCS: Init");
     }
 }

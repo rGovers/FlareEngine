@@ -1,6 +1,6 @@
 <Project DefaultTargets="Build">
     <PropertyGroup>
-        <AssemblyName>FlashFireCS</AssemblyName>
+        <AssemblyName>FlareCS</AssemblyName>
         <OutputPath>../bin/</OutputPath>
     </PropertyGroup>
     <ItemGroup>

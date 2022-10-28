@@ -4,15 +4,16 @@
 #include <glm/glm.hpp>
 
 #include <stdio.h>
+#include <string_view>
 
-#include "FlashFireNativeConfig.h"
+#include "FlareNativeConfig.h"
 #include "Application.h"
 
-constexpr char ExecDir[] = "./FlashFireCS.dll";
+constexpr std::string_view ExecDir = "./Flare.dll";
 
 int main(int a_argc, char* a_argv[])
 {
-    printf("FlashFire %d.%d \n", FLASHFIRENATIVE_VERSION_MAJOR, FLASHFIRENATIVE_VERSION_MINOR);
+    printf("FlareEngine %d.%d \n", FLARENATIVE_VERSION_MAJOR, FLARENATIVE_VERSION_MINOR);
 
     Application app;
     app.Run((int32_t)a_argc, a_argv);

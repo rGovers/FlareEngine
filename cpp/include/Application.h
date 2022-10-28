@@ -6,6 +6,7 @@
 #include <cstdint>
 
 class Config;
+class RenderEngine;
 class RuntimeManager;
 
 class Application
@@ -15,6 +16,7 @@ private:
 
     Config*         m_config;
     RuntimeManager* m_runtime;
+    RenderEngine*   m_renderEngine;
 
 protected:
 

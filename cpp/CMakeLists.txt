@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project (FlashFireNative VERSION 0.1 LANGUAGES C CXX)
+project (FlareNative VERSION 0.1 LANGUAGES C CXX)
 
 option(GENERATE_CONFIG "Generates engine configuration file" OFF)
 
@@ -18,12 +18,12 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(MONO REQUIRED mono-2)
 
-set (FLASHFIRENATIVE_VERSION_MAJOR ${CMAKE_PROJECT_VERSION_MAJOR})
-set (FLASHFIRENATIVE_VERSION_MINOR ${CMAKE_PROJECT_VERSION_MINOR})
+set (FLARENATIVE_VERSION_MAJOR ${CMAKE_PROJECT_VERSION_MAJOR})
+set (FLARENATIVE_VERSION_MINOR ${CMAKE_PROJECT_VERSION_MINOR})
 
 configure_file(
-    "${PROJECT_SOURCE_DIR}/FlashFireNativeConfig.h.in"
-    "${PROJECT_SOURCE_DIR}/include/FlashFireNativeConfig.h"
+    "${PROJECT_SOURCE_DIR}/FlareNativeConfig.h.in"
+    "${PROJECT_SOURCE_DIR}/include/FlareNativeConfig.h"
 )
 
 if (GENERATE_CONFIG)
@@ -37,6 +37,7 @@ include_directories("${PROJECT_SOURCE_DIR}/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glfw/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glm/"
                     "${PROJECT_SOURCE_DIR}/lib/tinyxml2/"
+                    "${PROJECT_SOURCE_DIR}/lib/VulkanMemoryAllocator/include/"
                     ${Vulkan_INCLUDE_DIRS}
                     ${MONO_INCLUDE_DIRS})
 
@@ -44,6 +45,6 @@ file(GLOB SOURCES "src/*.cpp" "lib/tinyxml2/tinyxml2.cpp")
 
 add_subdirectory("lib/glfw")
 
-add_executable(FlashFireNative ${SOURCES})
-target_link_libraries(FlashFireNative glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES} ${MONO_LIBRARIES})
-target_compile_options(FlashFireNative PUBLIC ${MONO_CFLAGS_OTHER})
+add_executable(FlareNative ${SOURCES})
+target_link_libraries(FlareNative glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES} ${MONO_LIBRARIES})
+target_compile_options(FlareNative PUBLIC ${MONO_CFLAGS_OTHER})

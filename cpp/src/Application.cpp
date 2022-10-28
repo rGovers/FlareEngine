@@ -1,26 +1,27 @@
 #include "Application.h"
 
 #include "Config.h"
+#include "Rendering/RenderEngine.h"
 #include "RuntimeManager.h"
 
 Application::Application()
 {
     m_config = new Config("./config.xml");
-    m_runtime = new RuntimeManager();
 
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    m_window = glfwCreateWindow(1280, 720, "FlashFire", nullptr, nullptr);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    m_window = glfwCreateWindow(1280, 720, m_config->GetApplicationName().begin(), nullptr, nullptr);
 
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    m_renderEngine = new RenderEngine(m_window, m_config);
 
-    printf("extension count: %d \n", extensionCount);
+    m_runtime = new RuntimeManager();
 }
 Application::~Application()
 {
     delete m_runtime;
+    delete m_renderEngine;
     delete m_config;
 
     glfwDestroyWindow(m_window);
@@ -33,6 +34,8 @@ void Application::Run(int32_t a_argc, char* a_argv[])
 
     while (!glfwWindowShouldClose(m_window))
     {
+        m_renderEngine->Update();
+
         glfwPollEvents();
     }
 }
