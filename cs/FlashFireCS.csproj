@@ -1,0 +1,17 @@
+<Project DefaultTargets="Build">
+    <PropertyGroup>
+        <AssemblyName>FlashFireCS</AssemblyName>
+        <OutputPath>../bin/</OutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="src/*.cs"/>
+    </ItemGroup>
+    <Target Name="Build" Inputs="@Compile" Outputs="$(OutputPath)$(AssemblyName).dll">
+        <MakeDir Directories="$(OutputPath)" Condition="!Exists('$(OutputPath)')" />
+        <Csc Sources="@(Compile)" OutputAssembly="$(OutputPath)$(AssemblyName).dll" />
+    </Target>
+    <Target Name="Clean">
+        <Delete Files="$(OutputPath)$(AssemblyName).dll" />
+    </Target>
+    <Target Name="Rebuild" DependsOnTargets="Clean;Build" />
+</Project>
