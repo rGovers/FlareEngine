@@ -10,3 +10,6 @@
 [submodule "cpp/lib/VulkanMemoryAllocator"]
 	path = cpp/lib/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "cpp/lib/glslang"]
+	path = cpp/lib/glslang
+	url = https://github.com/KhronosGroup/glslang.git

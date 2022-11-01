@@ -1,5 +1,6 @@
 #!/bin/bash
 
 rm -rf build
+rm -rf cs/obj
 rm -f bin/config.xml
-rm -f bin/FlashFireCS.dll
+rm -f bin/FlareCS.dll

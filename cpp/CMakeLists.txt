@@ -36,6 +36,7 @@ endif()
 include_directories("${PROJECT_SOURCE_DIR}/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glfw/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glm/"
+                    "${PROJECT_SOURCE_DIR}/lib/glslang/"
                     "${PROJECT_SOURCE_DIR}/lib/tinyxml2/"
                     "${PROJECT_SOURCE_DIR}/lib/VulkanMemoryAllocator/include/"
                     ${Vulkan_INCLUDE_DIRS}
@@ -43,8 +44,13 @@ include_directories("${PROJECT_SOURCE_DIR}/include/"
 
 file(GLOB SOURCES "src/*.cpp" "lib/tinyxml2/tinyxml2.cpp")
 
-add_subdirectory("lib/glfw")
+set(SKIP_GLSLANG_INSTALL ON)
+set(ENABLE_GLSLANG_BINARIES OFF)
+set(ENABLE_CTEST OFF)
+
+add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glfw")
+add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glslang")
 
 add_executable(FlareNative ${SOURCES})
-target_link_libraries(FlareNative glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES} ${MONO_LIBRARIES})
+target_link_libraries(FlareNative glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES} ${MONO_LIBRARIES})
 target_compile_options(FlareNative PUBLIC ${MONO_CFLAGS_OTHER})

@@ -8,6 +8,9 @@
 #include "Config.h"
 #include "FlareNativeConfig.h"
 #include "Rendering/RenderEngine.h"
+#include "Rendering/Vulkan/VulkanPixelShader.h"
+#include "Rendering/Vulkan/VulkanVertexShader.h"
+#include "Trace.h"
 
 const static std::vector<const char*> ValidationLayers = 
 {
@@ -212,6 +215,8 @@ void VulkanRenderEngineBackend::GenerateSwapChain()
 
         assert(0);
     }
+
+    TRACE("Created Vulkan Swapchain");
 }
 void VulkanRenderEngineBackend::GenerateSwapImages()
 {
@@ -234,6 +239,8 @@ void VulkanRenderEngineBackend::GenerateSwapImages()
             assert(0);
         }
     }
+
+    TRACE("Created Vulkan SwapImages");
 }
 
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : RenderEngineBackend(a_engine)
@@ -293,6 +300,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
         assert(0);
     }
 
+    TRACE("Created Vulkan Instance");
+
     if constexpr (EnableValidationLayers)
     {
         if (m_instance.createDebugUtilsMessengerEXT(&DebugCreateInfo, nullptr, &m_messenger) != vk::Result::eSuccess)
@@ -306,6 +315,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
     VkSurfaceKHR tempSurf;
     glfwCreateWindowSurface(m_instance, m_renderEngine->m_window, nullptr, &tempSurf);
     m_surface = vk::SurfaceKHR(tempSurf);
+
+    TRACE("Created Vulkan Surface");
 
     uint32_t deviceCount = 0;
     m_instance.enumeratePhysicalDevices(&deviceCount, nullptr);
@@ -331,12 +342,13 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
 
     assert(foundDevice);
 
+    TRACE("Found Vulkan Physical Device");
+
     uint32_t queueFamilyCount = 0;
     m_pDevice.getQueueFamilyProperties(&queueFamilyCount, nullptr);
 
     std::vector<vk::QueueFamilyProperties> queueFamilies = std::vector<vk::QueueFamilyProperties>(queueFamilyCount);
     m_pDevice.getQueueFamilyProperties(&queueFamilyCount, queueFamilies.data());
-
     
     for (uint32_t i = 0; i < queueFamilyCount; ++i)
     {
@@ -386,6 +398,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
         assert(0);
     }
 
+    TRACE("Created Vulkan Device");
+
     VmaVulkanFunctions vulkanFunctions;
     memset(&vulkanFunctions, 0, sizeof(vulkanFunctions));
     vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
@@ -406,11 +420,37 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
         assert(0);
     }
 
+    TRACE("Created Vulkan Allocator");
+
     m_lDevice.getQueue(m_graphicsQueueIndex, 0, &m_graphicsQueue);    
     m_lDevice.getQueue(m_presentQueueIndex, 0, &m_presentQueue);
+
+    TRACE("Got Vulkan Queues");
 }
 VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 {
+    TRACE("Begin Vulkan clean up");
+
+    for (const VulkanVertexShader* shader : m_vertexShaders)
+    {
+        if (shader != nullptr)
+        {
+            printf("Vertex Shader was not destroyed \n");
+
+            delete shader;
+        }
+    }
+
+    for (const VulkanPixelShader* shader : m_pixelShaders)
+    {
+        if (shader != nullptr)
+        {
+            printf("Pixel Shader was not destroyed \n");
+
+            delete shader;
+        }
+    }
+
     if constexpr (EnableValidationLayers)
     {
         m_instance.destroyDebugUtilsMessengerEXT(m_messenger);
@@ -425,10 +465,12 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     {
         vkDestroySwapchainKHR(m_lDevice, m_swapchain, nullptr);
     }
-    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+    m_instance.destroySurfaceKHR(m_surface);
 
     m_lDevice.destroy();
     m_instance.destroy();
+
+    TRACE("Vulkan cleaned up");
 }
 
 void VulkanRenderEngineBackend::Update()
@@ -442,6 +484,74 @@ void VulkanRenderEngineBackend::Update()
 
         GenerateSwapChain();
         GenerateSwapImages();
+    }
+}
+
+uint32_t VulkanRenderEngineBackend::GenerateVertexShaderAddr(const std::string_view& a_str)
+{
+    VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(this, a_str);
+
+    const uint32_t size = (uint32_t)m_vertexShaders.size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_vertexShaders[i] == nullptr)
+        {
+            m_vertexShaders[i] = shader;
+            
+            return i;
+        }
+    }
+
+    m_vertexShaders.emplace_back(shader);
+
+    return (uint32_t)m_vertexShaders.size() - 1;
+}
+void VulkanRenderEngineBackend::DestoryVertexShader(uint32_t a_addr)
+{
+    if (m_vertexShaders[a_addr] != nullptr)
+    {
+        delete m_vertexShaders[a_addr];
+        m_vertexShaders[a_addr] = nullptr;
+    }
+    else
+    {
+        printf("VertexShader already destroyed \n");
+
+        assert(0);
+    }
+}
+
+uint32_t VulkanRenderEngineBackend::GeneratePixelShaderAddr(const std::string_view& a_str)
+{
+    VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(this, a_str);
+
+    const uint32_t size = (uint32_t)m_pixelShaders.size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_pixelShaders[i] == nullptr)
+        {
+            m_pixelShaders[i] = shader;
+
+            return i;
+        }
+    }
+
+    m_pixelShaders.emplace_back(shader);
+
+    return (uint32_t)m_pixelShaders.size() - 1;
+}
+void VulkanRenderEngineBackend::DestroyPixelShader(uint32_t a_addr)
+{
+    if (m_pixelShaders[a_addr] != nullptr)
+    {
+        delete m_pixelShaders[a_addr];
+        m_pixelShaders[a_addr] = nullptr;
+    }
+    else
+    {
+        printf("PixelShader already destroyed \n");
+
+        assert(0);
     }
 }
 

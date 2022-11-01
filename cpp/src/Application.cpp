@@ -16,7 +16,7 @@ Application::Application()
 
     m_renderEngine = new RenderEngine(m_window, m_config);
 
-    m_runtime = new RuntimeManager();
+    m_runtime = new RuntimeManager(m_renderEngine);
 }
 Application::~Application()
 {
@@ -32,10 +32,21 @@ void Application::Run(int32_t a_argc, char* a_argv[])
 {
     m_runtime->Exec(a_argc, a_argv);
 
+    m_startTime = glfwGetTime();
+    m_prevTime = m_startTime;
+
     while (!glfwWindowShouldClose(m_window))
     {
+        const double curTime = glfwGetTime();
+        const double delta = curTime - m_prevTime;
+        const double time = curTime - m_startTime;
+
+        m_runtime->Update(delta, time);
+
         m_renderEngine->Update();
 
         glfwPollEvents();
+
+        m_prevTime = curTime;
     }
 }

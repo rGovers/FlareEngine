@@ -10,6 +10,9 @@
 
 #include "Rendering/RenderEngineBackend.h"
 
+class VulkanPixelShader;
+class VulkanVertexShader;
+
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
@@ -20,26 +23,29 @@ private:
     static constexpr bool EnableValidationLayers = true;
 #endif
 
-    VmaAllocator               m_allocator;
+    VmaAllocator                     m_allocator;
+      
+    vk::Instance                     m_instance;
+    vk::DebugUtilsMessengerEXT       m_messenger;
+    vk::PhysicalDevice               m_pDevice;
+    vk::Device                       m_lDevice;
+          
+    vk::Queue                        m_graphicsQueue;
+    vk::Queue                        m_presentQueue;
+      
+    vk::SurfaceKHR                   m_surface;
+    vk::SwapchainKHR                 m_swapchain = nullptr;
+    std::vector<vk::ImageView>       m_imageViews;
+      
+    vk::SurfaceFormatKHR             m_surfaceFormat;
+      
+    uint32_t                         m_graphicsQueueIndex = -1;
+    uint32_t                         m_presentQueueIndex = -1;
 
-    vk::Instance               m_instance;
-    vk::DebugUtilsMessengerEXT m_messenger;
-    vk::PhysicalDevice         m_pDevice;
-    vk::Device                 m_lDevice;
-    
-    vk::Queue                  m_graphicsQueue;
-    vk::Queue                  m_presentQueue;
+    std::vector<VulkanVertexShader*> m_vertexShaders;
+    std::vector<VulkanPixelShader*>  m_pixelShaders;
 
-    vk::SurfaceKHR             m_surface;
-    vk::SwapchainKHR           m_swapchain = nullptr;
-    std::vector<vk::ImageView> m_imageViews;
-
-    vk::SurfaceFormatKHR       m_surfaceFormat;
-
-    uint32_t                   m_graphicsQueueIndex = -1;
-    uint32_t                   m_presentQueueIndex = -1;
-
-    glm::ivec2                 m_winSize = glm::ivec2(-1);
+    glm::ivec2                       m_winSize = glm::ivec2(-1);
 
     std::vector<const char*> GetRequiredExtensions() const;
 
@@ -52,4 +58,20 @@ public:
     virtual ~VulkanRenderEngineBackend();
 
     virtual void Update();
+
+    inline VmaAllocator GetAllocator() const
+    {
+        return m_allocator;
+    }
+
+    inline vk::Device GetLogicalDevice() const
+    {
+        return m_lDevice;
+    }
+
+    virtual uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
+    virtual void DestoryVertexShader(uint32_t a_addr);
+
+    virtual uint32_t GeneratePixelShaderAddr(const std::string_view& a_str);
+    virtual void DestroyPixelShader(uint32_t a_addr);    
 };

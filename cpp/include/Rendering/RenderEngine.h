@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include <string_view>
 
 enum e_RenderingEngine
 {
@@ -29,4 +30,10 @@ public:
     ~RenderEngine();
 
     void Update();
+
+    uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
+    void DestroyVertexShader(uint32_t a_addr);
+
+    uint32_t GeneratePixelShaderAddr(const std::string_view& a_str);
+    void DestroyPixelShader(uint32_t a_addr);
 };

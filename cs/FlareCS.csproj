@@ -1,17 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build">
     <PropertyGroup>
+        <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration> 
         <AssemblyName>FlareCS</AssemblyName>
         <OutputPath>../bin/</OutputPath>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <OutputType>Exe</OutputType>
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="src/*.cs"/>
+        <Compile Include="src/Definitions/*.cs"/>
+        <Compile Include="src/Rendering/*.cs"/>
     </ItemGroup>
-    <Target Name="Build" Inputs="@Compile" Outputs="$(OutputPath)$(AssemblyName).dll">
-        <MakeDir Directories="$(OutputPath)" Condition="!Exists('$(OutputPath)')" />
-        <Csc Sources="@(Compile)" OutputAssembly="$(OutputPath)$(AssemblyName).dll" />
-    </Target>
-    <Target Name="Clean">
-        <Delete Files="$(OutputPath)$(AssemblyName).dll" />
-    </Target>
-    <Target Name="Rebuild" DependsOnTargets="Clean;Build" />
+    <ItemGroup>
+        <Reference Include="System" />
+        <Reference Include="System.Xml" />
+    </ItemGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <OutputPath>../bin/</OutputPath>
+        <Optimize>false</Optimize>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Release'">
+        <OutputPath>../bin/</OutputPath>
+        <Optimize>true</Optimize>
+    </PropertyGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

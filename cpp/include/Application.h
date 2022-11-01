@@ -18,6 +18,9 @@ private:
     RuntimeManager* m_runtime;
     RenderEngine*   m_renderEngine;
 
+    double          m_startTime;
+    double          m_prevTime;
+
 protected:
 
 public:
