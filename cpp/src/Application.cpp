@@ -14,9 +14,9 @@ Application::Application()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     m_window = glfwCreateWindow(1280, 720, m_config->GetApplicationName().begin(), nullptr, nullptr);
 
-    m_renderEngine = new RenderEngine(m_window, m_config);
-
-    m_runtime = new RuntimeManager(m_renderEngine);
+    m_runtime = new RuntimeManager();
+    
+    m_renderEngine = new RenderEngine(m_runtime, m_window, m_config);
 }
 Application::~Application()
 {

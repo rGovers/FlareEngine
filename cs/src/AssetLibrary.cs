@@ -66,7 +66,7 @@ namespace FlareEngine
 
             m_pixelShaders.Add(a_path, shader);
 
-            return null;
+            return shader;
         }
     }
 }

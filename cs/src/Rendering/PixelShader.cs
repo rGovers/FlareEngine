@@ -40,6 +40,14 @@ namespace FlareEngine.Rendering
             return null;
         }
 
+        internal uint InternalAddr
+        {
+            get
+            {
+                return m_internalAddr;
+            }
+        }
+
         protected virtual void Dispose(bool a_disposing)
         {
             if(!m_disposed)

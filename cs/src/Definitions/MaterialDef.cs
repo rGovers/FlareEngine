@@ -6,5 +6,6 @@ namespace FlareEngine.Definitions
     {
         public VertexShader VertexShader;
         public PixelShader PixelShader;
+        public uint RenderLayer = 0b1;
     }
 }

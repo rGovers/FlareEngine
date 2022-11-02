@@ -8,8 +8,8 @@
 #include "Config.h"
 #include "FlareNativeConfig.h"
 #include "Rendering/RenderEngine.h"
-#include "Rendering/Vulkan/VulkanPixelShader.h"
-#include "Rendering/Vulkan/VulkanVertexShader.h"
+#include "Rendering/Vulkan/VulkanGraphicsEngine.h"
+#include "Rendering/Vulkan/VulkanSwapchain.h"
 #include "Trace.h"
 
 const static std::vector<const char*> ValidationLayers = 
@@ -22,13 +22,6 @@ const static std::vector<const char*> DeviceExtensions =
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-struct SwapChainSupportInfo
-{
-    vk::SurfaceCapabilitiesKHR Capabilites;
-    std::vector<vk::SurfaceFormatKHR> Formats;
-    std::vector<vk::PresentModeKHR> PresentModes;
-};
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT a_msgSeverity, VkDebugUtilsMessageTypeFlagsEXT a_msgType, const VkDebugUtilsMessengerCallbackDataEXT* a_callbackData, void* a_userData)
 {
     if (a_msgSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -37,44 +30,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     }
 
     return VK_FALSE;
-}
-
-static SwapChainSupportInfo QuerySwapChainSupport(const vk::PhysicalDevice& a_device, const vk::SurfaceKHR& a_surface)
-{
-    SwapChainSupportInfo info;
-
-    a_device.getSurfaceCapabilitiesKHR(a_surface, &info.Capabilites);
-
-    uint32_t formatCount;
-    a_device.getSurfaceFormatsKHR(a_surface, &formatCount, nullptr);
-    if (formatCount != 0)
-    {
-        info.Formats.resize(formatCount);
-        a_device.getSurfaceFormatsKHR(a_surface, &formatCount, info.Formats.data());
-    }
-
-    uint32_t presentModeCount;
-    a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, nullptr);
-    if (presentModeCount != 0)
-    {
-        info.PresentModes.resize(presentModeCount);
-        a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, info.PresentModes.data());
-    }
-
-    return info;
-}
-
-static vk::SurfaceFormatKHR GetSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& a_formats)
-{
-    for (const auto& format : a_formats)
-    {
-        if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-        {
-            return format;
-        }
-    }
-
-    return a_formats[0];
 }
 
 static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
@@ -110,7 +65,7 @@ static bool IsDeviceSuitable(const vk::PhysicalDevice& a_device, const vk::Surfa
         return false;
     }
 
-    SwapChainSupportInfo info = QuerySwapChainSupport(a_device, a_surface);
+    const SwapChainSupportInfo info = VulkanSwapchain::QuerySwapChainSupport(a_device, a_surface);
     if (info.Formats.empty() || info.PresentModes.empty())
     {
         return false;
@@ -145,14 +100,6 @@ NextIter:;
     return true;
 } 
 
-static vk::Extent2D GetSwapExtent(const vk::SurfaceCapabilitiesKHR& a_capabilities, const glm::ivec2& a_size)
-{
-    const vk::Extent2D minExtent = a_capabilities.minImageExtent;
-    const vk::Extent2D maxExtent = a_capabilities.maxImageExtent;
-
-    return vk::Extent2D(glm::clamp((uint32_t)a_size.x, minExtent.width, maxExtent.width), glm::clamp((uint32_t)a_size.y, minExtent.height, maxExtent.height));
-}
-
 std::vector<const char*> VulkanRenderEngineBackend::GetRequiredExtensions() const
 {
     uint32_t glfwExtensionCount = 0;
@@ -168,82 +115,7 @@ std::vector<const char*> VulkanRenderEngineBackend::GetRequiredExtensions() cons
     return extensions;
 }
 
-void VulkanRenderEngineBackend::GenerateSwapChain()
-{
-    const SwapChainSupportInfo info = QuerySwapChainSupport(m_pDevice, m_surface);
-
-    m_surfaceFormat = GetSurfaceFormat(info.Formats);
-    constexpr vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
-    const vk::Extent2D extents = GetSwapExtent(info.Capabilites, m_winSize);
-
-    uint32_t imageCount = info.Capabilites.minImageCount + 1;
-    if (info.Capabilites.maxImageCount > 0)
-    {
-        imageCount = glm::min(imageCount, info.Capabilites.maxImageCount);
-    }
-
-    vk::SwapchainCreateInfoKHR createInfo = vk::SwapchainCreateInfoKHR
-    (
-        vk::SwapchainCreateFlagsKHR(), 
-        m_surface, 
-        imageCount, 
-        m_surfaceFormat.format, 
-        m_surfaceFormat.colorSpace, 
-        extents, 
-        1, 
-        vk::ImageUsageFlagBits::eColorAttachment, vk::SharingMode::eExclusive, 
-        nullptr,
-        info.Capabilites.currentTransform,
-        vk::CompositeAlphaFlagBitsKHR::eOpaque,
-        presentMode,
-        VK_TRUE,
-        m_swapchain
-    );
-
-    const uint32_t queueFamilyIndices[] = { m_graphicsQueueIndex, m_presentQueueIndex };
-
-    if (m_presentQueue != m_graphicsQueue)
-    {
-        createInfo.imageSharingMode = vk::SharingMode::eConcurrent;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    }
-
-    if (m_lDevice.createSwapchainKHR(&createInfo, nullptr, &m_swapchain) != vk::Result::eSuccess)
-    {
-        printf("Failed to create Vulkan Swapchain \n");
-
-        assert(0);
-    }
-
-    TRACE("Created Vulkan Swapchain");
-}
-void VulkanRenderEngineBackend::GenerateSwapImages()
-{
-    uint32_t imageCount;
-    m_lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
-    std::vector<vk::Image> swapImages = std::vector<vk::Image>(imageCount);
-    m_lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
-
-    m_imageViews.resize(imageCount);
-
-    for (uint32_t i = 0; i < imageCount; ++i)
-    {
-        vk::ImageViewCreateInfo createInfo = vk::ImageViewCreateInfo(vk::ImageViewCreateFlags(), swapImages[i], vk::ImageViewType::e2D, m_surfaceFormat.format);
-        createInfo.subresourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-
-        if (m_lDevice.createImageView(&createInfo, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
-        {
-            printf("Failed to create Swapchain Image View \n");
-
-            assert(0);
-        }
-    }
-
-    TRACE("Created Vulkan SwapImages");
-}
-
-VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : RenderEngineBackend(a_engine)
+VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
     std::vector<const char*> enabledLayers;
 
@@ -426,48 +298,36 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RenderEngine* a_engine) : R
     m_lDevice.getQueue(m_presentQueueIndex, 0, &m_presentQueue);
 
     TRACE("Got Vulkan Queues");
+
+    m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
 }
 VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 {
     TRACE("Begin Vulkan clean up");
 
-    for (const VulkanVertexShader* shader : m_vertexShaders)
+    delete m_graphicsEngine;
+    if (m_swapchain != nullptr)
     {
-        if (shader != nullptr)
-        {
-            printf("Vertex Shader was not destroyed \n");
-
-            delete shader;
-        }
+        delete m_swapchain;
+        m_swapchain = nullptr;
     }
 
-    for (const VulkanPixelShader* shader : m_pixelShaders)
-    {
-        if (shader != nullptr)
-        {
-            printf("Pixel Shader was not destroyed \n");
+    TRACE("Destroy Vulkan Allocator")
+    vmaDestroyAllocator(m_allocator);
 
-            delete shader;
-        }
-    }
+    TRACE("Destroying Surface");
+    m_instance.destroySurfaceKHR(m_surface);
+
+    TRACE("Destroying Devices");
+    m_lDevice.destroy();
 
     if constexpr (EnableValidationLayers)
     {
+        TRACE("Cleaning Vulkan Diagnostics");
         m_instance.destroyDebugUtilsMessengerEXT(m_messenger);
     }
 
-    for (auto imageView : m_imageViews)
-    {
-        m_lDevice.destroyImageView(imageView, nullptr);
-    }
-
-    if (m_winSize.x != -1 || m_winSize.y != -1)
-    {
-        vkDestroySwapchainKHR(m_lDevice, m_swapchain, nullptr);
-    }
-    m_instance.destroySurfaceKHR(m_surface);
-
-    m_lDevice.destroy();
+    TRACE("Destroying Vulkan Instace");
     m_instance.destroy();
 
     TRACE("Vulkan cleaned up");
@@ -478,85 +338,22 @@ void VulkanRenderEngineBackend::Update()
     glm::ivec2 newWinSize;
     glfwGetWindowSize(m_renderEngine->m_window, &newWinSize.x, &newWinSize.y);
 
-    if (m_winSize.x == -1 || m_winSize.y == -1 || newWinSize != m_winSize)
+    if (m_swapchain == nullptr)
     {
-        m_winSize = newWinSize;
-
-        GenerateSwapChain();
-        GenerateSwapImages();
+        m_swapchain = new VulkanSwapchain(this, newWinSize);
     }
-}
-
-uint32_t VulkanRenderEngineBackend::GenerateVertexShaderAddr(const std::string_view& a_str)
-{
-    VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(this, a_str);
-
-    const uint32_t size = (uint32_t)m_vertexShaders.size();
-    for (uint32_t i = 0; i < size; ++i)
+    else if (newWinSize != m_swapchain->GetSize())
     {
-        if (m_vertexShaders[i] == nullptr)
-        {
-            m_vertexShaders[i] = shader;
-            
-            return i;
-        }
+        printf("Not implemented \n");
     }
 
-    m_vertexShaders.emplace_back(shader);
-
-    return (uint32_t)m_vertexShaders.size() - 1;
-}
-void VulkanRenderEngineBackend::DestoryVertexShader(uint32_t a_addr)
-{
-    if (m_vertexShaders[a_addr] != nullptr)
-    {
-        delete m_vertexShaders[a_addr];
-        m_vertexShaders[a_addr] = nullptr;
-    }
-    else
-    {
-        printf("VertexShader already destroyed \n");
-
-        assert(0);
-    }
-}
-
-uint32_t VulkanRenderEngineBackend::GeneratePixelShaderAddr(const std::string_view& a_str)
-{
-    VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(this, a_str);
-
-    const uint32_t size = (uint32_t)m_pixelShaders.size();
-    for (uint32_t i = 0; i < size; ++i)
-    {
-        if (m_pixelShaders[i] == nullptr)
-        {
-            m_pixelShaders[i] = shader;
-
-            return i;
-        }
-    }
-
-    m_pixelShaders.emplace_back(shader);
-
-    return (uint32_t)m_pixelShaders.size() - 1;
-}
-void VulkanRenderEngineBackend::DestroyPixelShader(uint32_t a_addr)
-{
-    if (m_pixelShaders[a_addr] != nullptr)
-    {
-        delete m_pixelShaders[a_addr];
-        m_pixelShaders[a_addr] = nullptr;
-    }
-    else
-    {
-        printf("PixelShader already destroyed \n");
-
-        assert(0);
-    }
+    m_graphicsEngine->Update(m_swapchain);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance a_instance, const VkDebugUtilsMessengerCreateInfoEXT* a_createInfo, const VkAllocationCallbacks* a_allocator, VkDebugUtilsMessengerEXT* a_messenger)
 {
+    TRACE("Custom Vulkan Debug Initializer Called");
+
     PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(a_instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
     {
@@ -567,6 +364,8 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance a_insta
 }
 VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance a_instance, VkDebugUtilsMessengerEXT a_messenger, const VkAllocationCallbacks* a_allocator)
 {
+    TRACE("Custom Vulkan Debug Destructor Called");
+
     PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(a_instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)
     {

@@ -11,6 +11,7 @@ enum e_RenderingEngine
 
 class Config;
 class RenderEngineBackend;
+class RuntimeManager;
 
 class RenderEngine
 {
@@ -26,14 +27,8 @@ private:
 protected:
 
 public:
-    RenderEngine(GLFWwindow* a_window, Config* a_config);
+    RenderEngine(RuntimeManager* a_runtime, GLFWwindow* a_window, Config* a_config);
     ~RenderEngine();
 
     void Update();
-
-    uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
-    void DestroyVertexShader(uint32_t a_addr);
-
-    uint32_t GeneratePixelShaderAddr(const std::string_view& a_str);
-    void DestroyPixelShader(uint32_t a_addr);
 };

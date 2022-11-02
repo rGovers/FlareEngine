@@ -5,8 +5,9 @@
 #include "Config.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
+#include "RuntimeManager.h"
 
-RenderEngine::RenderEngine(GLFWwindow* a_window, Config* a_config)
+RenderEngine::RenderEngine(RuntimeManager* a_runtime, GLFWwindow* a_window, Config* a_config)
 {
     m_config = a_config;
 
@@ -18,12 +19,14 @@ RenderEngine::RenderEngine(GLFWwindow* a_window, Config* a_config)
     {
     case RenderingEngine_Vulkan:
     {
-        m_backend = new VulkanRenderEngineBackend(this);
+        m_backend = new VulkanRenderEngineBackend(a_runtime, this);
 
         break;
     }
     default:
     {
+        printf("Failed to create RenderEngine \n");
+
         assert(0);
 
         break;
@@ -42,22 +45,4 @@ RenderEngine::~RenderEngine()
 void RenderEngine::Update()
 {
     m_backend->Update();
-}
-
-uint32_t RenderEngine::GenerateVertexShaderAddr(const std::string_view& a_str)
-{
-    return m_backend->GenerateVertexShaderAddr(a_str);
-}
-void RenderEngine::DestroyVertexShader(uint32_t a_addr)
-{
-    m_backend->DestoryVertexShader(a_addr);
-}
-
-uint32_t RenderEngine::GeneratePixelShaderAddr(const std::string_view& a_str)
-{
-    return m_backend->GeneratePixelShaderAddr(a_str);
-}
-void RenderEngine::DestroyPixelShader(uint32_t a_addr)
-{
-    m_backend->DestroyPixelShader(a_addr);
 }

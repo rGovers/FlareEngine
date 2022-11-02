@@ -4,19 +4,15 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
-VulkanPixelShader::VulkanPixelShader(RenderEngineBackend* a_engine, const std::vector<unsigned int>& a_data)
+VulkanPixelShader::VulkanPixelShader(VulkanRenderEngineBackend* a_engine, const std::vector<unsigned int>& a_data) : VulkanShader(a_engine)
 {
-    m_engine = a_engine;
-
-    const VulkanRenderEngineBackend* vEngine = (VulkanRenderEngineBackend*)m_engine;
-
-    const vk::Device device = vEngine->GetLogicalDevice();
+    const vk::Device device = m_engine->GetLogicalDevice();
 
     const vk::ShaderModuleCreateInfo createInfo = vk::ShaderModuleCreateInfo
     (
         vk::ShaderModuleCreateFlags(),
         a_data.size() * sizeof(unsigned int),
-        a_data.data()
+        (uint32_t*)a_data.data()
     );
 
     if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
@@ -30,14 +26,12 @@ VulkanPixelShader::VulkanPixelShader(RenderEngineBackend* a_engine, const std::v
 }
 VulkanPixelShader::~VulkanPixelShader()
 {
-    const VulkanRenderEngineBackend* vEngine = (VulkanRenderEngineBackend*)m_engine;
-
-    const vk::Device device = vEngine->GetLogicalDevice();
+    const vk::Device device = m_engine->GetLogicalDevice();
 
     device.destroyShaderModule(m_module);
 }
 
-VulkanPixelShader* VulkanPixelShader::CreateFromGLSL(RenderEngineBackend* a_engine, const std::string_view& a_str)
+VulkanPixelShader* VulkanPixelShader::CreateFromGLSL(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str)
 {
     const std::vector<unsigned int> spirv = spirv_fromGLSL(EShLangFragment, a_str);
     

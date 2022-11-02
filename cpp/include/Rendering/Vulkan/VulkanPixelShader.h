@@ -2,24 +2,18 @@
 
 #include <string_view>
 
-#include <vulkan/vulkan.hpp>
+#include "Rendering/Vulkan/VulkanShader.h"
 
-class RenderEngineBackend;
-
-class VulkanPixelShader
+class VulkanPixelShader : public VulkanShader
 {
 private:
-    RenderEngineBackend* m_engine = nullptr;
-
-    vk::ShaderModule     m_module = nullptr;
-
-    VulkanPixelShader();
-
+    
 protected:
 
 public:
-    VulkanPixelShader(RenderEngineBackend* a_engine, const std::vector<unsigned int>& a_data);
-    ~VulkanPixelShader();
+    VulkanPixelShader() = delete;
+    VulkanPixelShader(VulkanRenderEngineBackend* a_engine, const std::vector<unsigned int>& a_data);
+    virtual ~VulkanPixelShader();
 
-    static VulkanPixelShader* CreateFromGLSL(RenderEngineBackend* a_engine, const std::string_view& a_str);
+    static VulkanPixelShader* CreateFromGLSL(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str);
 };

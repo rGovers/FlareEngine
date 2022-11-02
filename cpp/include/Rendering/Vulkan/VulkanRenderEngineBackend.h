@@ -1,8 +1,5 @@
 #pragma once
 
-#define GLM_FORCE_SWIZZLE 
-#include <glm/glm.hpp>
-
 #include <vulkan/vulkan.hpp>
 
 #define VMA_VULKAN_VERSION 1000000
@@ -10,8 +7,9 @@
 
 #include "Rendering/RenderEngineBackend.h"
 
-class VulkanPixelShader;
-class VulkanVertexShader;
+class RuntimeManager;
+class VulkanGraphicsEngine;
+class VulkanSwapchain;
 
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
@@ -23,38 +21,30 @@ private:
     static constexpr bool EnableValidationLayers = true;
 #endif
 
-    VmaAllocator                     m_allocator;
-      
-    vk::Instance                     m_instance;
-    vk::DebugUtilsMessengerEXT       m_messenger;
-    vk::PhysicalDevice               m_pDevice;
-    vk::Device                       m_lDevice;
+    VulkanGraphicsEngine*      m_graphicsEngine;
+    VulkanSwapchain*           m_swapchain = nullptr;
+
+    VmaAllocator               m_allocator;
+
+    vk::Instance               m_instance;
+    vk::DebugUtilsMessengerEXT m_messenger;
+    vk::PhysicalDevice         m_pDevice;
+    vk::Device                 m_lDevice;
           
-    vk::Queue                        m_graphicsQueue;
-    vk::Queue                        m_presentQueue;
+    vk::Queue                  m_graphicsQueue;
+    vk::Queue                  m_presentQueue;
       
-    vk::SurfaceKHR                   m_surface;
-    vk::SwapchainKHR                 m_swapchain = nullptr;
-    std::vector<vk::ImageView>       m_imageViews;
-      
-    vk::SurfaceFormatKHR             m_surfaceFormat;
-      
-    uint32_t                         m_graphicsQueueIndex = -1;
-    uint32_t                         m_presentQueueIndex = -1;
-
-    std::vector<VulkanVertexShader*> m_vertexShaders;
-    std::vector<VulkanPixelShader*>  m_pixelShaders;
-
-    glm::ivec2                       m_winSize = glm::ivec2(-1);
+    vk::SurfaceKHR             m_surface;
+    
+    uint32_t                   m_graphicsQueueIndex = -1;
+    uint32_t                   m_presentQueueIndex = -1;
 
     std::vector<const char*> GetRequiredExtensions() const;
 
-    void GenerateSwapChain();
-    void GenerateSwapImages();
 protected:
 
 public:
-    VulkanRenderEngineBackend(RenderEngine* a_engine);
+    VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine);
     virtual ~VulkanRenderEngineBackend();
 
     virtual void Update();
@@ -68,10 +58,30 @@ public:
     {
         return m_lDevice;
     }
+    inline vk::PhysicalDevice GetPhysicalDevice() const
+    {
+        return m_pDevice;
+    }
 
-    virtual uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
-    virtual void DestoryVertexShader(uint32_t a_addr);
+    inline vk::SurfaceKHR GetSurface() const
+    {
+        return m_surface;
+    }
 
-    virtual uint32_t GeneratePixelShaderAddr(const std::string_view& a_str);
-    virtual void DestroyPixelShader(uint32_t a_addr);    
+    inline uint32_t GetPresentQueueIndex() const
+    {
+        return m_presentQueueIndex;
+    }
+    inline uint32_t GetGraphicsQueueIndex() const
+    {
+        return m_graphicsQueueIndex;
+    }
+    inline vk::Queue GetPresentQueue() const
+    {
+        return m_presentQueue;
+    }
+    inline vk::Queue GetGraphicsQueue() const
+    {
+        return m_graphicsQueue;
+    }
 };

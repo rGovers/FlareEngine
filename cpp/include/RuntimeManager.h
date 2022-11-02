@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
+#include <string_view>
 
 class RenderEngine;
 
@@ -20,8 +21,10 @@ private:
 protected:
 
 public:
-    RuntimeManager(RenderEngine* a_renderEngine);
+    RuntimeManager();
     ~RuntimeManager();
+
+    void BindFunction(const std::string_view& a_location, void* a_function);
 
     void Exec(int32_t a_argc, char* a_argv[]);
     void Update(double a_delta, double a_time);

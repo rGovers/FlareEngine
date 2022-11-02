@@ -202,6 +202,30 @@ namespace FlareEngine.Definitions
                     {
                         field.SetValue(a_def, obj.Text);
                     }
+                    else if (fieldType == typeof(uint))
+                    {
+                        uint val;
+                        if (uint.TryParse(obj.Text, out val))
+                        {
+                            field.SetValue(a_def, val);
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine("FlareCS: Cannot Parse Def uint: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
+                        }
+                    }
+                    else if (fieldType == typeof(int))
+                    {
+                        int val;
+                        if (int.TryParse(obj.Text, out val))
+                        {
+                            field.SetValue(a_def, val);
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine("FlareCS: Cannot Parse Def int: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
+                        }
+                    }
                     else if (fieldType == typeof(VertexShader))
                     {
                         field.SetValue(a_def, AssetLibrary.LoadVertexShader(obj.Text));
