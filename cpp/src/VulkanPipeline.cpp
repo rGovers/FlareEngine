@@ -3,7 +3,6 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
-#include "Rendering/Vulkan/VulkanRenderPass.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 
 static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderProgram& a_program, const VulkanGraphicsEngine* a_gEngine)
@@ -43,7 +42,7 @@ static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderP
     return stages;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const VulkanRenderPass* a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program)
 {
     m_engine = a_engine;
 
@@ -160,7 +159,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
         &colorBlending,
         &dynamicState,
         m_layout,
-        a_renderPass->GetRenderPass()
+        a_renderPass
     );
 
     if (device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline) != vk::Result::eSuccess)

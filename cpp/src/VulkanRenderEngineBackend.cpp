@@ -299,11 +299,39 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     TRACE("Got Vulkan Queues");
 
+    constexpr vk::SemaphoreCreateInfo semaphoreInfo;
+    constexpr vk::FenceCreateInfo fenceInfo = vk::FenceCreateInfo
+    (
+        vk::FenceCreateFlagBits::eSignaled
+    );
+
+    if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable) != vk::Result::eSuccess)
+    {
+        printf("Failed to create image semphore \n");
+
+        assert(0);
+    }
+    if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_renderFinished) != vk::Result::eSuccess)
+    {
+        printf("Failed to create render semaphore \n");
+
+        assert(0);
+    }
+    if (m_lDevice.createFence(&fenceInfo, nullptr, &m_inFlight) != vk::Result::eSuccess)
+    {
+        printf("Failed to create fence \n");
+
+        assert(0);
+    }
+
+    TRACE("Created Vulkan sync objects");
+
     m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
 }
 VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 {
     TRACE("Begin Vulkan clean up");
+    m_lDevice.waitIdle();
 
     delete m_graphicsEngine;
     if (m_swapchain != nullptr)
@@ -311,6 +339,11 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
         delete m_swapchain;
         m_swapchain = nullptr;
     }
+
+    TRACE("Destroy Vulkan Sync Objects");
+    m_lDevice.destroySemaphore(m_imageAvailable);
+    m_lDevice.destroySemaphore(m_renderFinished);
+    m_lDevice.destroyFence(m_inFlight);
 
     TRACE("Destroy Vulkan Allocator")
     vmaDestroyAllocator(m_allocator);
@@ -335,6 +368,9 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update()
 {
+    m_lDevice.waitForFences(1, &m_inFlight, VK_TRUE, UINT64_MAX);
+    m_lDevice.resetFences(1, &m_inFlight);
+
     glm::ivec2 newWinSize;
     glfwGetWindowSize(m_renderEngine->m_window, &newWinSize.x, &newWinSize.y);
 
@@ -347,7 +383,44 @@ void VulkanRenderEngineBackend::Update()
         printf("Not implemented \n");
     }
 
-    m_graphicsEngine->Update(m_swapchain);
+    m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable, nullptr, &m_imageIndex);
+
+    const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
+
+    const vk::Semaphore waitSemaphores[] = { m_imageAvailable };
+    const vk::Semaphore signalSemaphores[] = { m_renderFinished };
+    constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+
+    const vk::SubmitInfo submitInfo = vk::SubmitInfo
+    (
+        1, 
+        waitSemaphores, 
+        WaitStages,
+        (uint32_t)buffers.size(),
+        buffers.data(),
+        1,
+        signalSemaphores
+    );
+
+    if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight) != vk::Result::eSuccess)
+    {
+        printf("Failed to submit command \n");
+
+        assert(0);
+    }
+
+    const vk::SwapchainKHR swapChains[] = { m_swapchain->GetSwapchain() };
+
+    const vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR
+    (
+        1,
+        signalSemaphores,
+        1,
+        swapChains,
+        &m_imageIndex
+    );
+
+    m_presentQueue.presentKHR(&presentInfo);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance a_instance, const VkDebugUtilsMessengerCreateInfoEXT* a_createInfo, const VkAllocationCallbacks* a_allocator, VkDebugUtilsMessengerEXT* a_messenger)

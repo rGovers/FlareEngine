@@ -22,6 +22,11 @@ private:
 protected:
 
 public:
-    VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const VulkanRenderPass* a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program);
+    VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program);
     ~VulkanPipeline();
+
+    inline vk::Pipeline GetPipeline() const
+    {
+        return m_pipeline;
+    }
 };

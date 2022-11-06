@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.0)
 project (FlareNative VERSION 0.1 LANGUAGES C CXX)
 
 option(GENERATE_CONFIG "Generates engine configuration file" OFF)
+option(ENABLE_TRACE "Enables tracing" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -25,6 +26,10 @@ configure_file(
     "${PROJECT_SOURCE_DIR}/FlareNativeConfig.h.in"
     "${PROJECT_SOURCE_DIR}/include/FlareNativeConfig.h"
 )
+
+if (ENABLE_TRACE)
+    add_compile_definitions(FLARENATIVE_ENABLE_TRACE)
+endif()
 
 if (GENERATE_CONFIG)
     configure_file(

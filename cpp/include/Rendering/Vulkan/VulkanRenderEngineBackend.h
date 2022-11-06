@@ -14,7 +14,6 @@ class VulkanSwapchain;
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
-
 #ifdef NDEBUG
     static constexpr bool EnableValidationLayers = false;
 #else
@@ -35,7 +34,13 @@ private:
     vk::Queue                  m_presentQueue;
       
     vk::SurfaceKHR             m_surface;
-    
+
+    vk::Semaphore              m_imageAvailable;
+    vk::Semaphore              m_renderFinished;
+    vk::Fence                  m_inFlight;
+
+    uint32_t                   m_imageIndex = -1;
+
     uint32_t                   m_graphicsQueueIndex = -1;
     uint32_t                   m_presentQueueIndex = -1;
 
@@ -83,5 +88,10 @@ public:
     inline vk::Queue GetGraphicsQueue() const
     {
         return m_graphicsQueue;
+    }
+
+    inline uint32_t GetImageIndex() const
+    {
+        return m_imageIndex;
     }
 };

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vulkan/vulkan.hpp>
+
 #include <queue>
 #include <string_view>
 #include <unordered_map>
@@ -31,13 +33,15 @@ private:
     std::queue<uint32_t>                          m_freeCamSlots;
     std::vector<CameraBuffer>                     m_cameraBuffers;
 
+    vk::CommandPool                               m_commandPool;
+
 protected:
 
 public:
     VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRenderEngineBackend* a_vulkanEngine);
     ~VulkanGraphicsEngine();
 
-    void Update(VulkanSwapchain* a_swapChain);
+    std::vector<vk::CommandBuffer> Update(const VulkanSwapchain* a_swapChain);
 
     uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
     VulkanVertexShader* GetVertexShader(uint32_t a_addr) const;

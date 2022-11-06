@@ -16,7 +16,7 @@ static uint32_t VertexShader_GenerateShader(MonoString* a_string)
 
     const uint32_t ret = Engine->GenerateVertexShaderAddr(str);
 
-    free(str);
+    mono_free(str);
 
     return ret;
 }
@@ -31,7 +31,7 @@ static uint32_t PixelShader_GenerateShader(MonoString* a_string)
 
     const uint32_t ret = Engine->GeneratePixelShaderAddr(str);
 
-    free(str);
+    mono_free(str);
 
     return ret;
 }
@@ -73,7 +73,7 @@ static CameraBuffer Camera_GetBuffer(uint32_t a_addr)
 {
     return Engine->GetCameraBuffer(a_addr);
 }
-static CameraBuffer Camera_SetBuffer(uint32_t a_addr, CameraBuffer a_buffer)
+static void Camera_SetBuffer(uint32_t a_addr, CameraBuffer a_buffer)
 {
     Engine->SetCameraBuffer(a_addr, a_buffer);
 }
@@ -84,8 +84,25 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
 
     Engine = this;
 
-    TRACE("Binding Vulkan functions to C#");
+    TRACE("Creating Vulkan Command Pool");
+    vk::Device device = m_vulkanEngine->GetLogicalDevice();
 
+    const vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo
+    (
+        vk::CommandPoolCreateFlagBits::eTransient,
+        m_vulkanEngine->GetGraphicsQueueIndex()
+    );  
+
+    if (device.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
+    {
+        printf("Failed to create command pool \n");
+
+        assert(0);
+    }
+
+    printf("%d \n", sizeof(CameraBuffer));
+
+    TRACE("Binding Vulkan functions to C#");
     a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::GenerateShader", (void*)VertexShader_GenerateShader);
     a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::DestroyShader", (void*)VertexShader_DestroyShader);
     a_runtime->BindFunction("FlareEngine.Rendering.PixelShader::GenerateShader", (void*)PixelShader_GenerateShader);
@@ -103,6 +120,11 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
 }
 VulkanGraphicsEngine::~VulkanGraphicsEngine()
 {
+    const vk::Device device = m_vulkanEngine->GetLogicalDevice();
+
+    TRACE("Deleting command pool");
+    device.destroyCommandPool(m_commandPool);
+
     TRACE("Deleting Pipelines")
     for (const auto& iter : m_pipelines)
     {
@@ -145,7 +167,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     }
 }
 
-void VulkanGraphicsEngine::Update(VulkanSwapchain* a_swapchain)
+std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchain* a_swapchain)
 {
     // TODO: Rewrite down the line
     const uint32_t camBufferSize = (uint32_t)m_cameraBuffers.size();
@@ -175,6 +197,60 @@ void VulkanGraphicsEngine::Update(VulkanSwapchain* a_swapchain)
     {
         int brk = 3;
     }
+
+    const vk::Device device = m_vulkanEngine->GetLogicalDevice();
+
+    std::vector<vk::CommandBuffer> bufferVec;
+
+    const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
+    (
+        m_commandPool,
+        vk::CommandBufferLevel::ePrimary,
+        1
+    );
+
+    vk::CommandBuffer commandBuffer;
+    if (device.allocateCommandBuffers(&allocInfo, &commandBuffer) != vk::Result::eSuccess)
+    {   
+        printf("Failed to Allocate Command Buffers \n");
+
+        assert(0);
+    }
+
+    constexpr vk::CommandBufferBeginInfo beginInfo = vk::CommandBufferBeginInfo
+    (
+        vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+    );
+
+    commandBuffer.begin(beginInfo);
+
+    const glm::ivec2 swapSize = a_swapchain->GetSize();
+    constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(std::array{ 0.1f, 0.1f, 0.1f, 1.0f }));
+
+    const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
+    (
+        a_swapchain->GetRenderPass(),
+        a_swapchain->GetFramebuffer(m_vulkanEngine->GetImageIndex()),
+        vk::Rect2D({ 0, 0 }, { (uint32_t)swapSize.x, (uint32_t)swapSize.y }),
+        1,
+        &ClearColor
+    );
+    commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipelines.begin()->second->GetPipeline());
+
+    const vk::Viewport viewport = vk::Viewport(0.0f, 0.0f, (float)swapSize.x, (float)swapSize.y, 0.0f, 1.0f);
+    commandBuffer.setViewport(0, 1, &viewport);
+
+    const vk::Rect2D scissor = vk::Rect2D({ 0, 0 }, { swapSize.x, swapSize.y });
+    commandBuffer.setScissor(0, 1, &scissor);
+
+    commandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.endRenderPass();
+    commandBuffer.end();
+    
+    bufferVec.emplace_back(commandBuffer);
+
+    return bufferVec;
 }
 
 uint32_t VulkanGraphicsEngine::GenerateVertexShaderAddr(const std::string_view& a_str)
