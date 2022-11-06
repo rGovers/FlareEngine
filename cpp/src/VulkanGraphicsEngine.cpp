@@ -100,8 +100,6 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
         assert(0);
     }
 
-    printf("%d \n", sizeof(CameraBuffer));
-
     TRACE("Binding Vulkan functions to C#");
     a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::GenerateShader", (void*)VertexShader_GenerateShader);
     a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::DestroyShader", (void*)VertexShader_DestroyShader);

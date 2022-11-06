@@ -305,25 +305,28 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         vk::FenceCreateFlagBits::eSignaled
     );
 
-    if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable) != vk::Result::eSuccess)
+    for (uint32_t i = 0; i < MaxFlightFrames; ++i)
     {
-        printf("Failed to create image semphore \n");
+        if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable[i]) != vk::Result::eSuccess)
+        {
+            printf("Failed to create image semphore \n");
 
-        assert(0);
+            assert(0);
+        }
+        if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_renderFinished[i]) != vk::Result::eSuccess)
+        {
+            printf("Failed to create render semaphore \n");
+
+            assert(0);
+        }
+        if (m_lDevice.createFence(&fenceInfo, nullptr, &m_inFlight[i]) != vk::Result::eSuccess)
+        {
+            printf("Failed to create fence \n");
+
+            assert(0);
+        }
     }
-    if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_renderFinished) != vk::Result::eSuccess)
-    {
-        printf("Failed to create render semaphore \n");
-
-        assert(0);
-    }
-    if (m_lDevice.createFence(&fenceInfo, nullptr, &m_inFlight) != vk::Result::eSuccess)
-    {
-        printf("Failed to create fence \n");
-
-        assert(0);
-    }
-
+    
     TRACE("Created Vulkan sync objects");
 
     m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
@@ -341,10 +344,13 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     }
 
     TRACE("Destroy Vulkan Sync Objects");
-    m_lDevice.destroySemaphore(m_imageAvailable);
-    m_lDevice.destroySemaphore(m_renderFinished);
-    m_lDevice.destroyFence(m_inFlight);
-
+    for (uint32_t i = 0; i < MaxFlightFrames; ++i)
+    {
+        m_lDevice.destroySemaphore(m_imageAvailable[i]);
+        m_lDevice.destroySemaphore(m_renderFinished[i]);
+        m_lDevice.destroyFence(m_inFlight[i]);
+    }
+    
     TRACE("Destroy Vulkan Allocator")
     vmaDestroyAllocator(m_allocator);
 
@@ -368,8 +374,8 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update()
 {
-    m_lDevice.waitForFences(1, &m_inFlight, VK_TRUE, UINT64_MAX);
-    m_lDevice.resetFences(1, &m_inFlight);
+    m_lDevice.waitForFences(1, &m_inFlight[m_currentFrame], VK_TRUE, UINT64_MAX);
+    m_lDevice.resetFences(1, &m_inFlight[m_currentFrame]);
 
     glm::ivec2 newWinSize;
     glfwGetWindowSize(m_renderEngine->m_window, &newWinSize.x, &newWinSize.y);
@@ -383,12 +389,12 @@ void VulkanRenderEngineBackend::Update()
         printf("Not implemented \n");
     }
 
-    m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable, nullptr, &m_imageIndex);
+    m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable[m_currentFrame], nullptr, &m_imageIndex);
 
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
 
-    const vk::Semaphore waitSemaphores[] = { m_imageAvailable };
-    const vk::Semaphore signalSemaphores[] = { m_renderFinished };
+    const vk::Semaphore waitSemaphores[] = { m_imageAvailable[m_currentFrame] };
+    const vk::Semaphore signalSemaphores[] = { m_renderFinished[m_currentFrame] };
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
     const vk::SubmitInfo submitInfo = vk::SubmitInfo
@@ -402,7 +408,7 @@ void VulkanRenderEngineBackend::Update()
         signalSemaphores
     );
 
-    if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight) != vk::Result::eSuccess)
+    if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
     {
         printf("Failed to submit command \n");
 
@@ -421,6 +427,7 @@ void VulkanRenderEngineBackend::Update()
     );
 
     m_presentQueue.presentKHR(&presentInfo);
+    m_currentFrame = (m_currentFrame + 1) % MaxFlightFrames;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance a_instance, const VkDebugUtilsMessengerCreateInfoEXT* a_createInfo, const VkAllocationCallbacks* a_allocator, VkDebugUtilsMessengerEXT* a_messenger)
