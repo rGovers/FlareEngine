@@ -375,10 +375,14 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 void VulkanRenderEngineBackend::Update()
 {
     m_lDevice.waitForFences(1, &m_inFlight[m_currentFrame], VK_TRUE, UINT64_MAX);
-    m_lDevice.resetFences(1, &m_inFlight[m_currentFrame]);
 
     glm::ivec2 newWinSize;
     glfwGetWindowSize(m_renderEngine->m_window, &newWinSize.x, &newWinSize.y);
+
+    if (newWinSize.x == 0 || newWinSize.y == 0)
+    {
+        return;
+    }
 
     if (m_swapchain == nullptr)
     {
@@ -386,21 +390,43 @@ void VulkanRenderEngineBackend::Update()
     }
     else if (newWinSize != m_swapchain->GetSize())
     {
-        printf("Not implemented \n");
+        m_swapchain->Rebuild(newWinSize);
     }
 
-    m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable[m_currentFrame], nullptr, &m_imageIndex);
+    switch (m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable[m_currentFrame], nullptr, &m_imageIndex))
+    {
+    case vk::Result::eErrorOutOfDateKHR:
+    {
+        m_swapchain->Rebuild(newWinSize);
+
+        return;
+    }
+    case vk::Result::eSuccess:
+    case vk::Result::eSuboptimalKHR:
+    {
+        break;
+    }
+    default:
+    {
+        printf("Failed to aquire swapchain image \n");
+
+        assert(0);
+
+        break;
+    }
+    }
+
+    m_lDevice.resetFences(1, &m_inFlight[m_currentFrame]);
 
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
 
-    const vk::Semaphore waitSemaphores[] = { m_imageAvailable[m_currentFrame] };
     const vk::Semaphore signalSemaphores[] = { m_renderFinished[m_currentFrame] };
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
     const vk::SubmitInfo submitInfo = vk::SubmitInfo
     (
         1, 
-        waitSemaphores, 
+        &m_imageAvailable[m_currentFrame], 
         WaitStages,
         (uint32_t)buffers.size(),
         buffers.data(),

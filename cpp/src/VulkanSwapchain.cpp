@@ -24,15 +24,13 @@ static vk::Extent2D GetSwapExtent(const vk::SurfaceCapabilitiesKHR& a_capabiliti
     return vk::Extent2D(glm::clamp((uint32_t)a_size.x, minExtent.width, maxExtent.width), glm::clamp((uint32_t)a_size.y, minExtent.height, maxExtent.height));
 }
 
-VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm::ivec2& a_size)
+void VulkanSwapchain::Init(const glm::ivec2& a_size)
 {
-    m_engine = a_engine;
-
     m_size = a_size;
 
     const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
-    const vk::Device lDevice = m_engine->GetLogicalDevice();
     const vk::SurfaceKHR surface = m_engine->GetSurface();
+    const vk::Device lDevice = m_engine->GetLogicalDevice();
 
     const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
 
@@ -81,6 +79,18 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
     }
     TRACE("Created Vulkan Swapchain");
 
+    const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
+
+    m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
+    constexpr vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
+    const vk::Extent2D extents = GetSwapExtent(info.Capabilites, m_size);
+
+    uint32_t imageCount = info.Capabilites.minImageCount + 1;
+    if (info.Capabilites.maxImageCount > 0)
+    {
+        imageCount = glm::min(imageCount, info.Capabilites.maxImageCount);
+    }
+
     lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
     std::vector<vk::Image> swapImages = std::vector<vk::Image>(imageCount);
     lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
@@ -98,7 +108,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
             { vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity },
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
         );
-        // createInfo.subresourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 
         if (lDevice.createImageView(&createInfo, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
         {
@@ -108,64 +117,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
         }
     }
     TRACE("Created Vulkan SwapImages");
-
-    const vk::AttachmentDescription colorAttachment = vk::AttachmentDescription
-    (
-        vk::AttachmentDescriptionFlags(),
-        m_surfaceFormat.format,
-        vk::SampleCountFlagBits::e1,
-        vk::AttachmentLoadOp::eClear,
-        vk::AttachmentStoreOp::eStore,
-        vk::AttachmentLoadOp::eDontCare,
-        vk::AttachmentStoreOp::eDontCare,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::ePresentSrcKHR
-    );
-
-    constexpr vk::AttachmentReference ColorAttachmentRef = vk::AttachmentReference
-    (
-        0,
-        vk::ImageLayout::eColorAttachmentOptimal
-    );
-    const vk::SubpassDescription subpass = vk::SubpassDescription
-    (
-        vk::SubpassDescriptionFlags(),
-        vk::PipelineBindPoint::eGraphics,
-        0,
-        nullptr,
-        1,
-        &ColorAttachmentRef
-    );
-
-    constexpr vk::SubpassDependency Dependancy = vk::SubpassDependency
-    (
-        VK_SUBPASS_EXTERNAL,
-        0,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::AccessFlags(),
-        vk::AccessFlagBits::eColorAttachmentWrite
-    );
-
-    const vk::RenderPassCreateInfo renderPassInfo = vk::RenderPassCreateInfo
-    (
-        vk::RenderPassCreateFlags(),
-        1,
-        &colorAttachment,
-        1,
-        &subpass,
-        1,
-        &Dependancy
-    );
-
-    const vk::Device device = m_engine->GetLogicalDevice();
-    if (device.createRenderPass(&renderPassInfo, nullptr, &m_renderPass) != vk::Result::eSuccess)
-    {
-        printf("Failed to create Swapchain Renderpass \n");
-
-        assert(0);
-    }
-    TRACE("Created Vulkan Swapchain Renderpass");
 
     m_framebuffers.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i)
@@ -194,12 +145,9 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
         }
     }
 }
-VulkanSwapchain::~VulkanSwapchain()
+void VulkanSwapchain::Destroy()
 {
     const vk::Device device = m_engine->GetLogicalDevice();
-
-    TRACE("Destroying RenderPass");
-    device.destroyRenderPass(m_renderPass);
 
     TRACE("Destroying ImageViews");
     for (const vk::ImageView& imageView : m_imageViews)
@@ -215,6 +163,81 @@ VulkanSwapchain::~VulkanSwapchain()
     
     TRACE("Destroying Swapchain");
     device.destroySwapchainKHR(m_swapchain);
+}
+
+VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm::ivec2& a_size)
+{
+    m_engine = a_engine;
+
+    const vk::Device device = m_engine->GetLogicalDevice();
+
+    Init(a_size);
+    
+    const vk::AttachmentDescription colorAttachment = vk::AttachmentDescription
+    (
+        vk::AttachmentDescriptionFlags(),
+        m_surfaceFormat.format,
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::ePresentSrcKHR
+    );
+
+    constexpr vk::AttachmentReference ColorAttachmentRef = vk::AttachmentReference
+    (
+        0,
+        vk::ImageLayout::eColorAttachmentOptimal
+    );
+    const vk::SubpassDescription subpass = vk::SubpassDescription
+    (
+        vk::SubpassDescriptionFlags(),
+        vk::PipelineBindPoint::eGraphics,
+        0,
+        nullptr,
+        1,
+        &ColorAttachmentRef
+    );
+
+    constexpr vk::SubpassDependency Dependency = vk::SubpassDependency
+    (
+        VK_SUBPASS_EXTERNAL,
+        0,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::AccessFlags(),
+        vk::AccessFlagBits::eColorAttachmentWrite
+    );
+
+    const vk::RenderPassCreateInfo renderPassInfo = vk::RenderPassCreateInfo
+    (
+        vk::RenderPassCreateFlags(),
+        1,
+        &colorAttachment,
+        1,
+        &subpass,
+        1,
+        &Dependency
+    );
+
+    if (device.createRenderPass(&renderPassInfo, nullptr, &m_renderPass) != vk::Result::eSuccess)
+    {
+        printf("Failed to create Swapchain Renderpass \n");
+
+        assert(0);
+    }
+    TRACE("Created Vulkan Swapchain Renderpass");
+}
+VulkanSwapchain::~VulkanSwapchain()
+{
+    const vk::Device device = m_engine->GetLogicalDevice();
+
+    TRACE("Destroying RenderPass");
+    device.destroyRenderPass(m_renderPass);
+
+    Destroy();
 }
 
 SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDevice& a_device, const vk::SurfaceKHR& a_surface)
@@ -240,4 +263,10 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
     }
 
     return info;
+}
+
+void VulkanSwapchain::Rebuild(const glm::ivec2& a_size)
+{
+    Destroy();
+    Init(a_size);
 }

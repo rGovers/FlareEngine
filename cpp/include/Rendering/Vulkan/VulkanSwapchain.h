@@ -28,6 +28,9 @@ private:
     vk::SurfaceFormatKHR         m_surfaceFormat;
 
     glm::ivec2                   m_size;
+
+    void Init(const glm::ivec2& a_size);
+    void Destroy();
 protected:
 
 public:
@@ -58,4 +61,6 @@ public:
     {
         return m_swapchain;
     }
+
+    void Rebuild(const glm::ivec2& a_size);
 };
