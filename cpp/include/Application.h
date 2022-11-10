@@ -6,6 +6,7 @@
 #include <cstdint>
 
 class Config;
+class ObjectManager;
 class RenderEngine;
 class RuntimeManager;
 
@@ -15,6 +16,7 @@ private:
     GLFWwindow*     m_window;
 
     Config*         m_config;
+    ObjectManager*  m_objectManager;
     RuntimeManager* m_runtime;
     RenderEngine*   m_renderEngine;
 

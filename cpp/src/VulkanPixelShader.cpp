@@ -17,7 +17,7 @@ VulkanPixelShader::VulkanPixelShader(VulkanRenderEngineBackend* a_engine, const 
 
     if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
     {
-        printf("Failed to create PixelShader");
+        printf("Failed to create PixelShader \n");
 
         assert(0);
     }
@@ -37,7 +37,7 @@ VulkanPixelShader* VulkanPixelShader::CreateFromGLSL(VulkanRenderEngineBackend* 
     
     if (spirv.size() <= 0)
     {
-        printf("Failed to generate Pixel Spirv");
+        printf("Failed to generate Pixel Spirv \n");
 
         assert(0);
     }

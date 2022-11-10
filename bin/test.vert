@@ -1,21 +1,24 @@
 #version 450
 
-layout(location = 0) out vec3 fragColor;
+layout(location = 0) in vec4 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec4 color;
+layout(location = 3) in vec2 texCoord;
 
-vec2 positions[3] = vec2[](
-    vec2(0.0, -0.5),
-    vec2(0.5, 0.5),
-    vec2(-0.5, 0.5)
-);
+layout(location = 0) out vec4 fragColor;
 
-vec3 colors[3] = vec3[](
-    vec3(1.0, 0.0, 0.0),
-    vec3(0.0, 1.0, 0.0),
-    vec3(0.0, 0.0, 1.0)
-);
+layout(binding = 0) uniform CameraUBO
+{
+    mat4 View;
+    mat4 Proj;
+    mat4 InvView;
+    mat4 InvProj;
+    mat4 ViewProj;
+} camUbo;
 
 void main() 
 {
-    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    fragColor = colors[gl_VertexIndex];
+    gl_Position = camUbo.ViewProj * position;
+
+    fragColor = color;
 }

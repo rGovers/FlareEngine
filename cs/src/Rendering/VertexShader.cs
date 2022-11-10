@@ -58,14 +58,14 @@ namespace FlareEngine.Rendering
                 }
                 else
                 {
-                    Console.Error.WriteLine("FlareCS: VertexShader Failed to Dispose");
+                    Logger.Error("FlareCS: VertexShader Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Console.Error.WriteLine("FlareCS: Multiple VertexShader Dispose");
+                Logger.Error("FlareCS: Multiple VertexShader Dispose");
             }
         }
 

@@ -1,5 +1,6 @@
-using FlareEngine.Rendering;
+using FlareEngine.Maths;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -56,12 +57,176 @@ namespace FlareEngine.Definitions
 
             if (string.IsNullOrWhiteSpace(dataObj.Text) && dataObj.Children.Count <= 0)
             {
-                Console.Error.WriteLine("FlareCS: Invalid Def DataObject: " + dataObj.Name);
+                Logger.Error("FlareCS: Invalid Def DataObject: " + dataObj.Name);
 
                 return null;
             }
 
             return dataObj;
+        }
+
+        static void DefError(Type a_type, DefDataObject a_datObj, DefData a_data)
+        {
+            Logger.Error("FlareCS: Cannot Parse Def " + a_type.ToString() + ": " + a_datObj.Name + ", " + a_data.Name + " : " + a_data.Path);
+        }
+
+        static void LoadDefVariables(object a_obj, DefDataObject a_datObj, DefData a_data)
+        {
+            Type type = a_obj.GetType();
+
+            FieldInfo field = type.GetField(a_datObj.Name, BindingFlags.Public | BindingFlags.Instance);
+            if (field != null)
+            {
+                object obj = field.GetValue(a_obj);
+
+                switch (obj)
+                {
+                case Type val:
+                {
+                    val = Type.GetType(a_datObj.Text, false);
+                    if (val != null)
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(Type), a_datObj, a_data);
+                    }
+
+                    break;
+                }
+                case uint val:
+                {
+                    if (uint.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(uint), a_datObj, a_data);
+                    }
+
+                    break;
+                }
+                case int val:
+                {
+                    if (int.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(int), a_datObj, a_data);
+                    }
+
+                    break;
+                }
+                case float val:
+                {
+                    if (float.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(float), a_datObj, a_data);
+                    }
+
+                    break;
+                }
+                default:
+                {
+                    Type fieldType = field.FieldType;
+
+                    if (fieldType.IsSubclassOf(typeof(Def)))
+                    {
+                        Def def = new Def();
+                        def.DefName = a_datObj.Name;
+                        field.SetValue(a_obj, def);
+                    }
+                    else if (fieldType == typeof(string))
+                    {
+                        field.SetValue(a_obj, a_datObj.Text);
+                    }
+                    else if (fieldType.IsSubclassOf(typeof(Enum)))
+                    {
+                        int val;
+                        if (int.TryParse(a_datObj.Text, out val))
+                        {
+                            if (Enum.IsDefined(fieldType, val))
+                            {
+                                field.SetValue(a_obj, val);
+                            }
+                            else
+                            {
+                                DefError(fieldType, a_datObj, a_data);
+                            }
+                        }   
+                        else
+                        {
+                            object eVal = Enum.Parse(fieldType, a_datObj.Text);
+                            if (eVal != null)
+                            {
+                                field.SetValue(a_obj, eVal);
+                            }
+                            else
+                            {
+                                DefError(fieldType, a_datObj, a_data);
+                            }
+                        }
+                    }
+                    else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+                    {
+                        Type genericType = fieldType.GetGenericArguments()[0];
+                        MethodInfo methodInfo = fieldType.GetMethod("Add");
+
+                        if (obj == null)
+                        {
+                            obj = Activator.CreateInstance(fieldType);
+                        } 
+
+                        foreach (DefDataObject datObj in a_datObj.Children)
+                        {
+                            if (datObj.Name == "lv")
+                            {
+                                object listObj = Activator.CreateInstance(genericType);
+
+                                foreach (DefDataObject objVal in datObj.Children)
+                                {
+                                    LoadDefVariables(listObj, objVal, a_data);
+                                }
+                                
+                                methodInfo.Invoke(obj, new object[] { listObj });
+                            }
+                            else
+                            {
+                                DefError(fieldType, a_datObj, a_data);
+                            }
+                        }
+
+                        field.SetValue(a_obj, obj);
+                    }
+                    else
+                    {
+                        obj = Activator.CreateInstance(fieldType);
+
+                        foreach (DefDataObject objVal in a_datObj.Children)
+                        {
+                            LoadDefVariables(obj, objVal, a_data);
+                        }
+
+                        field.SetValue(a_obj, obj);
+                    }
+
+                    break;
+                }
+                }
+                
+            }
+            else
+            {
+                Logger.Error("FlareCS: Invalid Def Field: " + a_datObj.Name + ", " + a_data.Name + " : " + a_data.Path);
+            }
         }
 
         static void LoadDefData(string a_path, ref List<DefData> a_data)
@@ -113,14 +278,14 @@ namespace FlareEngine.Definitions
                                 }
                                 else
                                 {
-                                    Console.Error.WriteLine("FlareCS: Error parsing Abstract value: " + att.Value + " : " + file);
+                                    Logger.Error("FlareCS: Error parsing Abstract value: " + att.Value + " : " + file);
                                 }
 
                                 break;
                             }
                             default:
                             {
-                                Console.Error.WriteLine("FlareCS: Invalid Def Attribute: " + att.Name + " : " + file);
+                                Logger.Error("FlareCS: Invalid Def Attribute: " + att.Name + " : " + file);
 
                                 break;
                             }
@@ -146,7 +311,7 @@ namespace FlareEngine.Definitions
                         }
                         else
                         {
-                            Console.Error.WriteLine("FlareCS: Error parsing unamed Def: " + file);
+                            Logger.Error("FlareCS: Error parsing unamed Def: " + file);
                         }
                     }
                 }
@@ -181,7 +346,7 @@ namespace FlareEngine.Definitions
 
                 if (!found)
                 {
-                    Console.Error.WriteLine("FlareCS: Cannot find def parent: " + a_data.Parent + ", " + a_data.Name + " : " + a_data.Path);
+                    Logger.Error("FlareCS: Cannot find def parent: " + a_data.Parent + ", " + a_data.Name + " : " + a_data.Path);
 
                     return false;
                 }
@@ -193,56 +358,7 @@ namespace FlareEngine.Definitions
 
             foreach (DefDataObject obj in a_data.DefDataObjects)
             {
-                FieldInfo field = type.GetField(obj.Name, BindingFlags.Public | BindingFlags.Instance);
-                if (field != null)
-                {
-                    Type fieldType = field.FieldType;
-                    
-                    if (fieldType == typeof(string))
-                    {
-                        field.SetValue(a_def, obj.Text);
-                    }
-                    else if (fieldType == typeof(uint))
-                    {
-                        uint val;
-                        if (uint.TryParse(obj.Text, out val))
-                        {
-                            field.SetValue(a_def, val);
-                        }
-                        else
-                        {
-                            Console.Error.WriteLine("FlareCS: Cannot Parse Def uint: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
-                        }
-                    }
-                    else if (fieldType == typeof(int))
-                    {
-                        int val;
-                        if (int.TryParse(obj.Text, out val))
-                        {
-                            field.SetValue(a_def, val);
-                        }
-                        else
-                        {
-                            Console.Error.WriteLine("FlareCS: Cannot Parse Def int: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
-                        }
-                    }
-                    else if (fieldType == typeof(VertexShader))
-                    {
-                        field.SetValue(a_def, AssetLibrary.LoadVertexShader(obj.Text));
-                    }
-                    else if (fieldType == typeof(PixelShader))
-                    {
-                        field.SetValue(a_def, AssetLibrary.LoadPixelShader(obj.Text));
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("FlareCS: Invalid Def Field Type: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
-                    }
-                }   
-                else
-                {   
-                    Console.Error.WriteLine("FlareCS: Invalid Def Field: " + obj.Name + ", " + a_data.Name + " : " + a_data.Path);
-                }
+                LoadDefVariables(a_def, obj, a_data);
             }
             
             return true;
@@ -278,13 +394,13 @@ namespace FlareEngine.Definitions
                     return defObj;
                 }
                 else
-                {
-                    Console.Error.WriteLine("FlareCS: Error creating Def: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
+                {   
+                    Logger.Error("FlareCS: Error creating Def: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
                 }
             }
             else
             {
-                Console.Error.WriteLine("FlareCS: Invalid Def Type: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
+                Logger.Error("FlareCS: Invalid Def Type: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
             }
 
             return null;
@@ -306,12 +422,12 @@ namespace FlareEngine.Definitions
         {
             if (Directory.Exists(a_path))
             {
-                Console.WriteLine("FlareCS: Loading Defs");
+                Logger.Message("FlareCS: Loading Defs");
 
                 List<DefData> defData = new List<DefData>();
                 LoadDefData(a_path, ref defData);
 
-                Console.WriteLine("FlareCS: Building DefTable");
+                Logger.Message("FlareCS: Building DefTable");
 
                 foreach (DefData dat in defData)
                 {
@@ -327,6 +443,87 @@ namespace FlareEngine.Definitions
                         m_defLookup.Add(def.DefName, def);
                     }
                 }
+            }
+        }
+
+        static void ResolveDefs(object a_obj)
+        {
+            Type type = a_obj.GetType();
+            FieldInfo[] fieldInfo = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (FieldInfo info in fieldInfo)
+            {
+                Type fieldType = info.FieldType;
+
+                if (fieldType.IsPrimitive || fieldType == typeof(string) || fieldType == typeof(decimal) || fieldType.IsSubclassOf(typeof(Enum)) || fieldType == typeof(Vector2) || fieldType == typeof(Vector3) || fieldType == typeof(Vector4))
+                {
+                    continue;
+                }
+                else if (fieldType.IsSubclassOf(typeof(Def)))
+                {
+                    Def stub = (Def)info.GetValue(a_obj);
+                    if (stub != null)
+                    {
+                        Def resDef = GetDef(stub.DefName);
+                        if (resDef != null)
+                        {
+                            info.SetValue(a_obj, resDef);
+                        }
+                        else
+                        {
+                            Logger.Error("FlareCS: Error resolving Def: " + stub.DefName);
+                        }
+                    }
+                }
+                else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    object listObj = info.GetValue(a_obj);
+                    if (listObj != null)
+                    {
+                        IEnumerable enumer = (IEnumerable)listObj;
+
+                        Type genericType = fieldType.GetGenericArguments()[0];
+                        if (genericType.IsSubclassOf(typeof(Def)))
+                        {
+                            MethodInfo methodInfo = fieldType.GetMethod("Add");
+                            object list = Activator.CreateInstance(fieldType);
+
+                            foreach (object obj in enumer)
+                            {
+                                Def stub = obj as Def;
+                                if (stub != null)
+                                {
+                                    methodInfo.Invoke(list, new object[] { GetDef(stub.DefName) });
+                                }
+                            }
+
+                            info.SetValue(a_obj, list);
+                        }
+                        else
+                        {
+                            foreach (object obj in enumer)
+                            {
+                                ResolveDefs(obj);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    ResolveDefs(info.GetValue(a_obj));
+                }
+            }
+        }
+
+        public static void ResolveDefs()
+        {
+            foreach (Def def in m_defs)
+            {
+                ResolveDefs(def);
+            }
+
+            foreach (Def def in m_defs)
+            {
+                def.PostResolve();
             }
         }
 

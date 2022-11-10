@@ -117,6 +117,8 @@ std::vector<const char*> VulkanRenderEngineBackend::GetRequiredExtensions() cons
 
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
+    const RenderEngine* renderEngine = GetRenderEngine();
+
     std::vector<const char*> enabledLayers;
 
     if constexpr (EnableValidationLayers)
@@ -131,7 +133,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     const vk::ApplicationInfo appInfo = vk::ApplicationInfo
     (
-        m_renderEngine->m_config->GetApplicationName().begin(), 
+        renderEngine->m_config->GetApplicationName().begin(), 
         0U, 
         "FlareEngine", 
         VK_MAKE_VERSION(FLARENATIVE_VERSION_MAJOR, FLARENATIVE_VERSION_MINOR, 0), 
@@ -185,7 +187,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     }
 
     VkSurfaceKHR tempSurf;
-    glfwCreateWindowSurface(m_instance, m_renderEngine->m_window, nullptr, &tempSurf);
+    glfwCreateWindowSurface(m_instance, renderEngine->m_window, nullptr, &tempSurf);
     m_surface = vk::SurfaceKHR(tempSurf);
 
     TRACE("Created Vulkan Surface");
@@ -329,12 +331,28 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     
     TRACE("Created Vulkan sync objects");
 
+    const vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo
+    (
+        vk::CommandPoolCreateFlagBits::eTransient,
+        m_graphicsQueueIndex
+    );  
+
+    if (m_lDevice.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
+    {
+        printf("Failed to create command pool \n");
+
+        assert(0);
+    }
+
     m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
 }
 VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 {
     TRACE("Begin Vulkan clean up");
     m_lDevice.waitIdle();
+
+    TRACE("Destroy Command Pool");
+    m_lDevice.destroyCommandPool(m_commandPool);
 
     delete m_graphicsEngine;
     if (m_swapchain != nullptr)
@@ -377,7 +395,7 @@ void VulkanRenderEngineBackend::Update()
     m_lDevice.waitForFences(1, &m_inFlight[m_currentFrame], VK_TRUE, UINT64_MAX);
 
     glm::ivec2 newWinSize;
-    glfwGetWindowSize(m_renderEngine->m_window, &newWinSize.x, &newWinSize.y);
+    glfwGetWindowSize(GetRenderEngine()->m_window, &newWinSize.x, &newWinSize.y);
 
     if (newWinSize.x == 0 || newWinSize.y == 0)
     {
@@ -419,16 +437,17 @@ void VulkanRenderEngineBackend::Update()
     m_lDevice.resetFences(1, &m_inFlight[m_currentFrame]);
 
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
+    const uint32_t buffersSize = (uint32_t)buffers.size();
 
     const vk::Semaphore signalSemaphores[] = { m_renderFinished[m_currentFrame] };
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
     const vk::SubmitInfo submitInfo = vk::SubmitInfo
     (
-        1, 
-        &m_imageAvailable[m_currentFrame], 
+        1,
+        &m_imageAvailable[m_currentFrame],
         WaitStages,
-        (uint32_t)buffers.size(),
+        buffersSize,
         buffers.data(),
         1,
         signalSemaphores
@@ -454,6 +473,51 @@ void VulkanRenderEngineBackend::Update()
 
     m_presentQueue.presentKHR(&presentInfo);
     m_currentFrame = (m_currentFrame + 1) % MaxFlightFrames;
+}
+
+vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
+{
+    const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
+    (
+        m_commandPool,
+        vk::CommandBufferLevel::ePrimary,
+        1
+    );
+
+    vk::CommandBuffer cmdBuffer;
+    if (m_lDevice.allocateCommandBuffers(&allocInfo, &cmdBuffer) != vk::Result::eSuccess)
+    {
+        printf("Failed to Allocate Single Command Buffer \n");
+
+        assert(0);
+    }
+
+    constexpr vk::CommandBufferBeginInfo BufferBeginInfo = vk::CommandBufferBeginInfo
+    (
+        vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+    );
+
+    cmdBuffer.begin(&BufferBeginInfo);
+
+    return cmdBuffer;
+}
+void VulkanRenderEngineBackend::EndSingleCommand(const vk::CommandBuffer& a_buffer)
+{
+    a_buffer.end();
+
+    const vk::SubmitInfo submitInfo = vk::SubmitInfo
+    (
+        0, 
+        nullptr, 
+        nullptr,
+        1, 
+        &a_buffer
+    );
+
+    m_graphicsQueue.submit(1, &submitInfo, nullptr);
+    m_graphicsQueue.waitIdle();
+
+    m_lDevice.freeCommandBuffers(m_commandPool, 1, &a_buffer);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance a_instance, const VkDebugUtilsMessengerCreateInfoEXT* a_createInfo, const VkAllocationCallbacks* a_allocator, VkDebugUtilsMessengerEXT* a_messenger)

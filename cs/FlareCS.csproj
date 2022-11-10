@@ -10,6 +10,7 @@
     <ItemGroup>
         <Compile Include="src/*.cs"/>
         <Compile Include="src/Definitions/*.cs"/>
+        <Compile Include="src/Maths/*.cs"/>
         <Compile Include="src/Rendering/*.cs"/>
     </ItemGroup>
     <ItemGroup>

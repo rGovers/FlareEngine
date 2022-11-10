@@ -6,10 +6,14 @@
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "RuntimeManager.h"
+#include "Trace.h"
 
-RenderEngine::RenderEngine(RuntimeManager* a_runtime, GLFWwindow* a_window, Config* a_config)
+RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, GLFWwindow* a_window, Config* a_config)
 {
+    TRACE("Initializing Rendering");
     m_config = a_config;
+
+    m_objectManager = a_objectManager;
 
     m_window = a_window;
 

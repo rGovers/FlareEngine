@@ -1,16 +1,19 @@
+using FlareEngine.Definitions;
 using FlareEngine.Rendering;
-using System;
 using System.Collections.Generic;
 
 namespace FlareEngine
 {
     public static class AssetLibrary
     {
+        static Dictionary<string, Material>     m_materials;
         static Dictionary<string, VertexShader> m_vertexShaders;
         static Dictionary<string, PixelShader>  m_pixelShaders;
 
         internal static void Init()
         {
+            m_materials = new Dictionary<string, Material>();
+
             m_vertexShaders = new Dictionary<string, VertexShader>();
             m_pixelShaders = new Dictionary<string, PixelShader>();
         }
@@ -28,6 +31,12 @@ namespace FlareEngine
                 pShader.Dispose();
             }
             m_pixelShaders.Clear();
+
+            foreach (Material mat in m_materials.Values)
+            {
+                mat.Dispose();
+            }
+            m_materials.Clear();
         }
 
         public static VertexShader LoadVertexShader(string a_path)
@@ -40,7 +49,7 @@ namespace FlareEngine
             VertexShader shader = VertexShader.LoadVertexShader(a_path);
             if (shader == null)
             {
-                Console.Error.WriteLine("FlareCS: Error loading VertexShader: " + a_path);
+                Logger.Error("FlareCS: Error loading VertexShader: " + a_path);
 
                 return null;
             }
@@ -59,7 +68,7 @@ namespace FlareEngine
             PixelShader shader = PixelShader.LoadPixelShader(a_path);
             if (shader == null)
             {
-                Console.Error.WriteLine("FlareCS: Error loading PixelShader: " + a_path);
+                Logger.Error("FlareCS: Error loading PixelShader: " + a_path);
 
                 return null;
             }
@@ -67,6 +76,23 @@ namespace FlareEngine
             m_pixelShaders.Add(a_path, shader);
 
             return shader;
+        }
+
+        public static Material GetMaterial(MaterialDef a_def)
+        {
+            string str = string.Format("[{0}] [{1}]", a_def.VertexShaderPath, a_def.PixelShaderPath);
+            if (m_materials.ContainsKey(str))
+            {
+                return m_materials[str];
+            }
+
+            Material mat = Material.FromDef(a_def);
+            if (mat != null)
+            {
+                m_materials.Add(str, mat);
+            }
+
+            return mat;
         }
     }
 }

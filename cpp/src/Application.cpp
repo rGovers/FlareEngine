@@ -1,6 +1,7 @@
 #include "Application.h"
 
 #include "Config.h"
+#include "ObjectManager.h"
 #include "Rendering/RenderEngine.h"
 #include "RuntimeManager.h"
 
@@ -16,12 +17,15 @@ Application::Application()
 
     m_runtime = new RuntimeManager();
     
-    m_renderEngine = new RenderEngine(m_runtime, m_window, m_config);
+    m_objectManager = new ObjectManager(m_runtime);
+
+    m_renderEngine = new RenderEngine(m_runtime, m_objectManager, m_window, m_config);
 }
 Application::~Application()
 {
     delete m_runtime;
     delete m_renderEngine;
+    delete m_objectManager;
     delete m_config;
 
     glfwDestroyWindow(m_window);

@@ -19,7 +19,6 @@ private:
 #else
     static constexpr bool EnableValidationLayers = true;
 #endif
-    static constexpr uint32_t MaxFlightFrames = 2;
 
     VulkanGraphicsEngine*      m_graphicsEngine;
     VulkanSwapchain*           m_swapchain = nullptr;
@@ -40,6 +39,8 @@ private:
     std::vector<vk::Semaphore> m_renderFinished = std::vector<vk::Semaphore>(MaxFlightFrames);
     std::vector<vk::Fence>     m_inFlight = std::vector<vk::Fence>(MaxFlightFrames);
 
+    vk::CommandPool            m_commandPool;
+
     uint32_t                   m_imageIndex = -1;
     uint32_t                   m_currentFrame = 0;
 
@@ -51,10 +52,15 @@ private:
 protected:
 
 public:
+    static constexpr uint32_t MaxFlightFrames = 2;
+
     VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine);
     virtual ~VulkanRenderEngineBackend();
 
     virtual void Update();
+
+    vk::CommandBuffer BeginSingleCommand() const;
+    void EndSingleCommand(const vk::CommandBuffer& a_buffer);
 
     inline VmaAllocator GetAllocator() const
     {
@@ -95,5 +101,9 @@ public:
     inline uint32_t GetImageIndex() const
     {
         return m_imageIndex;
+    }
+    inline uint32_t GetCurrentFrame() const
+    {
+        return m_currentFrame;
     }
 };

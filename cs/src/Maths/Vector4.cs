@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace FlareEngine
+namespace FlareEngine.Maths
 {
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Vector4

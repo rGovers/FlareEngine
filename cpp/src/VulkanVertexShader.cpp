@@ -17,7 +17,7 @@ VulkanVertexShader::VulkanVertexShader(VulkanRenderEngineBackend* a_engine, cons
 
     if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
     {
-        printf("Failed to create VertexShader");
+        printf("Failed to create VertexShader \n");
 
         assert(0);
     }
@@ -37,7 +37,7 @@ VulkanVertexShader* VulkanVertexShader::CreateFromGLSL(VulkanRenderEngineBackend
     
     if (spirv.size() <= 0)
     {
-        printf("Failed to generate Vertex Spirv");
+        printf("Failed to generate Vertex Spirv \n");
 
         assert(0);
     }

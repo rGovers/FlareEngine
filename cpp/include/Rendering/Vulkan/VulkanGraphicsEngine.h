@@ -1,13 +1,13 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-
 #include <queue>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
+#include <vulkan/vulkan.hpp>
 
 class RuntimeManager;
+class VulkanGraphicsEngineBindings;
+class VulkanModel;
 class VulkanPipeline;
 class VulkanPixelShader;
 class VulkanRenderEngineBackend;
@@ -15,11 +15,16 @@ class VulkanSwapchain;
 class VulkanVertexShader;
 
 #include "Rendering/CameraBuffer.h"
+#include "Rendering/MaterialRenderStack.h"
+#include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
 
 class VulkanGraphicsEngine
 {
 private:
+    friend class VulkanGraphicsEngineBindings;
+
+    VulkanGraphicsEngineBindings*                 m_runtimeBindings;
     VulkanRenderEngineBackend*                    m_vulkanEngine;
 
     std::unordered_map<uint64_t, VulkanPipeline*> m_pipelines;
@@ -30,7 +35,11 @@ private:
     std::vector<VulkanVertexShader*>              m_vertexShaders;
     std::vector<VulkanPixelShader*>               m_pixelShaders;
      
-    std::queue<uint32_t>                          m_freeCamSlots;
+    std::vector<VulkanModel*>                     m_models;
+
+    std::vector<MeshRenderBuffer>                 m_renderBuffers;
+    std::vector<MaterialRenderStack>              m_renderStacks;
+
     std::vector<CameraBuffer>                     m_cameraBuffers;
 
     vk::CommandPool                               m_commandPool;
@@ -43,21 +52,11 @@ public:
 
     std::vector<vk::CommandBuffer> Update(const VulkanSwapchain* a_swapChain);
 
-    uint32_t GenerateVertexShaderAddr(const std::string_view& a_str);
     VulkanVertexShader* GetVertexShader(uint32_t a_addr) const;
-    void DestroyVertexShader(uint32_t a_addr);
-
-    uint32_t GeneratePixelShaderAddr(const std::string_view& a_str);
     VulkanPixelShader* GetPixelShader(uint32_t a_addr) const;
-    void DestroyPixelShader(uint32_t a_addr);
 
-    uint32_t GenerateShaderProgram(const RenderProgram& a_program);
-    void DestroyShaderProgram(uint32_t a_addr);
-    RenderProgram GetRenderProgram(uint32_t a_addr) const;
-    void SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program);
-
-    uint32_t GenerateCameraBuffer();
-    void DestroyCameraBuffer(uint32_t a_addr);
-    CameraBuffer GetCameraBuffer(uint32_t a_addr) const;
-    void SetCameraBuffer(uint32_t a_add, const CameraBuffer& a_buffer);
+    inline vk::CommandPool GetCommandPool() const
+    {
+        return m_commandPool;
+    }
 };

@@ -58,14 +58,14 @@ namespace FlareEngine.Rendering
                 }
                 else
                 {
-                    Console.Error.WriteLine("FlareCS: PixelShader Failed to Dispose");
+                    Logger.Error("FlareCS: PixelShader Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Console.Error.WriteLine("FlareCS: Multiple PixelShader Dispose");
+                Logger.Error("FlareCS: Multiple PixelShader Dispose");
             }
         }
 

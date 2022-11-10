@@ -34,7 +34,6 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
     const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
 
-    m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
     constexpr vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
     const vk::Extent2D extents = GetSwapExtent(info.Capabilites, m_size);
 
@@ -53,7 +52,8 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         m_surfaceFormat.colorSpace, 
         extents, 
         1, 
-        vk::ImageUsageFlagBits::eColorAttachment, vk::SharingMode::eExclusive, 
+        vk::ImageUsageFlagBits::eColorAttachment, 
+        vk::SharingMode::eExclusive, 
         nullptr,
         info.Capabilites.currentTransform,
         vk::CompositeAlphaFlagBitsKHR::eOpaque,
@@ -78,18 +78,6 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         assert(0);
     }
     TRACE("Created Vulkan Swapchain");
-
-    const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
-
-    m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
-    constexpr vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
-    const vk::Extent2D extents = GetSwapExtent(info.Capabilites, m_size);
-
-    uint32_t imageCount = info.Capabilites.minImageCount + 1;
-    if (info.Capabilites.maxImageCount > 0)
-    {
-        imageCount = glm::min(imageCount, info.Capabilites.maxImageCount);
-    }
 
     lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
     std::vector<vk::Image> swapImages = std::vector<vk::Image>(imageCount);
@@ -170,9 +158,13 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
     m_engine = a_engine;
 
     const vk::Device device = m_engine->GetLogicalDevice();
+    const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
+    const vk::SurfaceKHR surface = m_engine->GetSurface();
 
-    Init(a_size);
-    
+    const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
+
+    m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
+
     const vk::AttachmentDescription colorAttachment = vk::AttachmentDescription
     (
         vk::AttachmentDescriptionFlags(),
@@ -229,6 +221,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
         assert(0);
     }
     TRACE("Created Vulkan Swapchain Renderpass");
+
+    Init(a_size);
 }
 VulkanSwapchain::~VulkanSwapchain()
 {

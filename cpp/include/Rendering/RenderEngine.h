@@ -10,6 +10,7 @@ enum e_RenderingEngine
 };
 
 class Config;
+class ObjectManager;
 class RenderEngineBackend;
 class RuntimeManager;
 
@@ -20,6 +21,8 @@ private:
 
     Config*              m_config;
 
+    ObjectManager*       m_objectManager;
+
     RenderEngineBackend* m_backend;
 
     GLFWwindow*          m_window;
@@ -27,8 +30,13 @@ private:
 protected:
 
 public:
-    RenderEngine(RuntimeManager* a_runtime, GLFWwindow* a_window, Config* a_config);
+    RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, GLFWwindow* a_window, Config* a_config);
     ~RenderEngine();
 
     void Update();
+
+    inline ObjectManager* GetObjectManager() const
+    {
+        return m_objectManager;
+    }
 };

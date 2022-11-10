@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace FlareEngine
+namespace FlareEngine.Maths
 {
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Vector3
@@ -21,10 +21,10 @@ namespace FlareEngine
 
         public static readonly Vector3 Right = new Vector3(1.0f, 0.0f, 0.0f);
         public static readonly Vector3 Left = new Vector3(-1.0f, 0.0f, 0.0f);
-        public static readonly Vector3 Up = new Vector3(0.0f, 1.0f, 0.0f);
-        public static readonly Vector3 Down = new Vector3(0.0f, -1.0f, 0.0f);
-        public static readonly Vector3 Forward = new Vector3(0.0f, 0.0f, 1.0f);
-        public static readonly Vector3 Backward = new Vector3(0.0f, 0.0f, -1.0f);
+        public static readonly Vector3 Up = new Vector3(0.0f, -1.0f, 0.0f);
+        public static readonly Vector3 Down = new Vector3(0.0f, 1.0f, 0.0f);
+        public static readonly Vector3 Forward = new Vector3(0.0f, 0.0f, -1.0f);
+        public static readonly Vector3 Backward = new Vector3(0.0f, 0.0f, 1.0f);
 #endregion
 
 #region SWIZZLE
