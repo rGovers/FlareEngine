@@ -1,10 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
-
 #include <cstdint>
 
+class AppWindow;
 class Config;
 class ObjectManager;
 class RenderEngine;
@@ -13,20 +11,17 @@ class RuntimeManager;
 class Application
 {
 private:
-    GLFWwindow*     m_window;
+    AppWindow*      m_appWindow;
 
     Config*         m_config;
     ObjectManager*  m_objectManager;
     RuntimeManager* m_runtime;
     RenderEngine*   m_renderEngine;
 
-    double          m_startTime;
-    double          m_prevTime;
-
 protected:
 
 public:
-    Application();
+    Application(Config* a_config);
     ~Application();
 
     void Run(int32_t a_argc, char* a_argv[]);

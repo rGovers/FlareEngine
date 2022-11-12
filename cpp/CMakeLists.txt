@@ -38,7 +38,8 @@ if (GENERATE_CONFIG)
     )
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/include/"
+include_directories("${PROJECT_SOURCE_DIR}/Headless/"
+                    "${PROJECT_SOURCE_DIR}/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glfw/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glm/"
                     "${PROJECT_SOURCE_DIR}/lib/glslang/"

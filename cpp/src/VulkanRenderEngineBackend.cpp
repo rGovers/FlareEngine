@@ -184,6 +184,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
             assert(0);
         }
+
+        TRACE("Created Vulkan Debug Layer");
     }
 
     VkSurfaceKHR tempSurf;
@@ -202,7 +204,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     bool foundDevice = false;
 
-    for (const auto& device : devices)
+    for (const vk::PhysicalDevice& device : devices)
     {
         if (IsDeviceSuitable(device, m_surface))
         {

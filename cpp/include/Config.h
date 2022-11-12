@@ -10,6 +10,8 @@ class Config
 private:
     static constexpr std::string_view DefaultAppName = "FlareEngine";
 
+    bool              m_headless = false;
+
     std::string       m_appName = std::string(DefaultAppName);
 
     e_RenderingEngine m_renderingEngine = RenderingEngine_Vulkan;
@@ -27,5 +29,13 @@ public:
     inline e_RenderingEngine GetRenderingEngine() const
     {
         return m_renderingEngine;
+    }
+    inline bool IsHeadless() const
+    {
+        return m_headless;
+    }
+    inline void SetHeadless(bool a_value)
+    {
+        m_headless = a_value;
     }
 };
