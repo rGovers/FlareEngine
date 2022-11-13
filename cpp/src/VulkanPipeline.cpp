@@ -4,6 +4,7 @@
 #include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
+#include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Trace.h"
@@ -351,19 +352,19 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
     vk::resultCheck(device.createDescriptorSetLayout(&descriptorLayout, nullptr, &m_desciptorLayout), "Failed to create Vulkan Descriptor Layout");
 
     TRACE("Creating Pipeline Descriptor Pool");
-    constexpr vk::DescriptorPoolSize PoolSize = vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, VulkanRenderEngineBackend::MaxFlightFrames);
+    constexpr vk::DescriptorPoolSize PoolSize = vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, VulkanMaxFlightFrames);
     const vk::DescriptorPoolCreateInfo poolInfo = vk::DescriptorPoolCreateInfo
     (
         vk::DescriptorPoolCreateFlags(), 
-        VulkanRenderEngineBackend::MaxFlightFrames, 
+        VulkanMaxFlightFrames, 
         1, 
         &PoolSize
     );
     vk::resultCheck(device.createDescriptorPool(&poolInfo, nullptr, &m_descriptorPool), "Failed to create Vulkan Descriptor Pool");
 
     TRACE("Creating Pipeline Descriptor Sets");
-    vk::DescriptorSetLayout layouts[VulkanRenderEngineBackend::MaxFlightFrames];
-    for (uint32_t i = 0; i < VulkanRenderEngineBackend::MaxFlightFrames; ++i)
+    vk::DescriptorSetLayout layouts[VulkanMaxFlightFrames];
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         layouts[i] = m_desciptorLayout;
     }
@@ -371,7 +372,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
     const vk::DescriptorSetAllocateInfo descriptorSetAllocInfo = vk::DescriptorSetAllocateInfo
     (
         m_descriptorPool,
-        VulkanRenderEngineBackend::MaxFlightFrames,
+        VulkanMaxFlightFrames,
         layouts
     );
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
 #include <string_view>
 
 enum e_RenderingEngine
@@ -9,6 +8,7 @@ enum e_RenderingEngine
     RenderingEngine_Vulkan
 };
 
+class AppWindow;
 class Config;
 class ObjectManager;
 class RenderEngineBackend;
@@ -25,12 +25,12 @@ private:
 
     RenderEngineBackend* m_backend;
 
-    GLFWwindow*          m_window;
+    AppWindow*           m_window;
 
 protected:
 
 public:
-    RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, GLFWwindow* a_window, Config* a_config);
+    RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, AppWindow* a_window, Config* a_config);
     ~RenderEngine();
 
     void Update();

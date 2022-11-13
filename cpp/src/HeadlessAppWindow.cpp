@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <cstdlib>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -61,11 +62,22 @@ HeadlessAppWindow::HeadlessAppWindow()
     m_height = (uint32_t)size.y;
     delete[] msg.Data;
 
+    m_frameData = nullptr;
+
     TRACE("Headless Window Initialised");
 }
 HeadlessAppWindow::~HeadlessAppWindow()
 {
-    close(m_sock);
+    if (m_sock >= 0)
+    {
+        close(m_sock);
+    }
+
+    if (m_frameData != nullptr)
+    {
+        delete[] m_frameData;
+        m_frameData = nullptr;
+    }
 }
 
 PipeMessage HeadlessAppWindow::RecieveMessage() const
@@ -94,10 +106,15 @@ PipeMessage HeadlessAppWindow::RecieveMessage() const
 
     return msg;
 }
+void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
+{
+    write(m_sock, &a_message, PipeMessage::Size);
+    write(m_sock, a_message.Data, a_message.Length);
+}
 
 bool HeadlessAppWindow::ShouldClose() const
 {
-    return m_close;
+    return m_close || m_sock < 0;
 }
 
 double HeadlessAppWindow::GetDelta() const
@@ -111,5 +128,87 @@ double HeadlessAppWindow::GetTime() const
 
 void HeadlessAppWindow::Update()
 {
+    if (m_sock == -1)
+    {
+        return;
+    }
 
+    struct pollfd fds;
+    fds.fd = m_sock;
+    fds.events = POLLIN;
+
+    while (poll(&fds, 1, 1) > 0)
+    {
+        if (fds.revents & (POLLNVAL | POLLERR | POLLHUP))
+        {
+            m_sock = -1;
+
+            return;
+        }
+
+        if (fds.revents & POLLIN)
+        {
+            const PipeMessage msg = RecieveMessage();
+
+            switch (msg.Type)
+            {
+            case PipeMessageType_Close:
+            {
+                m_close = true;
+
+                break;
+            }
+            case PipeMessageType_Resize:
+            {
+                const glm::ivec2 size = *(glm::ivec2*)msg.Data;
+
+                m_width = (uint32_t)size.x;
+                m_height = (uint32_t)size.y;
+
+                if (m_frameData != nullptr)
+                {
+                    delete[] m_frameData;
+                    m_frameData = nullptr;
+                }
+
+                break;
+            }
+            }
+            
+            if (msg.Data)
+            {
+                delete[] msg.Data;
+            }
+        }
+    }
+
+    if (m_frameData != nullptr)
+    {
+        PipeMessage msg;
+        msg.Type = PipeMessageType_PushFrame;
+        msg.Length = m_width * m_height * 4;
+        msg.Data = m_frameData;
+
+        PushMessage(msg);
+    }
+}
+
+glm::ivec2 HeadlessAppWindow::GetSize() const
+{
+    return glm::ivec2((int)m_width, (int)m_height);
+}
+
+void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer)
+{
+    if (m_width == a_width && m_height == a_height)
+    {
+        const uint32_t size = m_width * m_height * 4;
+
+        if (m_frameData == nullptr)
+        {
+            m_frameData = new char[size];
+        }
+
+        memcpy(m_frameData, a_buffer, size);
+    }
 }

@@ -10,11 +10,13 @@ class Config;
 class GLFWAppWindow : public AppWindow
 {
 private:
-    GLFWwindow* m_window;
+    GLFWwindow*    m_window;
+   
+    double         m_time;
+    double         m_prevTime;
+    double         m_startTime;
 
-    double      m_time;
-    double      m_prevTime;
-    double      m_startTime;
+    vk::SurfaceKHR m_surface;
 protected:
 
 public:
@@ -27,4 +29,14 @@ public:
     virtual double GetTime() const;
 
     virtual void Update();
+
+    virtual glm::ivec2 GetSize() const;
+
+    virtual bool IsHeadless() const
+    {
+        return false;
+    }
+
+    virtual std::vector<const char*> GetRequiredVulkanExtenions() const;
+    virtual vk::SurfaceKHR GetSurface(const vk::Instance& a_instance);
 };

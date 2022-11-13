@@ -6,11 +6,12 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Rendering/RenderProgram.h"
-#include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 class CameraBuffer;
 class ObjectManager;
 class VulkanGraphicsEngine;
+class VulkanRenderEngineBackend;
 class VulkanRenderPass;
 class VulkanUniformBuffer;
 
@@ -26,7 +27,7 @@ private:
     vk::PipelineLayout         m_layout;
     vk::DescriptorPool         m_descriptorPool;
     vk::DescriptorSetLayout    m_desciptorLayout;
-    vk::DescriptorSet          m_descriptorSets[VulkanRenderEngineBackend::MaxFlightFrames];
+    vk::DescriptorSet          m_descriptorSets[VulkanMaxFlightFrames];
 
     VulkanUniformBuffer*       m_cameraUniformBuffer = nullptr;
     ShaderBufferInput          m_cameraBufferInput;

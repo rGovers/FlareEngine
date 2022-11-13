@@ -7,6 +7,9 @@
 
 #include "Rendering/RenderEngineBackend.h"
 
+#include "Rendering/Vulkan/VulkanConstants.h"
+
+class AppWindow;
 class RuntimeManager;
 class VulkanGraphicsEngine;
 class VulkanSwapchain;
@@ -14,12 +17,6 @@ class VulkanSwapchain;
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
-#ifdef NDEBUG
-    static constexpr bool EnableValidationLayers = false;
-#else
-    static constexpr bool EnableValidationLayers = true;
-#endif
-
     VulkanGraphicsEngine*      m_graphicsEngine;
     VulkanSwapchain*           m_swapchain = nullptr;
 
@@ -30,14 +27,12 @@ private:
     vk::PhysicalDevice         m_pDevice;
     vk::Device                 m_lDevice;
           
-    vk::Queue                  m_graphicsQueue;
-    vk::Queue                  m_presentQueue;
-      
-    vk::SurfaceKHR             m_surface;
+    vk::Queue                  m_graphicsQueue = nullptr;
+    vk::Queue                  m_presentQueue = nullptr;
 
-    std::vector<vk::Semaphore> m_imageAvailable = std::vector<vk::Semaphore>(MaxFlightFrames);
-    std::vector<vk::Semaphore> m_renderFinished = std::vector<vk::Semaphore>(MaxFlightFrames);
-    std::vector<vk::Fence>     m_inFlight = std::vector<vk::Fence>(MaxFlightFrames);
+    std::vector<vk::Semaphore> m_imageAvailable = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
+    std::vector<vk::Semaphore> m_renderFinished = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
+    std::vector<vk::Fence>     m_inFlight = std::vector<vk::Fence>(VulkanMaxFlightFrames);
 
     vk::CommandPool            m_commandPool;
 
@@ -47,13 +42,9 @@ private:
     uint32_t                   m_graphicsQueueIndex = -1;
     uint32_t                   m_presentQueueIndex = -1;
 
-    std::vector<const char*> GetRequiredExtensions() const;
-
 protected:
 
 public:
-    static constexpr uint32_t MaxFlightFrames = 2;
-
     VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine);
     virtual ~VulkanRenderEngineBackend();
 
@@ -67,6 +58,11 @@ public:
         return m_allocator;
     }
 
+    inline vk::Instance GetInstance() const
+    {
+        return m_instance;
+    }
+
     inline vk::Device GetLogicalDevice() const
     {
         return m_lDevice;
@@ -74,11 +70,6 @@ public:
     inline vk::PhysicalDevice GetPhysicalDevice() const
     {
         return m_pDevice;
-    }
-
-    inline vk::SurfaceKHR GetSurface() const
-    {
-        return m_surface;
     }
 
     inline uint32_t GetPresentQueueIndex() const

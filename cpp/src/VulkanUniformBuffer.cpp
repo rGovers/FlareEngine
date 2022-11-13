@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 
+#include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
@@ -8,7 +9,7 @@ VulkanUniformBuffer::VulkanUniformBuffer(VulkanRenderEngineBackend* a_engine, ui
     TRACE("Creating Vulkan UBO");
     m_engine = a_engine;
 
-    m_bufferCount = VulkanRenderEngineBackend::MaxFlightFrames;
+    m_bufferCount = VulkanMaxFlightFrames;
     m_uniformSize = a_uniformSize;
 
     m_buffers = new vk::Buffer[m_bufferCount];

@@ -3,8 +3,14 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
+#define VMA_VULKAN_VERSION 1000000
+#include <vk_mem_alloc.h>
+
 #include <vulkan/vulkan.hpp>
 
+#include "Rendering/Vulkan/VulkanConstants.h"
+
+class AppWindow;
 class VulkanRenderEngineBackend;
 class VulkanRenderPass;
 
@@ -18,8 +24,12 @@ struct SwapChainSupportInfo
 class VulkanSwapchain
 {
 private:
+    AppWindow*                   m_window;
     VulkanRenderEngineBackend*   m_engine;
   
+    vk::Image                    m_colorImage[VulkanMaxFlightFrames];
+    VmaAllocation                m_colorAllocation[VulkanMaxFlightFrames];
+
     vk::SwapchainKHR             m_swapchain = nullptr;
     vk::RenderPass               m_renderPass = nullptr;
     std::vector<vk::ImageView>   m_imageViews;
@@ -30,11 +40,12 @@ private:
     glm::ivec2                   m_size;
 
     void Init(const glm::ivec2& a_size);
+    void InitHeadless(const glm::ivec2& a_size);
     void Destroy();
 protected:
 
 public:
-    VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm::ivec2& a_size);
+    VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window);
     ~VulkanSwapchain();
 
     static SwapChainSupportInfo QuerySwapChainSupport(const vk::PhysicalDevice& a_device, const vk::SurfaceKHR& a_surface);
@@ -62,5 +73,6 @@ public:
         return m_swapchain;
     }
 
-    void Rebuild(const glm::ivec2& a_size);
+    void StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex);
+    void EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t a_imageIndex);
 };

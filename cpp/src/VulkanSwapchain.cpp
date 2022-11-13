@@ -1,5 +1,8 @@
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 
+#include "AppWindow/AppWindow.h"
+#include "AppWindow/HeadlessAppWindow.h"
+#include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
@@ -28,8 +31,9 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 {
     m_size = a_size;
 
+    const vk::Instance instance = m_engine->GetInstance();
     const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
-    const vk::SurfaceKHR surface = m_engine->GetSurface();
+    const vk::SurfaceKHR surface = m_window->GetSurface(instance);
     const vk::Device lDevice = m_engine->GetLogicalDevice();
 
     const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
@@ -84,7 +88,6 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
     lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
 
     m_imageViews.resize(imageCount);
-
     for (uint32_t i = 0; i < imageCount; ++i)
     {
         const vk::ImageViewCreateInfo createInfo = vk::ImageViewCreateInfo
@@ -104,7 +107,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
             assert(0);
         }
     }
-    TRACE("Created Vulkan SwapImages");
+    TRACE("Created Vulkan Swap Images");
 
     m_framebuffers.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i)
@@ -133,8 +136,89 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         }
     }
 }
+void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
+{
+    m_size = a_size;
+
+    const VmaAllocator allocator = m_engine->GetAllocator();
+    const vk::Device device = m_engine->GetLogicalDevice();
+
+    VkImageCreateInfo imageInfo = { };
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageInfo.extent.width = (uint32_t)m_size.x;
+    imageInfo.extent.height = (uint32_t)m_size.y;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+    VmaAllocationCreateInfo allocInfo = { 0 };
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.flags = 0;
+
+    m_imageViews.resize(VulkanMaxFlightFrames);
+    m_framebuffers.resize(VulkanMaxFlightFrames);
+
+    VkImage image;
+
+    TRACE("Creating Swapchain Headless Buffer");
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    {
+        if (vmaCreateImage(allocator, &imageInfo, &allocInfo, &image, &m_colorAllocation[i], nullptr) != VK_SUCCESS)
+        {
+            printf("Failed to create swapchain image \n");
+
+            assert(0);
+        }
+        m_colorImage[i] = image;
+
+        constexpr vk::ImageSubresourceRange SubresourceRange = vk::ImageSubresourceRange
+        (
+            vk::ImageAspectFlagBits::eColor,
+            0,
+            1,
+            0,
+            1
+        );
+        const vk::ImageViewCreateInfo colorImageView = vk::ImageViewCreateInfo
+        (
+            {},
+            m_colorImage[i],
+            vk::ImageViewType::e2D,
+            vk::Format::eR8G8B8A8Unorm,
+            vk::ComponentMapping(),
+            SubresourceRange
+        );
+        vk::resultCheck(device.createImageView(&colorImageView, nullptr, &m_imageViews[i]), "Failed to create Swapchain Image View");
+
+        const vk::ImageView attachments[] = 
+        {
+            m_imageViews[i]
+        };
+
+        const vk::FramebufferCreateInfo framebufferInfo = vk::FramebufferCreateInfo
+        (
+            {},
+            m_renderPass,
+            1,
+            attachments,
+            (uint32_t)m_size.x,
+            (uint32_t)m_size.y,
+            1
+        );
+        vk::resultCheck(device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]), "Failed to create Swapchain Framebuffer");
+    }
+    TRACE("Created Swapchain Headless Buffers");
+}
 void VulkanSwapchain::Destroy()
 {
+    const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
 
     TRACE("Destroying ImageViews");
@@ -148,24 +232,41 @@ void VulkanSwapchain::Destroy()
     {
         device.destroyFramebuffer(framebuffer);
     }
-    
-    TRACE("Destroying Swapchain");
-    device.destroySwapchainKHR(m_swapchain);
+
+    if (m_window->IsHeadless())
+    {
+        for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+        {
+            vmaDestroyImage(allocator, m_colorImage[i], m_colorAllocation[i]);
+        }
+    }
+    else
+    {
+        TRACE("Destroying Swapchain");
+        device.destroySwapchainKHR(m_swapchain);
+    }
 }
 
-VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm::ivec2& a_size)
+VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window)
 {
+    m_window = a_window;
     m_engine = a_engine;
 
+    const vk::Instance instance = m_engine->GetInstance();
     const vk::Device device = m_engine->GetLogicalDevice();
     const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
-    const vk::SurfaceKHR surface = m_engine->GetSurface();
+    const vk::SurfaceKHR surface = m_window->GetSurface(instance);
 
-    const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
+    const bool headless = a_window->IsHeadless();
 
-    m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
+    if (!headless)
+    {
+        const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
+        
+        m_surfaceFormat = GetSurfaceFormatFromFormats(info.Formats);
+    }
 
-    const vk::AttachmentDescription colorAttachment = vk::AttachmentDescription
+    vk::AttachmentDescription colorAttachment = vk::AttachmentDescription
     (
         vk::AttachmentDescriptionFlags(),
         m_surfaceFormat.format,
@@ -177,6 +278,11 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::ePresentSrcKHR
     );
+    if (headless)
+    {
+        colorAttachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
+        colorAttachment.format = vk::Format::eR8G8B8A8Unorm;
+    }
 
     constexpr vk::AttachmentReference ColorAttachmentRef = vk::AttachmentReference
     (
@@ -193,25 +299,52 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
         &ColorAttachmentRef
     );
 
-    constexpr vk::SubpassDependency Dependency = vk::SubpassDependency
-    (
-        VK_SUBPASS_EXTERNAL,
-        0,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::AccessFlags(),
-        vk::AccessFlagBits::eColorAttachmentWrite
-    );
+    std::vector<vk::SubpassDependency> dependencies;
+    if (headless)
+    {
+        dependencies.emplace_back(vk::SubpassDependency
+        (
+            VK_SUBPASS_EXTERNAL,
+            0,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::AccessFlagBits::eMemoryRead,
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::DependencyFlagBits::eByRegion
+        ));
+        dependencies.emplace_back(vk::SubpassDependency
+        (
+            0,
+            VK_SUBPASS_EXTERNAL,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eMemoryRead,
+            vk::DependencyFlagBits::eByRegion
+        ));
+    }
+    else
+    {
+        dependencies.emplace_back(vk::SubpassDependency
+        (
+            VK_SUBPASS_EXTERNAL,
+            0,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::AccessFlags(),
+            vk::AccessFlagBits::eColorAttachmentWrite
+        ));
+    }
 
     const vk::RenderPassCreateInfo renderPassInfo = vk::RenderPassCreateInfo
     (
-        vk::RenderPassCreateFlags(),
+        { },
         1,
         &colorAttachment,
         1,
         &subpass,
-        1,
-        &Dependency
+        (uint32_t)dependencies.size(),
+        dependencies.data()
     );
 
     if (device.createRenderPass(&renderPassInfo, nullptr, &m_renderPass) != vk::Result::eSuccess)
@@ -222,7 +355,14 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, const glm:
     }
     TRACE("Created Vulkan Swapchain Renderpass");
 
-    Init(a_size);
+    if (headless)
+    {
+        InitHeadless(m_window->GetSize());
+    }
+    else
+    {
+        Init(m_window->GetSize());
+    }
 }
 VulkanSwapchain::~VulkanSwapchain()
 {
@@ -259,8 +399,151 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
     return info;
 }
 
-void VulkanSwapchain::Rebuild(const glm::ivec2& a_size)
+void VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex)
 {
-    Destroy();
-    Init(a_size);
+    const vk::Device device = m_engine->GetLogicalDevice();
+    const glm::ivec2 size = m_window->GetSize();
+
+    if (m_window->IsHeadless())
+    {
+        if (*a_imageIndex == -1)
+        {
+            *a_imageIndex = 0;
+        }
+
+        device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+        device.resetFences(1, &a_fence);
+
+        if (size != m_size)
+        {
+            device.waitIdle();
+            
+            Destroy();
+            InitHeadless(size);
+        }
+
+        *a_imageIndex = (*a_imageIndex + 1) % VulkanMaxFlightFrames;
+    }
+    else
+    {
+        device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+
+        switch (device.acquireNextImageKHR(m_swapchain, UINT64_MAX, a_semaphore, nullptr, a_imageIndex))
+        {
+        case vk::Result::eErrorOutOfDateKHR:
+        {
+            Destroy();
+
+            return;
+        }
+        case vk::Result::eSuccess:
+        case vk::Result::eSuboptimalKHR:
+        {
+            if (size != m_size)
+            {
+                Destroy();
+                Init(size);
+            }
+
+            break;
+        }
+        default:
+        {
+            printf("Failed to aquire swapchain image \n");
+
+            assert(0);
+
+            break;
+        }
+        }
+
+        device.resetFences(1, &a_fence);
+    }
+
+}
+void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t a_imageIndex)
+{
+    const VmaAllocator allocator = m_engine->GetAllocator();
+    const vk::Device device = m_engine->GetLogicalDevice();
+    const vk::Queue presentQueue = m_engine->GetPresentQueue();
+
+    if (m_window->IsHeadless())
+    {
+        const uint32_t imageIndex = (a_imageIndex + 1) % VulkanMaxFlightFrames;
+
+        HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
+
+        const vk::CommandBuffer cmdBuffer = m_engine->BeginSingleCommand();
+
+        VkBufferCreateInfo buffCreateInfo = {};
+        buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        buffCreateInfo.size = (uint32_t)m_size.x * (uint32_t)m_size.y * 4;
+
+        VmaAllocationCreateInfo allocCreateInfo = {};
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        VkBuffer buff;
+        VmaAllocation alloc;
+        VmaAllocationInfo allocInfo;
+        vmaCreateBuffer(allocator, &buffCreateInfo, &allocCreateInfo, &buff, &alloc, &allocInfo);
+
+        constexpr vk::ImageSubresourceRange SubResourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+
+        const vk::ImageMemoryBarrier imageBarrierRead = vk::ImageMemoryBarrier
+        (
+            vk::AccessFlags(),
+            vk::AccessFlagBits::eTransferWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferSrcOptimal,
+            0,
+            0,
+            m_colorImage[imageIndex],
+            SubResourceRange
+        );
+
+        cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &imageBarrierRead);
+
+        constexpr vk::ImageSubresourceLayers SubResource = vk::ImageSubresourceLayers
+        (
+            vk::ImageAspectFlagBits::eColor,
+            0,
+            0,
+            1
+        );
+
+        const vk::BufferImageCopy imageCopy = vk::BufferImageCopy
+        (
+            0,
+            0,
+            0,
+            SubResource,
+            {0, 0, 0},
+            { (uint32_t)m_size.x, (uint32_t)m_size.y, 1 }
+        );
+
+        cmdBuffer.copyImageToBuffer(m_colorImage[imageIndex], vk::ImageLayout::eTransferSrcOptimal, buff, 1, &imageCopy);
+
+        m_engine->EndSingleCommand(cmdBuffer);
+
+        window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, (char*)allocInfo.pMappedData);
+
+        vmaDestroyBuffer(allocator, buff, alloc);
+    }
+    else
+    {
+        const vk::SwapchainKHR swapChains[] = { m_swapchain };
+
+        const vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR
+        (
+            1,
+            &a_semaphore,
+            1,
+            swapChains,
+            &a_imageIndex
+        );
+
+        presentQueue.presentKHR(&presentInfo);
+    }
 }

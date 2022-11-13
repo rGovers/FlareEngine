@@ -164,77 +164,50 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
     );
     commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-    for (const MaterialRenderStack& renderStack : m_renderStacks)
-    {
-        const uint32_t matAddr = renderStack.GetMaterialAddr();
-        const RenderProgram& program = m_shaderPrograms[matAddr];
-        for (uint32_t i = 0; i < camBufferSize; ++i)
-        {
-            const CameraBuffer& camBuff = m_cameraBuffers[i];
-            if (camBuff.RenderLayer & program.RenderLayer)
-            {
-                const glm::vec2 screenPos = camBuff.View.Position * (glm::vec2)swapSize;
-                const glm::vec2 screenSize = camBuff.View.Size * (glm::vec2)swapSize;
-
-                const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
-                commandBuffer.setScissor(0, 1, &scissor);
-                const vk::Viewport viewport = vk::Viewport
-                (
-                    screenPos.x, 
-                    screenPos.y, 
-                    screenSize.x, 
-                    screenSize.y,
-                    camBuff.View.MinDepth,
-                    camBuff.View.MaxDepth
-                );
-                commandBuffer.setViewport(0, 1, &viewport); 
-
-                VulkanPipeline* pipeline = m_pipelines[i | matAddr << 32];
-                pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuff, objectManager);
-
-                pipeline->Bind(curFrame, commandBuffer);
-
-                const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
-                for (const ModelBuffer& modelBuff : modelBuffers)
-                {
-                    if (modelBuff.ModelAddr != -1)
-                    {
-                        const VulkanModel* model = m_models[modelBuff.ModelAddr];
-                        model->Bind(commandBuffer);
-                        const uint32_t indexCount = model->GetIndexCount();
-
-                        commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);                        
-                    }
-                }
-            }
-        }
-    }
-
-    // for (const CameraBuffer& camBuf : m_cameraBuffers)
+    // for (const MaterialRenderStack& renderStack : m_renderStacks)
     // {
-    //     if (camBuf.TransformAddr == -1)
+    //     const uint32_t matAddr = renderStack.GetMaterialAddr();
+    //     const RenderProgram& program = m_shaderPrograms[matAddr];
+    //     for (uint32_t i = 0; i < camBufferSize; ++i)
     //     {
-    //         continue;
+    //         const CameraBuffer& camBuff = m_cameraBuffers[i];
+    //         if (camBuff.RenderLayer & program.RenderLayer)
+    //         {
+    //             const glm::vec2 screenPos = camBuff.View.Position * (glm::vec2)swapSize;
+    //             const glm::vec2 screenSize = camBuff.View.Size * (glm::vec2)swapSize;
+
+    //             const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
+    //             commandBuffer.setScissor(0, 1, &scissor);
+    //             const vk::Viewport viewport = vk::Viewport
+    //             (
+    //                 screenPos.x, 
+    //                 screenPos.y, 
+    //                 screenSize.x, 
+    //                 screenSize.y,
+    //                 camBuff.View.MinDepth,
+    //                 camBuff.View.MaxDepth
+    //             );
+    //             commandBuffer.setViewport(0, 1, &viewport); 
+
+    //             VulkanPipeline* pipeline = m_pipelines[i | matAddr << 32];
+    //             pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuff, objectManager);
+
+    //             pipeline->Bind(curFrame, commandBuffer);
+
+    //             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
+    //             for (const ModelBuffer& modelBuff : modelBuffers)
+    //             {
+    //                 if (modelBuff.ModelAddr != -1)
+    //                 {
+    //                     const VulkanModel* model = m_models[modelBuff.ModelAddr];
+    //                     model->Bind(commandBuffer);
+    //                     const uint32_t indexCount = model->GetIndexCount();
+
+    //                     commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);                        
+    //                 }
+    //             }
+    //         }
     //     }
-
-    //     const glm::vec2 screenPos = camBuf.View.Position * (glm::vec2)swapSize;
-    //     const glm::vec2 screenSize = camBuf.View.Size * (glm::vec2)swapSize;
-
-    //     const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
-    //     commandBuffer.setScissor(0, 1, &scissor);
-
-    //     const vk::Viewport viewport = vk::Viewport
-    //     (
-    //         screenPos.x, 
-    //         screenPos.y, 
-    //         screenSize.x, 
-    //         screenSize.y,
-    //         camBuf.View.MinDepth,
-    //         camBuf.View.MaxDepth
-    //     );
-    //     commandBuffer.setViewport(0, 1, &viewport); 
-
-    //     // m_pipelines.begin()->second->UpdateCameraBuffer(curFrame, screenSize, camBuf, objectManager);
     // }
 
     commandBuffer.endRenderPass();

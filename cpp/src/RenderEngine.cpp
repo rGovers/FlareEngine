@@ -8,7 +8,7 @@
 #include "RuntimeManager.h"
 #include "Trace.h"
 
-RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, GLFWwindow* a_window, Config* a_config)
+RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, AppWindow* a_window, Config* a_config)
 {
     TRACE("Initializing Rendering");
     m_config = a_config;

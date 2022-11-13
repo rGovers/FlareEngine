@@ -5,6 +5,7 @@
 
 #include <set>
 
+#include "AppWindow/AppWindow.h"
 #include "Config.h"
 #include "FlareNativeConfig.h"
 #include "Rendering/RenderEngine.h"
@@ -42,9 +43,9 @@ static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
 
     uint32_t requiredCount = (uint32_t)DeviceExtensions.size();
 
-    for (const auto& requiredExtension : DeviceExtensions)
+    for (const char* requiredExtension : DeviceExtensions)
     {
-        for (const auto& extension : availableExtensions)
+        for (const vk::ExtensionProperties& extension : availableExtensions)
         {
             if (strcmp(requiredExtension, extension.extensionName) == 0)
             {
@@ -58,18 +59,22 @@ static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
     return requiredCount == 0;
 }
 
-static bool IsDeviceSuitable(const vk::PhysicalDevice& a_device, const vk::SurfaceKHR& a_surface)
+static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalDevice& a_device, AppWindow* a_window)
 {
     if (!CheckDeviceExtensionSupport(a_device))
     {
         return false;
     }
 
-    const SwapChainSupportInfo info = VulkanSwapchain::QuerySwapChainSupport(a_device, a_surface);
-    if (info.Formats.empty() || info.PresentModes.empty())
+    if (!a_window->IsHeadless())
     {
-        return false;
+        const SwapChainSupportInfo info = VulkanSwapchain::QuerySwapChainSupport(a_device, a_window->GetSurface(a_instance));
+        if (info.Formats.empty() || info.PresentModes.empty())
+        {
+            return false;
+        }
     }
+    
 
     return a_device.getFeatures().geometryShader;
 }
@@ -84,7 +89,7 @@ static bool CheckValidationLayerSupport()
 
     for (const char* layerName : ValidationLayers)
     {
-        for (const auto& properties : availableLayers)
+        for (const vk::LayerProperties& properties : availableLayers)
         {
             if (strcmp(layerName, properties.layerName) == 0)
             {
@@ -100,14 +105,11 @@ NextIter:;
     return true;
 } 
 
-std::vector<const char*> VulkanRenderEngineBackend::GetRequiredExtensions() const
+static std::vector<const char*> GetRequiredExtensions(const AppWindow* a_window)
 {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    std::vector<const char*> extensions = a_window->GetRequiredVulkanExtenions();
 
-    std::vector<const char*> extensions = std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-    if constexpr (EnableValidationLayers)
+    if constexpr (VulkanEnableValidationLayers)
     {
         extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
@@ -118,10 +120,13 @@ std::vector<const char*> VulkanRenderEngineBackend::GetRequiredExtensions() cons
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
     const RenderEngine* renderEngine = GetRenderEngine();
+    AppWindow* window = renderEngine->m_window;
 
     std::vector<const char*> enabledLayers;
 
-    if constexpr (EnableValidationLayers)
+    const bool headless = window->IsHeadless();
+
+    if constexpr (VulkanEnableValidationLayers)
     {
         assert(CheckValidationLayerSupport());
 
@@ -133,7 +138,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     const vk::ApplicationInfo appInfo = vk::ApplicationInfo
     (
-        renderEngine->m_config->GetApplicationName().begin(), 
+        renderEngine->m_config->GetApplicationName().data(), 
         0U, 
         "FlareEngine", 
         VK_MAKE_VERSION(FLARENATIVE_VERSION_MAJOR, FLARENATIVE_VERSION_MINOR, 0), 
@@ -141,7 +146,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         nullptr
     );
 
-    const std::vector<const char*> reqExtensions = GetRequiredExtensions();
+    const std::vector<const char*> reqExtensions = GetRequiredExtensions(window);
 
     constexpr vk::DebugUtilsMessengerCreateInfoEXT DebugCreateInfo = vk::DebugUtilsMessengerCreateInfoEXT
     (
@@ -162,7 +167,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         nullptr
     );
 
-    if constexpr (EnableValidationLayers)
+    if constexpr (VulkanEnableValidationLayers)
     {
         createInfo.pNext = &DebugCreateInfo;
     }
@@ -176,7 +181,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     TRACE("Created Vulkan Instance");
 
-    if constexpr (EnableValidationLayers)
+    if constexpr (VulkanEnableValidationLayers)
     {
         if (m_instance.createDebugUtilsMessengerEXT(&DebugCreateInfo, nullptr, &m_messenger) != vk::Result::eSuccess)
         {
@@ -187,12 +192,6 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
         TRACE("Created Vulkan Debug Layer");
     }
-
-    VkSurfaceKHR tempSurf;
-    glfwCreateWindowSurface(m_instance, renderEngine->m_window, nullptr, &tempSurf);
-    m_surface = vk::SurfaceKHR(tempSurf);
-
-    TRACE("Created Vulkan Surface");
 
     uint32_t deviceCount = 0;
     m_instance.enumeratePhysicalDevices(&deviceCount, nullptr);
@@ -206,7 +205,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     for (const vk::PhysicalDevice& device : devices)
     {
-        if (IsDeviceSuitable(device, m_surface))
+        if (IsDeviceSuitable(m_instance, device, window))
         {
             m_pDevice = device;
 
@@ -232,23 +231,37 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         {
             m_graphicsQueueIndex = i;
         }
-
-        vk::Bool32 presentSupport = VK_FALSE;
-        m_pDevice.getSurfaceSupportKHR(i, m_surface, &presentSupport);
-        if (presentSupport)
+        
+        if (!headless)
         {
-            if (i == m_graphicsQueueIndex && m_presentQueueIndex == -1)
+            vk::Bool32 presentSupport = VK_FALSE;
+
+            m_pDevice.getSurfaceSupportKHR(i, window->GetSurface(m_instance), &presentSupport);
+
+            if (presentSupport)
             {
-                m_presentQueueIndex = i;
-            }
-            else
-            {
-                m_presentQueueIndex = i;
+                if (i == m_graphicsQueueIndex && m_presentQueueIndex == -1)
+                {
+                    m_presentQueueIndex = i;
+                }
+                else
+                {
+                    m_presentQueueIndex = i;
+                }
             }
         }
+       
     }
 
-    const std::set<uint32_t> uniqueQueueFamilies = { m_graphicsQueueIndex, m_presentQueueIndex };
+    std::set<uint32_t> uniqueQueueFamilies;
+    if (m_graphicsQueueIndex != -1)
+    {
+        uniqueQueueFamilies.emplace(m_graphicsQueueIndex);
+    }
+    if (m_presentQueueIndex != -1)
+    {
+        uniqueQueueFamilies.emplace(m_presentQueueIndex);
+    }
 
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
@@ -260,8 +273,24 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     constexpr vk::PhysicalDeviceFeatures deviceFeatures;
 
-    vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo(vk::DeviceCreateFlags(), (uint32_t)queueCreateInfos.size(), queueCreateInfos.data(), 0, nullptr, (uint32_t)DeviceExtensions.size(), DeviceExtensions.data());
-    if constexpr (EnableValidationLayers)
+    vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo
+    (
+        vk::DeviceCreateFlags(), 
+        (uint32_t)queueCreateInfos.size(), 
+        queueCreateInfos.data(), 
+        0, 
+        nullptr, 
+        0, 
+        nullptr
+    );
+
+    if (!headless)
+    {
+        deviceCreateInfo.enabledExtensionCount = (uint32_t)DeviceExtensions.size();
+        deviceCreateInfo.ppEnabledExtensionNames = DeviceExtensions.data();
+    }
+
+    if constexpr (VulkanEnableValidationLayers)
     {
         deviceCreateInfo.enabledLayerCount = (uint32_t)ValidationLayers.size();
         deviceCreateInfo.ppEnabledLayerNames = ValidationLayers.data();
@@ -298,8 +327,14 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     TRACE("Created Vulkan Allocator");
 
-    m_lDevice.getQueue(m_graphicsQueueIndex, 0, &m_graphicsQueue);    
-    m_lDevice.getQueue(m_presentQueueIndex, 0, &m_presentQueue);
+    if (m_graphicsQueueIndex != -1)
+    {
+        m_lDevice.getQueue(m_graphicsQueueIndex, 0, &m_graphicsQueue);    
+    }
+    if (m_presentQueueIndex != -1)
+    {
+        m_lDevice.getQueue(m_presentQueueIndex, 0, &m_presentQueue);
+    }
 
     TRACE("Got Vulkan Queues");
 
@@ -309,7 +344,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         vk::FenceCreateFlagBits::eSignaled
     );
 
-    for (uint32_t i = 0; i < MaxFlightFrames; ++i)
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable[i]) != vk::Result::eSuccess)
         {
@@ -350,6 +385,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 }
 VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 {
+    AppWindow* window = GetRenderEngine()->m_window;
+
     TRACE("Begin Vulkan clean up");
     m_lDevice.waitIdle();
 
@@ -364,7 +401,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     }
 
     TRACE("Destroy Vulkan Sync Objects");
-    for (uint32_t i = 0; i < MaxFlightFrames; ++i)
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         m_lDevice.destroySemaphore(m_imageAvailable[i]);
         m_lDevice.destroySemaphore(m_renderFinished[i]);
@@ -373,14 +410,18 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     
     TRACE("Destroy Vulkan Allocator")
     vmaDestroyAllocator(m_allocator);
-
-    TRACE("Destroying Surface");
-    m_instance.destroySurfaceKHR(m_surface);
+    
+    vk::SurfaceKHR surface = window->GetSurface(m_instance);
+    if (surface != vk::SurfaceKHR(nullptr))
+    {
+        TRACE("Destroying Surface");
+        m_instance.destroySurfaceKHR(surface);
+    }
 
     TRACE("Destroying Devices");
     m_lDevice.destroy();
 
-    if constexpr (EnableValidationLayers)
+    if constexpr (VulkanEnableValidationLayers)
     {
         TRACE("Cleaning Vulkan Diagnostics");
         m_instance.destroyDebugUtilsMessengerEXT(m_messenger);
@@ -394,66 +435,37 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update()
 {
-    m_lDevice.waitForFences(1, &m_inFlight[m_currentFrame], VK_TRUE, UINT64_MAX);
-
-    glm::ivec2 newWinSize;
-    glfwGetWindowSize(GetRenderEngine()->m_window, &newWinSize.x, &newWinSize.y);
-
-    if (newWinSize.x == 0 || newWinSize.y == 0)
-    {
-        return;
-    }
-
+    AppWindow* window = GetRenderEngine()->m_window;
     if (m_swapchain == nullptr)
     {
-        m_swapchain = new VulkanSwapchain(this, newWinSize);
+        m_swapchain = new VulkanSwapchain(this, window);
     }
-    else if (newWinSize != m_swapchain->GetSize())
-    {
-        m_swapchain->Rebuild(newWinSize);
-    }
+    const uint32_t nextFrame = (m_currentFrame + 1) % VulkanMaxFlightFrames;
 
-    switch (m_lDevice.acquireNextImageKHR(m_swapchain->GetSwapchain(), UINT64_MAX, m_imageAvailable[m_currentFrame], nullptr, &m_imageIndex))
-    {
-    case vk::Result::eErrorOutOfDateKHR:
-    {
-        m_swapchain->Rebuild(newWinSize);
-
-        return;
-    }
-    case vk::Result::eSuccess:
-    case vk::Result::eSuboptimalKHR:
-    {
-        break;
-    }
-    default:
-    {
-        printf("Failed to aquire swapchain image \n");
-
-        assert(0);
-
-        break;
-    }
-    }
-
-    m_lDevice.resetFences(1, &m_inFlight[m_currentFrame]);
+    m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex);
 
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
     const uint32_t buffersSize = (uint32_t)buffers.size();
 
-    const vk::Semaphore signalSemaphores[] = { m_renderFinished[m_currentFrame] };
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
-    const vk::SubmitInfo submitInfo = vk::SubmitInfo
+    vk::SubmitInfo submitInfo = vk::SubmitInfo
     (
-        1,
-        &m_imageAvailable[m_currentFrame],
+        0,
+        nullptr,
         WaitStages,
         buffersSize,
         buffers.data(),
-        1,
-        signalSemaphores
+        0,
+        nullptr
     );
+    if (!window->IsHeadless())
+    {
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &m_imageAvailable[m_currentFrame];
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
+    }
 
     if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
     {
@@ -461,20 +473,10 @@ void VulkanRenderEngineBackend::Update()
 
         assert(0);
     }
+    
+    m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[nextFrame], m_imageIndex);
 
-    const vk::SwapchainKHR swapChains[] = { m_swapchain->GetSwapchain() };
-
-    const vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR
-    (
-        1,
-        signalSemaphores,
-        1,
-        swapChains,
-        &m_imageIndex
-    );
-
-    m_presentQueue.presentKHR(&presentInfo);
-    m_currentFrame = (m_currentFrame + 1) % MaxFlightFrames;
+    m_currentFrame = nextFrame;
 }
 
 vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
