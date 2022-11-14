@@ -26,9 +26,13 @@ class VulkanSwapchain
 private:
     AppWindow*                   m_window;
     VulkanRenderEngineBackend*   m_engine;
-  
+
+    unsigned char                m_init;
     vk::Image                    m_colorImage[VulkanMaxFlightFrames];
     VmaAllocation                m_colorAllocation[VulkanMaxFlightFrames];
+
+    vk::Buffer                   m_buffer;
+    VmaAllocation                m_allocBuffer;
 
     vk::SwapchainKHR             m_swapchain = nullptr;
     vk::RenderPass               m_renderPass = nullptr;
@@ -73,6 +77,6 @@ public:
         return m_swapchain;
     }
 
-    void StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex);
-    void EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t a_imageIndex);
+    bool StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex);
+    void EndFrame(const vk::Semaphore& a_semaphores, const vk::Fence& a_fence, uint32_t a_imageIndex);
 };

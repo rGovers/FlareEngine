@@ -114,7 +114,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
 
             if (camBuffer.RenderLayer & program.RenderLayer)
             {
-                const uint64_t ind = i | j << 32;
+                const uint64_t ind = i | (uint64_t)j << 32;
                 const auto iter = m_pipelines.find(ind);
                 if (iter == m_pipelines.end())
                 {
@@ -176,7 +176,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
                 const glm::vec2 screenPos = camBuff.View.Position * (glm::vec2)swapSize;
                 const glm::vec2 screenSize = camBuff.View.Size * (glm::vec2)swapSize;
 
-                const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
+                const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
                 commandBuffer.setScissor(0, 1, &scissor);
                 const vk::Viewport viewport = vk::Viewport
                 (
@@ -189,7 +189,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
                 );
                 commandBuffer.setViewport(0, 1, &viewport); 
 
-                VulkanPipeline* pipeline = m_pipelines[i | matAddr << 32];
+                VulkanPipeline* pipeline = m_pipelines[i | (uint64_t)matAddr << 32];
                 pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuff, objectManager);
 
                 pipeline->Bind(curFrame, commandBuffer);

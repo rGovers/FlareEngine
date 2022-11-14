@@ -350,7 +350,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
         (uint32_t)ubos.size(),
         ubos.data()
     );
-    vk::resultCheck(device.createDescriptorSetLayout(&descriptorLayout, nullptr, &m_desciptorLayout), "Failed to create Vulkan Descriptor Layout");
+    if (device.createDescriptorSetLayout(&descriptorLayout, nullptr, &m_desciptorLayout) != vk::Result::eSuccess)
+    {
+        Logger::Error("Failed to create Vulkan Descriptor Layout");
+
+        assert(0);
+    }
 
     TRACE("Creating Pipeline Descriptor Pool");
     constexpr vk::DescriptorPoolSize PoolSize = vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, VulkanMaxFlightFrames);
@@ -361,7 +366,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
         1, 
         &PoolSize
     );
-    vk::resultCheck(device.createDescriptorPool(&poolInfo, nullptr, &m_descriptorPool), "Failed to create Vulkan Descriptor Pool");
+    if (device.createDescriptorPool(&poolInfo, nullptr, &m_descriptorPool) != vk::Result::eSuccess) 
+    {
+        Logger::Error("Failed to create Vulkan Descriptor Pool");
+
+        assert(0);
+    }
 
     TRACE("Creating Pipeline Descriptor Sets");
     vk::DescriptorSetLayout layouts[VulkanMaxFlightFrames];
@@ -377,7 +387,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
         layouts
     );
 
-    vk::resultCheck(device.allocateDescriptorSets(&descriptorSetAllocInfo, m_descriptorSets), "Failed to create Vulkan Descriptor Sets");
+    if (device.allocateDescriptorSets(&descriptorSetAllocInfo, m_descriptorSets) != vk::Result::eSuccess)
+    {
+        Logger::Error("Failed to create Vulkan Descriptor Sets");
+
+        assert(0);
+    } 
 
     const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = vk::PipelineLayoutCreateInfo
     (
@@ -389,7 +404,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
     );
 
     TRACE("Creating Pipeline Layout");
-    vk::resultCheck(device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &m_layout), "Failed to create Vulkan Pipeline Layout");
+    if (device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &m_layout) != vk::Result::eSuccess)
+    {
+        Logger::Error("Failed to create Vulkan Pipeline Layout");
+
+        assert(0);
+    }
     
     const std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = GetStageInfo(a_program, a_gEngine);
 
@@ -412,7 +432,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
     );
 
     TRACE("Creating Pipeline");
-    vk::resultCheck(device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline), "Failed to create Vulkan Pipeline");
+    if (device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline) != vk::Result::eSuccess)
+    {
+        Logger::Error("Failed to create Vulkan Pipeline");
+
+        assert(0);
+    }
 }
 VulkanPipeline::~VulkanPipeline()
 {

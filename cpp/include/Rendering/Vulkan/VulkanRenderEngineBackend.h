@@ -50,8 +50,11 @@ public:
 
     virtual void Update();
 
+    vk::CommandBuffer CreateCommandBuffer(vk::CommandBufferLevel a_level) const;
+    void DestroyCommandBuffer(const vk::CommandBuffer& a_buffer) const;
+
     vk::CommandBuffer BeginSingleCommand() const;
-    void EndSingleCommand(const vk::CommandBuffer& a_buffer);
+    void EndSingleCommand(const vk::CommandBuffer& a_buffer) const;
 
     inline VmaAllocator GetAllocator() const
     {

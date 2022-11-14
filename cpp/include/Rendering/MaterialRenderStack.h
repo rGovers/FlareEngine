@@ -26,7 +26,7 @@ public:
 
     inline bool Empty()
     {
-        m_modelBuffers.empty();
+        return m_modelBuffers.empty();
     }
 
     inline uint32_t GetMaterialAddr() const

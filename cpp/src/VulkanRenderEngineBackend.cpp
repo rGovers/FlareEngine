@@ -54,10 +54,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
 static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
 {
     uint32_t extensionCount;
-    a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, nullptr);
+    std::ignore = a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, nullptr);
 
     std::vector<vk::ExtensionProperties> availableExtensions = std::vector<vk::ExtensionProperties>(extensionCount);
-    a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
+    std::ignore = a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
 
     uint32_t requiredCount = (uint32_t)DeviceExtensions.size();
 
@@ -100,10 +100,10 @@ static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalD
 static bool CheckValidationLayerSupport()
 {
     uint32_t layerCount = 0;
-    vk::enumerateInstanceLayerProperties(&layerCount, nullptr);
+    std::ignore = vk::enumerateInstanceLayerProperties(&layerCount, nullptr);
 
     std::vector<vk::LayerProperties> availableLayers = std::vector<vk::LayerProperties>(layerCount);
-    vk::enumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    std::ignore = vk::enumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (const char* layerName : ValidationLayers)
     {
@@ -212,12 +212,12 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     }
 
     uint32_t deviceCount = 0;
-    m_instance.enumeratePhysicalDevices(&deviceCount, nullptr);
+    std::ignore = m_instance.enumeratePhysicalDevices(&deviceCount, nullptr);
 
     assert(deviceCount > 0);
 
     std::vector<vk::PhysicalDevice> devices = std::vector<vk::PhysicalDevice>(deviceCount);
-    m_instance.enumeratePhysicalDevices(&deviceCount, devices.data());
+    std::ignore = m_instance.enumeratePhysicalDevices(&deviceCount, devices.data());
 
     bool foundDevice = false;
 
@@ -254,7 +254,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         {
             vk::Bool32 presentSupport = VK_FALSE;
 
-            m_pDevice.getSurfaceSupportKHR(i, window->GetSurface(m_instance), &presentSupport);
+            std::ignore = m_pDevice.getSurfaceSupportKHR(i, window->GetSurface(m_instance), &presentSupport);
 
             if (presentSupport)
             {
@@ -458,9 +458,11 @@ void VulkanRenderEngineBackend::Update()
     {
         m_swapchain = new VulkanSwapchain(this, window);
     }
-    const uint32_t nextFrame = (m_currentFrame + 1) % VulkanMaxFlightFrames;
 
-    m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex);
+    if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex))
+    {
+        return;
+    }
 
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
     const uint32_t buffersSize = (uint32_t)buffers.size();
@@ -474,56 +476,75 @@ void VulkanRenderEngineBackend::Update()
         WaitStages,
         buffersSize,
         buffers.data(),
-        0,
-        nullptr
+        1,
+        &m_renderFinished[m_currentFrame]
     );
+    
     if (!window->IsHeadless())
     {
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &m_imageAvailable[m_currentFrame];
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
-    }
 
-    if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
+        if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to submit command");
+
+            assert(0);
+        }
+    }
+    else
     {
-        Logger::Error("Failed to submit command");
+        if (m_graphicsQueue.submit(1, &submitInfo, nullptr) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to submit command");
 
-        assert(0);
+            assert(0);
+        }
     }
-    
-    m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[nextFrame], m_imageIndex);
 
-    m_currentFrame = nextFrame;
+    m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[m_currentFrame], m_imageIndex);
+
+    m_currentFrame = (m_currentFrame + 1) % VulkanMaxFlightFrames;
 }
 
-vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
-{
+vk::CommandBuffer VulkanRenderEngineBackend::CreateCommandBuffer(vk::CommandBufferLevel a_level) const
+{   
     const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
     (
         m_commandPool,
-        vk::CommandBufferLevel::ePrimary,
+        a_level,
         1
     );
 
     vk::CommandBuffer cmdBuffer;
     if (m_lDevice.allocateCommandBuffers(&allocInfo, &cmdBuffer) != vk::Result::eSuccess)
     {
-        Logger::Error("Failed to Allocate Single Command Buffer");
+        Logger::Error("Failed to Allocate Command Buffer");
 
         assert(0);
     }
+
+    return cmdBuffer;
+}
+void VulkanRenderEngineBackend::DestroyCommandBuffer(const vk::CommandBuffer& a_buffer) const
+{
+    m_lDevice.freeCommandBuffers(m_commandPool, 1, &a_buffer);
+}
+
+vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
+{
+    const vk::CommandBuffer cmdBuffer = CreateCommandBuffer(vk::CommandBufferLevel::ePrimary);
 
     constexpr vk::CommandBufferBeginInfo BufferBeginInfo = vk::CommandBufferBeginInfo
     (
         vk::CommandBufferUsageFlagBits::eOneTimeSubmit
     );
 
-    cmdBuffer.begin(&BufferBeginInfo);
+    std::ignore = cmdBuffer.begin(&BufferBeginInfo);
 
     return cmdBuffer;
 }
-void VulkanRenderEngineBackend::EndSingleCommand(const vk::CommandBuffer& a_buffer)
+void VulkanRenderEngineBackend::EndSingleCommand(const vk::CommandBuffer& a_buffer) const
 {
     a_buffer.end();
 
@@ -536,7 +557,12 @@ void VulkanRenderEngineBackend::EndSingleCommand(const vk::CommandBuffer& a_buff
         &a_buffer
     );
 
-    m_graphicsQueue.submit(1, &submitInfo, nullptr);
+    if (m_graphicsQueue.submit(1, &submitInfo, nullptr) != vk::Result::eSuccess)
+    {
+        Logger::Error("Failed to Submit Command");
+
+        assert(0);
+    }
     m_graphicsQueue.waitIdle();
 
     m_lDevice.freeCommandBuffers(m_commandPool, 1, &a_buffer);

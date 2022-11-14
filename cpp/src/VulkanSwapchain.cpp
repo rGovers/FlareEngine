@@ -140,6 +140,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
 {
     m_size = a_size;
+    m_init = 0;
 
     const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
@@ -168,7 +169,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
 
     VkImage image;
 
-    TRACE("Creating Swapchain Headless Buffer");
+    TRACE("Creating Swapchain Headless Images");
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         if (vmaCreateImage(allocator, &imageInfo, &allocInfo, &image, &m_colorAllocation[i], nullptr) != VK_SUCCESS)
@@ -196,7 +197,12 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
             vk::ComponentMapping(),
             SubresourceRange
         );
-        vk::resultCheck(device.createImageView(&colorImageView, nullptr, &m_imageViews[i]), "Failed to create Swapchain Image View");
+        if (device.createImageView(&colorImageView, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to create Swapchain Image View");
+
+            assert(0);
+        }
 
         const vk::ImageView attachments[] = 
         {
@@ -213,9 +219,29 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
             (uint32_t)m_size.y,
             1
         );
-        vk::resultCheck(device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]), "Failed to create Swapchain Framebuffer");
+        if (device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to create Swapchain Framebuffer");
+
+            assert(0);
+        }
     }
-    TRACE("Created Swapchain Headless Buffers");
+    TRACE("Created Swapchain Headless Images");
+
+    VkBufferCreateInfo buffCreateInfo = {};
+    buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffCreateInfo.size = (uint32_t)m_size.x * (uint32_t)m_size.y * 4;
+
+    VmaAllocationCreateInfo allocCreateInfo = {};
+    allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+    VkBuffer buff;
+    vmaCreateBuffer(allocator, &buffCreateInfo, &allocCreateInfo, &buff, &m_allocBuffer, nullptr);
+    m_buffer = buff;
+
+    TRACE("Created Swapchain Buffer");
 }
 void VulkanSwapchain::Destroy()
 {
@@ -240,6 +266,8 @@ void VulkanSwapchain::Destroy()
         {
             vmaDestroyImage(allocator, m_colorImage[i], m_colorAllocation[i]);
         }
+        
+        vmaDestroyBuffer(allocator, m_buffer, m_allocBuffer);
     }
     else
     {
@@ -252,6 +280,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
 {
     m_window = a_window;
     m_engine = a_engine;
+
+    
 
     const vk::Instance instance = m_engine->GetInstance();
     const vk::Device device = m_engine->GetLogicalDevice();
@@ -400,21 +430,16 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
     return info;
 }
 
-void VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex)
+bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex)
 {
+    const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
     const glm::ivec2 size = m_window->GetSize();
 
+    device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+
     if (m_window->IsHeadless())
     {
-        if (*a_imageIndex == -1)
-        {
-            *a_imageIndex = 0;
-        }
-
-        device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
-        device.resetFences(1, &a_fence);
-
         if (size != m_size)
         {
             device.waitIdle();
@@ -424,18 +449,29 @@ void VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
 
         *a_imageIndex = (*a_imageIndex + 1) % VulkanMaxFlightFrames;
+        
+        if ((m_init & 0b1 << *a_imageIndex) == 0)
+        {
+            return true;
+        }
+
+        char* dat;
+        vmaMapMemory(allocator, m_allocBuffer, (void**)&dat);
+
+        HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
+        window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, dat);
+
+        vmaUnmapMemory(allocator, m_allocBuffer);
     }
     else
     {
-        device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
-
         switch (device.acquireNextImageKHR(m_swapchain, UINT64_MAX, a_semaphore, nullptr, a_imageIndex))
         {
         case vk::Result::eErrorOutOfDateKHR:
         {
             Destroy();
 
-            return;
+            return false;
         }
         case vk::Result::eSuccess:
         case vk::Result::eSuboptimalKHR:
@@ -457,58 +493,38 @@ void VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
             break;
         }
         }
-
-        device.resetFences(1, &a_fence);
     }
 
+    device.resetFences(1, &a_fence);
+
+    return true;
 }
 void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t a_imageIndex)
 {
-    const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
     const vk::Queue presentQueue = m_engine->GetPresentQueue();
+    const vk::Queue graphicsQueue = m_engine->GetGraphicsQueue();
 
     if (m_window->IsHeadless())
-    {
-        const uint32_t imageIndex = (a_imageIndex + 1) % VulkanMaxFlightFrames;
+    {        
+        if ((m_init & 0b1 << a_imageIndex) == 0)
+        {
+            m_init |= 0b1 << a_imageIndex;
 
-        HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
+            return;
+        }
 
-        const vk::CommandBuffer cmdBuffer = m_engine->BeginSingleCommand();
+        constexpr uint64_t WaitValue = 1;
 
-        VkBufferCreateInfo buffCreateInfo = {};
-        buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        buffCreateInfo.size = (uint32_t)m_size.x * (uint32_t)m_size.y * 4;
+        const vk::CommandBuffer cmdBuffer = m_engine->CreateCommandBuffer(vk::CommandBufferLevel::ePrimary);
 
-        VmaAllocationCreateInfo allocCreateInfo = {};
-        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-        VkBuffer buff;
-        VmaAllocation alloc;
-        VmaAllocationInfo allocInfo;
-        vmaCreateBuffer(allocator, &buffCreateInfo, &allocCreateInfo, &buff, &alloc, &allocInfo);
+        constexpr vk::CommandBufferBeginInfo BufferBeginInfo = vk::CommandBufferBeginInfo
+        (
+            vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        );
+        cmdBuffer.begin(&BufferBeginInfo);
 
         constexpr vk::ImageSubresourceRange SubResourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-
-        const vk::ImageMemoryBarrier imageBarrierRead = vk::ImageMemoryBarrier
-        (
-            vk::AccessFlags(),
-            vk::AccessFlagBits::eTransferWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eTransferSrcOptimal,
-            0,
-            0,
-            m_colorImage[imageIndex],
-            SubResourceRange
-        );
-
-        // Gets rid of the error spam but also stops the copy
-        // Not sure what is happening because the behaviour I am after causes error
-        // But when I fix the error I get a zeroed out buffer sometimes when I run it
-        // I wish I knew more about Vulkan to know what to do
-        // cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &imageBarrierRead);
 
         constexpr vk::ImageSubresourceLayers SubResource = vk::ImageSubresourceLayers
         (
@@ -528,13 +544,21 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
             { (uint32_t)m_size.x, (uint32_t)m_size.y, 1 }
         );
 
-        cmdBuffer.copyImageToBuffer(m_colorImage[imageIndex], vk::ImageLayout::eTransferSrcOptimal, buff, 1, &imageCopy);
+        cmdBuffer.copyImageToBuffer(m_colorImage[a_imageIndex], vk::ImageLayout::eTransferSrcOptimal, m_buffer, 1, &imageCopy);
 
-        m_engine->EndSingleCommand(cmdBuffer);
+        cmdBuffer.end();
 
-        window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, (char*)allocInfo.pMappedData);
+        constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
-        vmaDestroyBuffer(allocator, buff, alloc);
+        const vk::SubmitInfo submitInfo = vk::SubmitInfo
+        (
+            1, 
+            &a_semaphore, 
+            WaitStages,
+            1, 
+            &cmdBuffer
+        );
+        graphicsQueue.submit(1, &submitInfo, a_fence);
     }
     else
     {
