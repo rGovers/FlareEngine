@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanModel.h"
 
+#include "Logger.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
@@ -33,7 +34,7 @@ VulkanModel::VulkanModel(VulkanRenderEngineBackend* a_engine, uint32_t a_vertexC
 
     if (vmaCreateBuffer(allocator, &vBInfo, &vBAInfo, &stagingVBuffer, &stagingVBAlloc, &stagingVBInfo) != VK_SUCCESS)
     {
-        printf("Failed to create vertex staging buffer \n");
+        Logger::Error("Failed to create vertex staging buffer");
 
         assert(0);
     }
@@ -47,7 +48,7 @@ VulkanModel::VulkanModel(VulkanRenderEngineBackend* a_engine, uint32_t a_vertexC
     VkBuffer tVertexBuffer;
     if (vmaCreateBuffer(allocator, &vBInfo, &vBAInfo, &tVertexBuffer, &m_vbAlloc, nullptr) != VK_SUCCESS)
     {
-        printf("Failed to create vertex buffer \n");
+        Logger::Error("Failed to create vertex buffer");
 
         assert(0);
     }
@@ -70,7 +71,7 @@ VulkanModel::VulkanModel(VulkanRenderEngineBackend* a_engine, uint32_t a_vertexC
 
     if (vmaCreateBuffer(allocator, &iBInfo, &iBAInfo, &stagingIBuffer, &stagingIBAlloc, &stagingIBInfo) != VK_SUCCESS)
     {
-        printf("Failed to create index staging buffer \n");
+        Logger::Error("Failed to create index staging buffer");
 
         assert(0);
     }
@@ -84,7 +85,7 @@ VulkanModel::VulkanModel(VulkanRenderEngineBackend* a_engine, uint32_t a_vertexC
     VkBuffer tIndexBuffer;
     if (vmaCreateBuffer(allocator, &iBInfo, &iBAInfo, &tIndexBuffer, &m_ibAlloc, nullptr) != VK_SUCCESS)
     {
-        printf("Failed to create index buffer \n");
+        Logger::Error("Failed to create index buffer");
 
         assert(0);
     }

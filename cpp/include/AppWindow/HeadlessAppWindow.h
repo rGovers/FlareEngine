@@ -4,6 +4,7 @@
 
 #include <cstdint>
 
+#include "Logger.h"
 #include "PipeMessage.h"
 
 class HeadlessAppWindow : public AppWindow
@@ -20,6 +21,8 @@ private:
 
     PipeMessage RecieveMessage() const;
     void PushMessage(const PipeMessage& a_msg) const;
+
+    void MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type);
 
 protected:
 

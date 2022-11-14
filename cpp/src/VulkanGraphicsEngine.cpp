@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 
+#include "Logger.h"
 #include "ObjectManager.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/ShaderBuffers.h"
@@ -27,7 +28,7 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
 
     if (device.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
     {
-        printf("Failed to create command pool \n");
+        Logger::Error("Failed to create command pool");
 
         assert(0);
     }
@@ -54,7 +55,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     {
         if (shader != nullptr)
         {
-            printf("Vertex Shader was not destroyed \n");
+            Logger::Warning("Vertex Shader was not destroyed");
 
             delete shader;
         }
@@ -64,7 +65,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     {
         if (shader != nullptr)
         {
-            printf("Pixel Shader was not destroyed \n");
+            Logger::Warning("Pixel Shader was not destroyed");
 
             delete shader;
         }
@@ -75,7 +76,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     {
         if (model != nullptr)
         {
-            printf("Model was not destroyed \n");
+            Logger::Warning("Model was not destroyed");
 
             delete model;
         }
@@ -84,14 +85,13 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     TRACE("Checking camera buffer health");
     if (m_cameraBuffers.size() != 0)
     {
-        printf("Leaked Camera Buffer \n");
+        Logger::Warning("Leaked Camera Buffer");
     }
 
     TRACE("Checking shader program buffer health");
     if (m_freeShaderSlots.size() != m_shaderPrograms.size())
     {
-        printf("Shader buffers out of sync \n");
-        printf("Likely material leaked \n");
+        Logger::Warning("Shader buffers out of sync. Likely leaked");
     }
 }
 
@@ -139,7 +139,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
     vk::CommandBuffer commandBuffer;
     if (device.allocateCommandBuffers(&allocInfo, &commandBuffer) != vk::Result::eSuccess)
     {   
-        printf("Failed to Allocate Command Buffers \n");
+        Logger::Error("Failed to Allocate Command Buffers \n");
 
         assert(0);
     }
@@ -164,51 +164,51 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
     );
     commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-    // for (const MaterialRenderStack& renderStack : m_renderStacks)
-    // {
-    //     const uint32_t matAddr = renderStack.GetMaterialAddr();
-    //     const RenderProgram& program = m_shaderPrograms[matAddr];
-    //     for (uint32_t i = 0; i < camBufferSize; ++i)
-    //     {
-    //         const CameraBuffer& camBuff = m_cameraBuffers[i];
-    //         if (camBuff.RenderLayer & program.RenderLayer)
-    //         {
-    //             const glm::vec2 screenPos = camBuff.View.Position * (glm::vec2)swapSize;
-    //             const glm::vec2 screenSize = camBuff.View.Size * (glm::vec2)swapSize;
+    for (const MaterialRenderStack& renderStack : m_renderStacks)
+    {
+        const uint32_t matAddr = renderStack.GetMaterialAddr();
+        const RenderProgram& program = m_shaderPrograms[matAddr];
+        for (uint32_t i = 0; i < camBufferSize; ++i)
+        {
+            const CameraBuffer& camBuff = m_cameraBuffers[i];
+            if (camBuff.RenderLayer & program.RenderLayer)
+            {
+                const glm::vec2 screenPos = camBuff.View.Position * (glm::vec2)swapSize;
+                const glm::vec2 screenSize = camBuff.View.Size * (glm::vec2)swapSize;
 
-    //             const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
-    //             commandBuffer.setScissor(0, 1, &scissor);
-    //             const vk::Viewport viewport = vk::Viewport
-    //             (
-    //                 screenPos.x, 
-    //                 screenPos.y, 
-    //                 screenSize.x, 
-    //                 screenSize.y,
-    //                 camBuff.View.MinDepth,
-    //                 camBuff.View.MaxDepth
-    //             );
-    //             commandBuffer.setViewport(0, 1, &viewport); 
+                const vk::Rect2D scissor = vk::Rect2D({ screenPos.x, screenPos.y }, { screenSize.x, screenSize.y });
+                commandBuffer.setScissor(0, 1, &scissor);
+                const vk::Viewport viewport = vk::Viewport
+                (
+                    screenPos.x, 
+                    screenPos.y, 
+                    screenSize.x, 
+                    screenSize.y,
+                    camBuff.View.MinDepth,
+                    camBuff.View.MaxDepth
+                );
+                commandBuffer.setViewport(0, 1, &viewport); 
 
-    //             VulkanPipeline* pipeline = m_pipelines[i | matAddr << 32];
-    //             pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuff, objectManager);
+                VulkanPipeline* pipeline = m_pipelines[i | matAddr << 32];
+                pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuff, objectManager);
 
-    //             pipeline->Bind(curFrame, commandBuffer);
+                pipeline->Bind(curFrame, commandBuffer);
 
-    //             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
-    //             for (const ModelBuffer& modelBuff : modelBuffers)
-    //             {
-    //                 if (modelBuff.ModelAddr != -1)
-    //                 {
-    //                     const VulkanModel* model = m_models[modelBuff.ModelAddr];
-    //                     model->Bind(commandBuffer);
-    //                     const uint32_t indexCount = model->GetIndexCount();
+                const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
+                for (const ModelBuffer& modelBuff : modelBuffers)
+                {
+                    if (modelBuff.ModelAddr != -1)
+                    {
+                        const VulkanModel* model = m_models[modelBuff.ModelAddr];
+                        model->Bind(commandBuffer);
+                        const uint32_t indexCount = model->GetIndexCount();
 
-    //                     commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);                        
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+                        commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);                        
+                    }
+                }
+            }
+        }
+    }
 
     commandBuffer.endRenderPass();
     commandBuffer.end();

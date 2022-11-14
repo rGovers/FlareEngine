@@ -2,6 +2,7 @@
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
+#include "Logger.h"
 #include "Trace.h"
 
 void spirv_init()
@@ -137,7 +138,7 @@ std::vector<unsigned int> spirv_fromGLSL(EShLanguage a_lang, const std::string_v
 
     if (!shader.parse(&resource, 100, false, Messages))
     {
-        printf("%s \n %s \n", shader.getInfoLog(), shader.getInfoDebugLog());
+		Logger::Error(std::string(shader.getInfoLog()) + "\n" + shader.getInfoDebugLog());
 
         return spirv;
     }
@@ -147,7 +148,7 @@ std::vector<unsigned int> spirv_fromGLSL(EShLanguage a_lang, const std::string_v
 
     if (!program.link(Messages))
     {
-        printf("%s \n %s \n", shader.getInfoLog(), shader.getInfoDebugLog());
+		Logger::Error(std::string(shader.getInfoLog()) + "\n" + shader.getInfoDebugLog());
 
         return spirv;
     }

@@ -23,8 +23,8 @@ namespace FlareEngine
         {
             // ModControl.Close();
 
-            // DefLibrary.Clear();
-            // AssetLibrary.ClearAssets();
+            DefLibrary.Clear();
+            AssetLibrary.ClearAssets();
 
             Logger.Message("FlareCS: Shutdown");
         }

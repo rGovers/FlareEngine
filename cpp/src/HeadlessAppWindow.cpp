@@ -8,11 +8,28 @@
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <stdio.h>
 #include <string>
 #include <unistd.h>
 
 #include "Trace.h"
+
+void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type)
+{
+    const uint32_t strSize = (uint32_t)a_message.size();
+    constexpr uint32_t TypeSize = sizeof(e_LoggerMessageType);
+    const uint32_t size = strSize + TypeSize;;
+
+    PipeMessage msg;
+    msg.Type = PipeMessageType_Message;
+    msg.Length = size;
+    msg.Data = new char[size];
+    memcpy(msg.Data, &a_type, TypeSize);
+    memcpy(msg.Data + TypeSize, a_message.begin(), strSize);
+
+    PushMessage(msg);
+
+    delete[] msg.Data;
+}
 
 HeadlessAppWindow::HeadlessAppWindow()
 {
@@ -49,7 +66,7 @@ HeadlessAppWindow::HeadlessAppWindow()
 
     if (connect(m_sock, (struct sockaddr*)&addr, SUN_LEN(&addr)) < 0)
     {
-        printf("FlareEngine: Failed to connect to IPC \n");
+        Logger::Error("FlareEngine: Failed to connect to IPC");
         perror("connect");
 
         assert(0);
@@ -63,6 +80,8 @@ HeadlessAppWindow::HeadlessAppWindow()
     delete[] msg.Data;
 
     m_frameData = nullptr;
+
+    Logger::CallbackFunc = new Logger::Callback(std::bind(&HeadlessAppWindow::MessageCallback, this, std::placeholders::_1, std::placeholders::_2));
 
     TRACE("Headless Window Initialised");
 }
@@ -78,6 +97,9 @@ HeadlessAppWindow::~HeadlessAppWindow()
         delete[] m_frameData;
         m_frameData = nullptr;
     }
+
+    delete Logger::CallbackFunc;
+    Logger::CallbackFunc = nullptr;
 }
 
 PipeMessage HeadlessAppWindow::RecieveMessage() const
@@ -87,6 +109,13 @@ PipeMessage HeadlessAppWindow::RecieveMessage() const
     const uint32_t size = (uint32_t)read(m_sock, &msg, PipeMessage::Size);
     if (size >= 8)
     {
+        if (msg.Length <= 0)
+        {
+            msg.Data = nullptr;
+
+            return msg;
+        }
+
         msg.Data = new char[msg.Length];
         char* DataBuffer = msg.Data;
         uint32_t len = DataBuffer - msg.Data;
@@ -109,7 +138,10 @@ PipeMessage HeadlessAppWindow::RecieveMessage() const
 void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
 {
     write(m_sock, &a_message, PipeMessage::Size);
-    write(m_sock, a_message.Data, a_message.Length);
+    if (a_message.Data != nullptr)
+    {
+        write(m_sock, a_message.Data, a_message.Length);
+    }
 }
 
 bool HeadlessAppWindow::ShouldClose() const

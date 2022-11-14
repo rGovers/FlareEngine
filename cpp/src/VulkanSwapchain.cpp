@@ -2,6 +2,7 @@
 
 #include "AppWindow/AppWindow.h"
 #include "AppWindow/HeadlessAppWindow.h"
+#include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -77,7 +78,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
     if (lDevice.createSwapchainKHR(&createInfo, nullptr, &m_swapchain) != vk::Result::eSuccess)
     {
-        printf("Failed to create Vulkan Swapchain \n");
+        Logger::Error("Failed to create Vulkan Swapchain");
 
         assert(0);
     }
@@ -102,7 +103,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
         if (lDevice.createImageView(&createInfo, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
         {
-            printf("Failed to create Swapchain Image View \n");
+            Logger::Error("Failed to create Swapchain Image View");
 
             assert(0);
         }
@@ -130,7 +131,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
         if (lDevice.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) != vk::Result::eSuccess)
         {
-            printf("Failed to create Swapchain Framebuffer");
+            Logger::Error("Failed to create Swapchain Framebuffer");
 
             assert(0);
         }
@@ -172,7 +173,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     {
         if (vmaCreateImage(allocator, &imageInfo, &allocInfo, &image, &m_colorAllocation[i], nullptr) != VK_SUCCESS)
         {
-            printf("Failed to create swapchain image \n");
+            Logger::Error("Failed to create Swapchain Image");
 
             assert(0);
         }
@@ -349,7 +350,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
 
     if (device.createRenderPass(&renderPassInfo, nullptr, &m_renderPass) != vk::Result::eSuccess)
     {
-        printf("Failed to create Swapchain Renderpass \n");
+        Logger::Error("Failed to create Swapchain Renderpass");
 
         assert(0);
     }
@@ -449,7 +450,7 @@ void VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
         default:
         {
-            printf("Failed to aquire swapchain image \n");
+            Logger::Error("Failed to aquire swapchain image");
 
             assert(0);
 
@@ -503,7 +504,11 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
             SubResourceRange
         );
 
-        cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &imageBarrierRead);
+        // Gets rid of the error spam but also stops the copy
+        // Not sure what is happening because the behaviour I am after causes error
+        // But when I fix the error I get a zeroed out buffer sometimes when I run it
+        // I wish I knew more about Vulkan to know what to do
+        // cmdBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &imageBarrierRead);
 
         constexpr vk::ImageSubresourceLayers SubResource = vk::ImageSubresourceLayers
         (

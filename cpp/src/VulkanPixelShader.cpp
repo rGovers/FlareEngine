@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 
+#include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -17,7 +18,7 @@ VulkanPixelShader::VulkanPixelShader(VulkanRenderEngineBackend* a_engine, const 
 
     if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
     {
-        printf("Failed to create PixelShader \n");
+        Logger::Error("Failed to create PixelShader");
 
         assert(0);
     }
@@ -37,7 +38,7 @@ VulkanPixelShader* VulkanPixelShader::CreateFromGLSL(VulkanRenderEngineBackend* 
     
     if (spirv.size() <= 0)
     {
-        printf("Failed to generate Pixel Spirv \n");
+        Logger::Error("Failed to generate Pixel Spirv");
 
         assert(0);
     }

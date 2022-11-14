@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
+#include "Logger.h"
 #include "RuntimeManager.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
@@ -240,7 +241,7 @@ void VulkanGraphicsEngineBindings::DestroyVertexShader(uint32_t a_addr)
     }
     else
     {
-        printf("VertexShader already destroyed \n");
+        Logger::Error("VertexShader already destroyed");
 
         assert(0);
     }
@@ -275,7 +276,7 @@ void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr)
     }
     else
     {
-        printf("PixelShader already destroyed \n");
+        Logger::Error("PixelShader already destroyed");
 
         assert(0);
     }
@@ -287,7 +288,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram
 
     if (a_program.PixelShader > m_graphicsEngine->m_pixelShaders.size() || a_program.VertexShader > m_graphicsEngine->m_vertexShaders.size())
     {
-        printf("Invalid ShaderProgram \n");
+        Logger::Error("Invalid ShaderProgram");
 
         assert(0);
     }
@@ -402,7 +403,7 @@ void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr)
     }
     else
     {
-        printf("Model already destroyed \n");
+        Logger::Error("Model already destroyed");
 
         assert(0);
     }

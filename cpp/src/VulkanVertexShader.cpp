@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 
+#include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -17,7 +18,7 @@ VulkanVertexShader::VulkanVertexShader(VulkanRenderEngineBackend* a_engine, cons
 
     if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
     {
-        printf("Failed to create VertexShader \n");
+        Logger::Error("Failed to create VertexShader");
 
         assert(0);
     }
@@ -37,7 +38,7 @@ VulkanVertexShader* VulkanVertexShader::CreateFromGLSL(VulkanRenderEngineBackend
     
     if (spirv.size() <= 0)
     {
-        printf("Failed to generate Vertex Spirv \n");
+        Logger::Error("Failed to generate Vertex Spirv");
 
         assert(0);
     }

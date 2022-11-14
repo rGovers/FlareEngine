@@ -8,6 +8,7 @@
 #include "AppWindow/AppWindow.h"
 #include "Config.h"
 #include "FlareNativeConfig.h"
+#include "Logger.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
@@ -25,9 +26,26 @@ const static std::vector<const char*> DeviceExtensions =
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT a_msgSeverity, VkDebugUtilsMessageTypeFlagsEXT a_msgType, const VkDebugUtilsMessengerCallbackDataEXT* a_callbackData, void* a_userData)
 {
-    if (a_msgSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    switch (a_msgSeverity)
     {
-        printf("Validation Layer: %s \n", a_callbackData->pMessage);
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+    {
+        Logger::Message(std::string("Vulkan Validation Layer: ") + a_callbackData->pMessage);
+
+        break;
+    }
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+    {
+        Logger::Warning(std::string("Vulkan Validation Layer: ") + a_callbackData->pMessage);
+
+        break;
+    }
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+    {
+        Logger::Error(std::string("Vulkan Validation Layer: ") + a_callbackData->pMessage);
+
+        break;
+    }
     }
 
     return VK_FALSE;
@@ -174,7 +192,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     if (vk::createInstance(&createInfo, nullptr, &m_instance) != vk::Result::eSuccess)
     {
-        printf("Failed to create Vulkan Instance \n");
+        Logger::Error("Failed to create Vulkan Instance");
 
         assert(0);
     }
@@ -185,7 +203,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     {
         if (m_instance.createDebugUtilsMessengerEXT(&DebugCreateInfo, nullptr, &m_messenger) != vk::Result::eSuccess)
         {
-            printf("Failed to create Vulkan Debug Printing \n");
+            Logger::Error("Failed to create Vulkan Debug Printing");
 
             assert(0);
         }
@@ -298,7 +316,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     if (m_pDevice.createDevice(&deviceCreateInfo, nullptr, &m_lDevice) != vk::Result::eSuccess)
     {
-        printf("Failed to create Vulkan Logic Device \n");
+        Logger::Error("Failed to create Vulkan Logic Device");
 
         assert(0);
     }
@@ -320,7 +338,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     if (vmaCreateAllocator(&allocatorCreateInfo, &m_allocator) != VK_SUCCESS)
     {
-        printf("Failed to create Vulkan Allocator \n");
+        Logger::Error("Failed to create Vulkan Allocator");
 
         assert(0);
     }
@@ -348,19 +366,19 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     {
         if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable[i]) != vk::Result::eSuccess)
         {
-            printf("Failed to create image semphore \n");
+            Logger::Error("Failed to create image semaphore");
 
             assert(0);
         }
         if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_renderFinished[i]) != vk::Result::eSuccess)
         {
-            printf("Failed to create render semaphore \n");
+            Logger::Error("Failed to create render semaphore");
 
             assert(0);
         }
         if (m_lDevice.createFence(&fenceInfo, nullptr, &m_inFlight[i]) != vk::Result::eSuccess)
         {
-            printf("Failed to create fence \n");
+            Logger::Error("Failed to create fence");
 
             assert(0);
         }
@@ -376,7 +394,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     if (m_lDevice.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
     {
-        printf("Failed to create command pool \n");
+        Logger::Error("Failed to create command pool");
 
         assert(0);
     }
@@ -427,7 +445,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
         m_instance.destroyDebugUtilsMessengerEXT(m_messenger);
     }
 
-    TRACE("Destroying Vulkan Instace");
+    TRACE("Destroying Vulkan Instance");
     m_instance.destroy();
 
     TRACE("Vulkan cleaned up");
@@ -469,7 +487,7 @@ void VulkanRenderEngineBackend::Update()
 
     if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
     {
-        printf("Failed to submit command \n");
+        Logger::Error("Failed to submit command");
 
         assert(0);
     }
@@ -491,7 +509,7 @@ vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
     vk::CommandBuffer cmdBuffer;
     if (m_lDevice.allocateCommandBuffers(&allocInfo, &cmdBuffer) != vk::Result::eSuccess)
     {
-        printf("Failed to Allocate Single Command Buffer \n");
+        Logger::Error("Failed to Allocate Single Command Buffer");
 
         assert(0);
     }

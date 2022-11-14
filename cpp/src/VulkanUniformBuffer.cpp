@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 
+#include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -33,7 +34,7 @@ VulkanUniformBuffer::VulkanUniformBuffer(VulkanRenderEngineBackend* a_engine, ui
         VkBuffer tBuffer;
         if (vmaCreateBuffer(allocator, &bufferInfo, &bufferAllocInfo, &tBuffer, &m_allocations[i], nullptr) != VK_SUCCESS)
         {
-            printf("Failed to create uniform buffer \n");
+            Logger::Error("Failed to create Uniform Buffer");
 
             assert(0);
         }

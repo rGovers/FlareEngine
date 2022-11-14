@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "Config.h"
+#include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "RuntimeManager.h"
@@ -29,7 +30,7 @@ RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectMan
     }
     default:
     {
-        printf("Failed to create RenderEngine \n");
+        Logger::Error("Failed to create RenderEngine");
 
         assert(0);
 

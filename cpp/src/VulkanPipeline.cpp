@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanPipeline.h"
 
+#include "Logger.h"
 #include "ObjectManager.h"
 #include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
@@ -28,7 +29,7 @@ static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderP
         }
         else 
         {
-            printf("Failed to find vertex shader \n");
+            Logger::Error("Failed to find vertex shader");
 
             assert(0);
         }
@@ -49,7 +50,7 @@ static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderP
         }
         else
         {
-            printf("Failed to find pixel shader \n");
+            Logger::Error("Failed to find pixel shader");
 
             assert(0);
         }
