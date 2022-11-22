@@ -3,6 +3,7 @@
 #define VMA_VULKAN_VERSION 1000000
 #include <vk_mem_alloc.h>
 
+#include <mutex>
 #include <vulkan/vulkan.hpp>
 
 class VulkanRenderEngineBackend;
@@ -11,6 +12,8 @@ class VulkanModel
 {
 private:
     VulkanRenderEngineBackend* m_engine;
+
+    std::mutex                 m_lock;
 
     VmaAllocation              m_vbAlloc;
     VmaAllocation              m_ibAlloc;
@@ -25,6 +28,11 @@ protected:
 public:
     VulkanModel(VulkanRenderEngineBackend* a_engine, uint32_t a_vertexCount, const char* a_vertices, uint16_t a_vertexSize, uint32_t a_indexCount, const uint32_t* a_indices);
     ~VulkanModel();
+
+    inline std::mutex& GetLock()
+    {
+        return m_lock;
+    }
 
     inline uint32_t GetIndexCount() const
     {

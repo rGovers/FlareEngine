@@ -217,7 +217,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::strin
 {
     VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_vertexShaders.size();
+    const uint32_t size = m_graphicsEngine->m_vertexShaders.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_vertexShaders[i] == nullptr)
@@ -228,7 +228,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::strin
         }
     }
 
-    m_graphicsEngine->m_vertexShaders.emplace_back(shader);
+    m_graphicsEngine->m_vertexShaders.Push(shader);
 
     return size;
 }
@@ -251,7 +251,7 @@ uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string
 {
     VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.size();
+    const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_pixelShaders[i] == nullptr)
@@ -262,7 +262,7 @@ uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string
         }
     }
 
-    m_graphicsEngine->m_pixelShaders.emplace_back(shader);
+    m_graphicsEngine->m_pixelShaders.Push(shader);
 
     return size;
 }
@@ -285,8 +285,7 @@ void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr)
 uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram& a_program)
 {
     TRACE("Creating Shader Program");
-
-    if (a_program.PixelShader > m_graphicsEngine->m_pixelShaders.size() || a_program.VertexShader > m_graphicsEngine->m_vertexShaders.size())
+    if (a_program.PixelShader > m_graphicsEngine->m_pixelShaders.Size() || a_program.VertexShader > m_graphicsEngine->m_vertexShaders.Size())
     {
         Logger::Error("Invalid ShaderProgram");
 
@@ -303,19 +302,13 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram
 
     TRACE("Allocating Shader Program");
 
-    m_graphicsEngine->m_shaderPrograms.emplace_back(a_program);
+    m_graphicsEngine->m_shaderPrograms.Push(a_program);
 
-    return (uint32_t)m_graphicsEngine->m_shaderPrograms.size() - 1;
+    return (uint32_t)m_graphicsEngine->m_shaderPrograms.Size() - 1;
 }
 void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr)
 {
     m_graphicsEngine->m_freeShaderSlots.emplace(a_addr);
-
-    if (m_graphicsEngine->m_freeShaderSlots.size() == m_graphicsEngine->m_shaderPrograms.size())
-    {
-        m_graphicsEngine->m_shaderPrograms.clear();
-        m_graphicsEngine->m_freeShaderSlots = std::queue<uint32_t>();
-    }
 }
 RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
 {
@@ -332,7 +325,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
     buff.TransformAddr = a_transformAddr;
 
     TRACE("Getting Camera Buffer");
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_cameraBuffers.size();
+    const uint32_t size = m_graphicsEngine->m_cameraBuffers.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_cameraBuffers[i].TransformAddr == -1)
@@ -344,7 +337,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
     }
 
     TRACE("Allocating Camera Buffer");
-    m_graphicsEngine->m_cameraBuffers.emplace_back(buff);
+    m_graphicsEngine->m_cameraBuffers.Push(buff);
 
     return size;
 }
@@ -352,18 +345,18 @@ void VulkanGraphicsEngineBindings::DestroyCameraBuffer(uint32_t a_addr)
 {
     m_graphicsEngine->m_cameraBuffers[a_addr].TransformAddr = -1;
 
-    uint32_t val = (--m_graphicsEngine->m_cameraBuffers.end())->TransformAddr;
+    uint32_t val = m_graphicsEngine->m_cameraBuffers[m_graphicsEngine->m_cameraBuffers.Size() - 1].TransformAddr;
     while (val == -1)
     {
         TRACE("Destroying Camera Buffer");
-        m_graphicsEngine->m_cameraBuffers.pop_back();
+        m_graphicsEngine->m_cameraBuffers.Pop();
 
-        if (m_graphicsEngine->m_cameraBuffers.empty())
+        if (m_graphicsEngine->m_cameraBuffers.Empty())
         {
             break;
         }
 
-        val = (--m_graphicsEngine->m_cameraBuffers.end())->TransformAddr;
+        val = m_graphicsEngine->m_cameraBuffers[m_graphicsEngine->m_cameraBuffers.Size() - 1].TransformAddr;
     }
 }
 CameraBuffer VulkanGraphicsEngineBindings::GetCameraBuffer(uint32_t a_addr) const
@@ -379,7 +372,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uin
 {
     VulkanModel* model = new VulkanModel(m_graphicsEngine->m_vulkanEngine, a_vertexCount, a_vertices, a_vertexStride, a_indexCount, a_indices);
 
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_models.size();
+    const uint32_t size = m_graphicsEngine->m_models.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_models[i] == nullptr)
@@ -390,7 +383,8 @@ uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uin
         }
     }
 
-    m_graphicsEngine->m_models.emplace_back(model);
+    TRACE("Allocating Model Buffer");
+    m_graphicsEngine->m_models.Push(model);
 
     return size;
 }
@@ -412,7 +406,7 @@ void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr)
 uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(const MeshRenderBuffer& a_renderBuffer)
 {
     TRACE("Creating Render Buffer");
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_renderBuffers.size();
+    const uint32_t size = (uint32_t)m_graphicsEngine->m_renderBuffers.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_renderBuffers[i].MaterialAddr == -1)
@@ -424,7 +418,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(const MeshRender
     }
 
     TRACE("Allocating Render Buffer");
-    m_graphicsEngine->m_renderBuffers.emplace_back(a_renderBuffer);
+    m_graphicsEngine->m_renderBuffers.Push(a_renderBuffer);
 
     return size;
 }
@@ -438,33 +432,54 @@ void VulkanGraphicsEngineBindings::GenerateRenderStack(uint32_t a_meshAddr)
     TRACE("Pushing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
-    for (auto iter = m_graphicsEngine->m_renderStacks.begin(); iter != m_graphicsEngine->m_renderStacks.end(); ++iter)
+    std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
+    lock.lock();
+
+    const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
+    MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
+
+    for (uint32_t i = 0; i < size; ++i)
     {
-        if (iter->Add(buffer))
+        if (renderStacks[i].Add(buffer))
         {
+            lock.unlock();
+
             return;
         }
     }
 
+    lock.unlock();
+
     TRACE("Allocating RenderStack");
-    m_graphicsEngine->m_renderStacks.emplace_back(buffer);
+    m_graphicsEngine->m_renderStacks.Push(buffer);
 }
 void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr)
 {
     TRACE("Removing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
-    for (auto iter = m_graphicsEngine->m_renderStacks.begin(); iter != m_graphicsEngine->m_renderStacks.end(); ++iter)
+    std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
+    lock.lock();
+
+    const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
+    MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
+
+    for (uint32_t i = 0; i < size; ++i)
     {
-        if (iter->Remove(buffer))
+        MaterialRenderStack& stack = renderStacks[i];
+        if (stack.Remove(buffer))
         {
-            if (iter->Empty())
+            lock.unlock();
+
+            if (stack.Empty())
             {
                 TRACE("Destroying RenderStack");
-                m_graphicsEngine->m_renderStacks.erase(iter);
+                m_graphicsEngine->m_renderStacks.Erase(i);
             }
 
             return;
         }
-    }    
+    }
+
+    lock.unlock();
 }

@@ -18,6 +18,8 @@ RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectMan
 
     m_window = a_window;
 
+    spirv_init();
+
     assert(m_config->GetRenderingEngine() != RenderingEngine_Null);
 
     switch (m_config->GetRenderingEngine())
@@ -38,15 +40,46 @@ RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectMan
     }
     }
 
-    spirv_init();
+    m_join = true;
 }
 RenderEngine::~RenderEngine()
 {
+    Stop();
+
     spirv_destroy();
 
     delete m_backend;
 }
 
+void RenderEngine::Start()
+{
+    TRACE("Starting Render Thread");
+    m_shutdown = false;
+    m_join = false;
+    m_thread = std::thread(std::bind(&RenderEngine::Run, this));
+}
+void RenderEngine::Stop()
+{
+    if (m_join)
+    {
+        return;
+    }
+
+    TRACE("Stopping Render Thread");
+    m_shutdown = true;
+    while (!m_join) { }
+    m_thread.join();
+}
+
+void RenderEngine::Run()
+{
+    while (!m_shutdown)
+    {
+        m_backend->Update();
+    }
+    
+    m_join = true;
+}
 void RenderEngine::Update()
 {
     m_backend->Update();

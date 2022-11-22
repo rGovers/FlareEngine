@@ -24,12 +24,18 @@ RuntimeManager::RuntimeManager()
     m_shutdownMethod = mono_method_desc_search_in_class(shutdownDesc, m_programClass);
 
     mono_method_desc_free(updateDesc);
+    mono_method_desc_free(shutdownDesc);
 }
 RuntimeManager::~RuntimeManager()
 {
     mono_runtime_invoke(m_shutdownMethod, nullptr, nullptr, nullptr);
 
+    mono_free_method(m_updateMethod);
+    mono_free_method(m_shutdownMethod);
+
     mono_jit_cleanup(m_domain);
+
+    mono_runtime_cleanup(m_domain);
 }
 
 void RuntimeManager::Exec(int a_argc, char* a_argv[])
@@ -49,4 +55,9 @@ void RuntimeManager::Update(double a_delta, double a_time)
 void RuntimeManager::BindFunction(const std::string_view& a_location, void* a_function)
 {
     mono_add_internal_call(a_location.begin(), a_function);
+}
+
+void RuntimeManager::AttachThread()
+{
+    mono_jit_thread_attach(m_domain);
 }

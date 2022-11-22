@@ -42,12 +42,16 @@ void Application::Run(int32_t a_argc, char* a_argv[])
 {
     m_runtime->Exec(a_argc, a_argv);
 
+    m_renderEngine->Start();
+
     while (!m_appWindow->ShouldClose())
     {
         m_appWindow->Update();
 
         m_runtime->Update(m_appWindow->GetDelta(), m_appWindow->GetTime());
  
-        m_renderEngine->Update();
+        // m_renderEngine->Update();
     }
+
+    m_renderEngine->Stop();
 }

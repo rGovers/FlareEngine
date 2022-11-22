@@ -17,30 +17,32 @@ class VulkanSwapchain;
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
-    VulkanGraphicsEngine*      m_graphicsEngine;
-    VulkanSwapchain*           m_swapchain = nullptr;
+    VulkanGraphicsEngine*          m_graphicsEngine;
+    VulkanSwapchain*               m_swapchain = nullptr;
+    
+    VmaAllocator                   m_allocator;
+    
+    vk::Instance                   m_instance;
+    vk::DebugUtilsMessengerEXT     m_messenger;
+    vk::PhysicalDevice             m_pDevice;
+    vk::Device                     m_lDevice;
+            
+    vk::Queue                      m_graphicsQueue = nullptr;
+    vk::Queue                      m_presentQueue = nullptr;
+    
+    std::vector<vk::Semaphore>     m_imageAvailable = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
+    std::vector<vk::Semaphore>     m_renderFinished = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
+    std::vector<vk::Fence>         m_inFlight = std::vector<vk::Fence>(VulkanMaxFlightFrames);
 
-    VmaAllocator               m_allocator;
+    std::vector<vk::CommandBuffer> m_commandBuffers[VulkanMaxFlightFrames];
 
-    vk::Instance               m_instance;
-    vk::DebugUtilsMessengerEXT m_messenger;
-    vk::PhysicalDevice         m_pDevice;
-    vk::Device                 m_lDevice;
-          
-    vk::Queue                  m_graphicsQueue = nullptr;
-    vk::Queue                  m_presentQueue = nullptr;
-
-    std::vector<vk::Semaphore> m_imageAvailable = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
-    std::vector<vk::Semaphore> m_renderFinished = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
-    std::vector<vk::Fence>     m_inFlight = std::vector<vk::Fence>(VulkanMaxFlightFrames);
-
-    vk::CommandPool            m_commandPool;
-
-    uint32_t                   m_imageIndex = -1;
-    uint32_t                   m_currentFrame = 0;
-
-    uint32_t                   m_graphicsQueueIndex = -1;
-    uint32_t                   m_presentQueueIndex = -1;
+    vk::CommandPool                m_commandPool;
+    
+    uint32_t                       m_imageIndex = -1;
+    uint32_t                       m_currentFrame = 0;
+    
+    uint32_t                       m_graphicsQueueIndex = -1;
+    uint32_t                       m_presentQueueIndex = -1;
 
 protected:
 

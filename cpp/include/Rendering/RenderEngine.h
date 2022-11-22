@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <thread>
 
 enum e_RenderingEngine
 {
@@ -19,6 +20,10 @@ class RenderEngine
 private:
     friend class VulkanRenderEngineBackend;
 
+    bool                 m_shutdown;
+    bool                 m_join;
+    std::thread          m_thread;
+
     Config*              m_config;
 
     ObjectManager*       m_objectManager;
@@ -27,13 +32,16 @@ private:
 
     AppWindow*           m_window;
 
+    void Update();
+    void Run();
 protected:
 
 public:
     RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, AppWindow* a_window, Config* a_config);
     ~RenderEngine();
 
-    void Update();
+    void Start();
+    void Stop();
 
     inline ObjectManager* GetObjectManager() const
     {

@@ -137,6 +137,11 @@ static std::vector<const char*> GetRequiredExtensions(const AppWindow* a_window)
 
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    {
+        m_commandBuffers[i] = std::vector<vk::CommandBuffer>();
+    }
+
     const RenderEngine* renderEngine = GetRenderEngine();
     AppWindow* window = renderEngine->m_window;
 
@@ -464,8 +469,21 @@ void VulkanRenderEngineBackend::Update()
         return;
     }
 
-    const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_swapchain);
-    const uint32_t buffersSize = (uint32_t)buffers.size();
+    std::vector<vk::CommandBuffer>& buffers = m_commandBuffers[m_currentFrame];
+
+    uint32_t buffersSize = (uint32_t)buffers.size();
+    if (buffersSize > 0)
+    {
+        m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
+    }
+
+    buffers = m_graphicsEngine->Update(m_swapchain);
+    buffersSize = (uint32_t)buffers.size();
+    // If there is nothing to render no point doing anything
+    if (buffersSize <= 0)
+    {
+        return;
+    }
 
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
@@ -475,15 +493,15 @@ void VulkanRenderEngineBackend::Update()
         nullptr,
         WaitStages,
         buffersSize,
-        buffers.data(),
-        1,
-        &m_renderFinished[m_currentFrame]
+        buffers.data()
     );
-    
+
     if (!window->IsHeadless())
     {
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &m_imageAvailable[m_currentFrame];
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
 
         if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
         {
@@ -494,6 +512,12 @@ void VulkanRenderEngineBackend::Update()
     }
     else
     {
+        if (m_swapchain->IsInitialized(m_currentFrame))
+        {
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
+        }
+
         if (m_graphicsQueue.submit(1, &submitInfo, nullptr) != vk::Result::eSuccess)
         {
             Logger::Error("Failed to submit command");

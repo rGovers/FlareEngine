@@ -14,6 +14,7 @@ class VulkanRenderEngineBackend;
 class VulkanSwapchain;
 class VulkanVertexShader;
 
+#include "DataTypes/TArray.h"
 #include "Rendering/CameraBuffer.h"
 #include "Rendering/MaterialRenderStack.h"
 #include "Rendering/MeshRenderBuffer.h"
@@ -24,25 +25,30 @@ class VulkanGraphicsEngine
 private:
     friend class VulkanGraphicsEngineBindings;
 
+    // This despite not being needed is used to fix a crash
+    RuntimeManager*                               m_runtimeManager;
     VulkanGraphicsEngineBindings*                 m_runtimeBindings;
+
     VulkanRenderEngineBackend*                    m_vulkanEngine;
 
     std::unordered_map<uint64_t, VulkanPipeline*> m_pipelines;
 
     std::queue<uint32_t>                          m_freeShaderSlots;
-    std::vector<RenderProgram>                    m_shaderPrograms;
+    TArray<RenderProgram>                         m_shaderPrograms;
      
-    std::vector<VulkanVertexShader*>              m_vertexShaders;
-    std::vector<VulkanPixelShader*>               m_pixelShaders;
+    TArray<VulkanVertexShader*>                   m_vertexShaders;
+    TArray<VulkanPixelShader*>                    m_pixelShaders;
      
-    std::vector<VulkanModel*>                     m_models;
+    TArray<VulkanModel*>                          m_models;
 
-    std::vector<MeshRenderBuffer>                 m_renderBuffers;
-    std::vector<MaterialRenderStack>              m_renderStacks;
+    TArray<MeshRenderBuffer>                      m_renderBuffers;
+    TArray<MaterialRenderStack>                   m_renderStacks;
 
-    std::vector<CameraBuffer>                     m_cameraBuffers;
+    TArray<CameraBuffer>                          m_cameraBuffers;
 
     vk::CommandPool                               m_commandPool;
+
+    vk::CommandBuffer DrawCamera(uint32_t a_camIndex, const VulkanSwapchain* a_swapchain);
 
 protected:
 
@@ -52,8 +58,8 @@ public:
 
     std::vector<vk::CommandBuffer> Update(const VulkanSwapchain* a_swapChain);
 
-    VulkanVertexShader* GetVertexShader(uint32_t a_addr) const;
-    VulkanPixelShader* GetPixelShader(uint32_t a_addr) const;
+    VulkanVertexShader* GetVertexShader(uint32_t a_addr);
+    VulkanPixelShader* GetPixelShader(uint32_t a_addr);
 
     inline vk::CommandPool GetCommandPool() const
     {

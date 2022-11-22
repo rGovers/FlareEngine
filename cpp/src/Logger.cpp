@@ -34,29 +34,35 @@ static void Logger_PushError(MonoString* a_string)
 
 void Logger::Message(const std::string_view& a_msg)
 {
-    std::cout << a_msg << "\n";
-
     if (CallbackFunc != nullptr)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Message);
     }
+    else
+    {
+        std::cout << a_msg << "\n";
+    }
 }
 void Logger::Warning(const std::string_view& a_msg)
 {
-    std::cout << a_msg << "\n";
-
     if (CallbackFunc != nullptr)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Warning);
     }
+    else
+    {
+        std::cout << a_msg << "\n";
+    }
 }
 void Logger::Error(const std::string_view& a_msg)
 {
-    std::cout << a_msg << "\n";
-
     if (CallbackFunc != nullptr)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Error);
+    }
+    else
+    {
+        std::cout << a_msg << "\n";
     }
 }
 void Logger::InitRuntime(RuntimeManager* a_runtime)

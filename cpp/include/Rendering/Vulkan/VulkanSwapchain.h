@@ -34,6 +34,8 @@ private:
     vk::Buffer                   m_buffer;
     VmaAllocation                m_allocBuffer;
 
+    vk::CommandBuffer            m_lastCmd[VulkanMaxFlightFrames];
+
     vk::SwapchainKHR             m_swapchain = nullptr;
     vk::RenderPass               m_renderPass = nullptr;
     std::vector<vk::ImageView>   m_imageViews;
@@ -75,6 +77,11 @@ public:
     inline vk::SwapchainKHR GetSwapchain() const
     {
         return m_swapchain;
+    }
+
+    inline bool IsInitialized(uint32_t a_index) const
+    {
+        return m_init & 0b1 << a_index;
     }
 
     bool StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex);

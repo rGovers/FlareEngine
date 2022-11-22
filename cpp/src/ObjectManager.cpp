@@ -19,7 +19,7 @@ static void Transform_SetTransformBuffer(uint32_t a_addr, TransformBuffer a_buff
 }
 static void Transform_DestroyTransformBuffer(uint32_t a_addr)
 {
-
+    OManager->DestroyTransformBuffer(a_addr);
 }
 
 ObjectManager::ObjectManager(RuntimeManager* a_runtime)
@@ -55,11 +55,11 @@ uint32_t ObjectManager::CreateTransformBuffer()
 
     TRACE("Allocating Transform Buffer");
 
-    m_transformBuffer.emplace_back(buffer);
+    m_transformBuffer.Push(buffer);
 
-    return (uint32_t)m_transformBuffer.size() - 1;
+    return m_transformBuffer.Size() - 1;
 }
-TransformBuffer ObjectManager::GetTransformBuffer(uint32_t a_addr) const
+TransformBuffer ObjectManager::GetTransformBuffer(uint32_t a_addr)
 {
     return m_transformBuffer[a_addr];
 }

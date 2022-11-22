@@ -5,9 +5,10 @@
 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
-
 #include <queue>
 #include <vector>
+
+#include "DataTypes/TArray.h"
 
 class RuntimeManager;
 
@@ -16,8 +17,8 @@ struct TransformBuffer;
 class ObjectManager
 {
 private:
-    std::queue<uint32_t>         m_freeTransforms;
-    std::vector<TransformBuffer> m_transformBuffer;
+    std::queue<uint32_t>    m_freeTransforms;
+    TArray<TransformBuffer> m_transformBuffer;
 
 protected:
 
@@ -25,8 +26,13 @@ public:
     ObjectManager(RuntimeManager* a_runtime);
     ~ObjectManager();
 
+    inline std::vector<TransformBuffer> ToVector() 
+    {
+        return m_transformBuffer.ToVector();
+    }
+
     uint32_t CreateTransformBuffer();
-    TransformBuffer GetTransformBuffer(uint32_t a_addr) const;
+    TransformBuffer GetTransformBuffer(uint32_t a_addr);
     void SetTransformBuffer(uint32_t a_addr, const TransformBuffer& a_buffer);
     void DestroyTransformBuffer(uint32_t a_addr);
 };
@@ -50,11 +56,11 @@ struct TransformBuffer
         return translation * rotation * scale;
     }
 
-    glm::mat4 ToGlobalMat4(const ObjectManager* a_objectManager) const
+    glm::mat4 ToGlobalMat4(ObjectManager* a_objectManager)
     {
         if (Parent != -1)
         {
-            const TransformBuffer buffer = a_objectManager->GetTransformBuffer(Parent);
+            TransformBuffer buffer = a_objectManager->GetTransformBuffer(Parent);
 
             return buffer.ToGlobalMat4(a_objectManager) * ToMat4();
         }

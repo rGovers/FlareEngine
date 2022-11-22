@@ -50,7 +50,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
     vk::SwapchainCreateInfoKHR createInfo = vk::SwapchainCreateInfoKHR
     (
-        vk::SwapchainCreateFlagsKHR(), 
+        { }, 
         surface, 
         imageCount, 
         m_surfaceFormat.format, 
@@ -93,7 +93,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
     {
         const vk::ImageViewCreateInfo createInfo = vk::ImageViewCreateInfo
         (
-            vk::ImageViewCreateFlags(), 
+            { }, 
             swapImages[i], 
             vk::ImageViewType::e2D, 
             m_surfaceFormat.format, 
@@ -120,7 +120,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
         const vk::FramebufferCreateInfo framebufferInfo = vk::FramebufferCreateInfo
         (
-            vk::FramebufferCreateFlags(),
+            { },
             m_renderPass,
             1,
             attachments,
@@ -190,7 +190,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
         );
         const vk::ImageViewCreateInfo colorImageView = vk::ImageViewCreateInfo
         (
-            {},
+            { },
             m_colorImage[i],
             vk::ImageViewType::e2D,
             vk::Format::eR8G8B8A8Unorm,
@@ -211,7 +211,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
 
         const vk::FramebufferCreateInfo framebufferInfo = vk::FramebufferCreateInfo
         (
-            {},
+            { },
             m_renderPass,
             1,
             attachments,
@@ -228,12 +228,12 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     }
     TRACE("Created Swapchain Headless Images");
 
-    VkBufferCreateInfo buffCreateInfo = {};
+    VkBufferCreateInfo buffCreateInfo = { };
     buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     buffCreateInfo.size = (uint32_t)m_size.x * (uint32_t)m_size.y * 4;
 
-    VmaAllocationCreateInfo allocCreateInfo = {};
+    VmaAllocationCreateInfo allocCreateInfo = { };
     allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
     allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
@@ -281,7 +281,10 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
     m_window = a_window;
     m_engine = a_engine;
 
-    
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    {
+        m_lastCmd[i] = nullptr;
+    }
 
     const vk::Instance instance = m_engine->GetInstance();
     const vk::Device device = m_engine->GetLogicalDevice();
@@ -450,13 +453,24 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
 
         *a_imageIndex = (*a_imageIndex + 1) % VulkanMaxFlightFrames;
         
-        if ((m_init & 0b1 << *a_imageIndex) == 0)
+        if ((m_init & (0b1 << *a_imageIndex)) == 0)
         {
             return true;
         }
 
+        if (m_lastCmd[*a_imageIndex] != vk::CommandBuffer(nullptr))
+        {
+            m_engine->DestroyCommandBuffer(m_lastCmd[*a_imageIndex]);
+            m_lastCmd[*a_imageIndex] = nullptr;
+        }
+
         char* dat;
-        vmaMapMemory(allocator, m_allocBuffer, (void**)&dat);
+        if (vmaMapMemory(allocator, m_allocBuffer, (void**)&dat) != VK_SUCCESS)
+        {
+            Logger::Error("Failed mapping frame buffer");
+
+            assert(0);
+        }
 
         HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
         window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, dat);
@@ -559,6 +573,8 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
             &cmdBuffer
         );
         graphicsQueue.submit(1, &submitInfo, a_fence);
+
+        m_lastCmd[a_imageIndex] = cmdBuffer;
     }
     else
     {

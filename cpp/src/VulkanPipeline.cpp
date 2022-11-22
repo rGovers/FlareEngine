@@ -10,7 +10,7 @@
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Trace.h"
 
-static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderProgram& a_program, const VulkanGraphicsEngine* a_gEngine)
+static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderProgram& a_program, VulkanGraphicsEngine* a_gEngine)
 {
     std::vector<vk::PipelineShaderStageCreateInfo> stages;
 
@@ -212,7 +212,7 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
     return vk::Format::eUndefined;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program)
 {
     TRACE("Creating Vulkan Pipeline");
     m_engine = a_engine;
@@ -274,7 +274,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, const Vulkan
         vk::PipelineVertexInputStateCreateFlags(),
         1,
         &bindingDescription,
-        (uint32_t)a_program.VertexInputCount,
+        (uint32_t)attributeDescription.size(),
         attributeDescription.data()
     );
 
@@ -457,13 +457,13 @@ VulkanPipeline::~VulkanPipeline()
     }
 }
 
-void VulkanPipeline::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, const ObjectManager* a_objectManager)
+void VulkanPipeline::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const
 {
     const vk::Device device = m_engine->GetLogicalDevice();
 
     if (m_cameraUniformBuffer != nullptr)
     {
-        const TransformBuffer camTrans = a_objectManager->GetTransformBuffer(a_buffer.TransformAddr);
+        TransformBuffer camTrans = a_objectManager->GetTransformBuffer(a_buffer.TransformAddr);
 
         CameraShaderBuffer buffer;
         buffer.InvView = camTrans.ToGlobalMat4(a_objectManager);

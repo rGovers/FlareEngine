@@ -35,7 +35,7 @@ private:
 protected:
 
 public:
-    VulkanPipeline(VulkanRenderEngineBackend* a_engine, const VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program);
+    VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program);
     ~VulkanPipeline();
 
     inline vk::Pipeline GetPipeline() const
@@ -43,7 +43,7 @@ public:
         return m_pipeline;
     }
 
-    void UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, const ObjectManager* a_objectManager);
+    void UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const;
     
     void Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const;
 };

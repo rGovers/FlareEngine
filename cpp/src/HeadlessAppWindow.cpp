@@ -26,9 +26,7 @@ void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_Log
     memcpy(msg.Data, &a_type, TypeSize);
     memcpy(msg.Data + TypeSize, a_message.begin(), strSize);
 
-    PushMessage(msg);
-
-    delete[] msg.Data;
+    m_queuedMessages.Push(msg);
 }
 
 HeadlessAppWindow::HeadlessAppWindow()
@@ -36,6 +34,8 @@ HeadlessAppWindow::HeadlessAppWindow()
     TRACE("Creating headless window");
 
     m_close = false;
+
+    m_frameData = nullptr;
 
     const char* tempDir = std::getenv("TMPDIR");
     if (tempDir == nullptr)
@@ -78,8 +78,6 @@ HeadlessAppWindow::HeadlessAppWindow()
     m_width = (uint32_t)size.x;
     m_height = (uint32_t)size.y;
     delete[] msg.Data;
-
-    m_frameData = nullptr;
 
     Logger::CallbackFunc = new Logger::Callback(std::bind(&HeadlessAppWindow::MessageCallback, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -192,6 +190,7 @@ void HeadlessAppWindow::Update()
             }
             case PipeMessageType_Resize:
             {
+                const std::lock_guard g = std::lock_guard(m_fLock);
                 const glm::ivec2 size = *(glm::ivec2*)msg.Data;
 
                 m_width = (uint32_t)size.x;
@@ -216,12 +215,33 @@ void HeadlessAppWindow::Update()
 
     if (m_frameData != nullptr)
     {
+        const std::lock_guard g = std::lock_guard(m_fLock);
         PipeMessage msg;
         msg.Type = PipeMessageType_PushFrame;
         msg.Length = m_width * m_height * 4;
         msg.Data = m_frameData;
 
         PushMessage(msg);
+    }
+
+    if (!m_queuedMessages.Empty())
+    {
+        std::mutex& l = m_queuedMessages.Lock();
+
+        l.lock();
+
+        const uint32_t size = m_queuedMessages.Size();
+        const PipeMessage* pipeMessages = m_queuedMessages.Data();
+
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            PushMessage(pipeMessages[i]);
+            delete[] pipeMessages[i].Data;
+        }
+
+        l.unlock();
+
+        m_queuedMessages.Clear();
     }
 }
 
@@ -232,6 +252,7 @@ glm::ivec2 HeadlessAppWindow::GetSize() const
 
 void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer)
 {
+    const std::lock_guard g = std::lock_guard(m_fLock);
     if (m_width == a_width && m_height == a_height)
     {
         const uint32_t size = m_width * m_height * 4;

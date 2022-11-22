@@ -3,21 +3,27 @@
 #include "AppWindow/AppWindow.h"
 
 #include <cstdint>
+#include <mutex>
 
+#include "DataTypes/TArray.h"
 #include "Logger.h"
 #include "PipeMessage.h"
 
 class HeadlessAppWindow : public AppWindow
 {
 private:
-    int      m_sock;
+    int                 m_sock;
     
-    bool     m_close;
+    bool                m_close;
 
-    char*    m_frameData;
+    std::mutex          m_fLock;
 
-    uint32_t m_width;
-    uint32_t m_height;
+    TArray<PipeMessage> m_queuedMessages;
+
+    char*               m_frameData;
+    
+    uint32_t            m_width;
+    uint32_t            m_height;
 
     PipeMessage RecieveMessage() const;
     void PushMessage(const PipeMessage& a_msg) const;
