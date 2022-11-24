@@ -19,7 +19,7 @@ static void Logger_PushWarning(MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
-    Logger::Message(str);
+    Logger::Warning(str);
 
     mono_free(str);
 }
@@ -27,7 +27,7 @@ static void Logger_PushError(MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
-    Logger::Message(str);
+    Logger::Error(str);
 
     mono_free(str);
 }

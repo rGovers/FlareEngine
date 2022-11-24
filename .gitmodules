@@ -13,3 +13,6 @@
 [submodule "cpp/lib/glslang"]
 	path = cpp/lib/glslang
 	url = https://github.com/KhronosGroup/glslang.git
+[submodule "deps/mono"]
+	path = deps/mono
+	url = https://github.com/mono/mono.git

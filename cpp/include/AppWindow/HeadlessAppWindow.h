@@ -2,6 +2,7 @@
 
 #include "AppWindow/AppWindow.h"
 
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 
@@ -12,18 +13,24 @@
 class HeadlessAppWindow : public AppWindow
 {
 private:
-    int                 m_sock;
-    
-    bool                m_close;
+    int                                            m_sock;
 
-    std::mutex          m_fLock;
+    bool                                           m_unlockWindow;    
+    bool                                           m_close;
 
-    TArray<PipeMessage> m_queuedMessages;
+    std::mutex                                     m_fLock;
 
-    char*               m_frameData;
-    
-    uint32_t            m_width;
-    uint32_t            m_height;
+    TArray<PipeMessage>                            m_queuedMessages;
+
+    char*                                          m_frameData;
+
+    uint32_t                                       m_width;
+    uint32_t                                       m_height;
+
+    std::chrono::high_resolution_clock::time_point m_prevTime;
+   
+    double                                         m_delta;
+    double                                         m_time;
 
     PipeMessage RecieveMessage() const;
     void PushMessage(const PipeMessage& a_msg) const;

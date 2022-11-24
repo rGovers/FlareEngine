@@ -9,6 +9,8 @@
 RuntimeManager::RuntimeManager()
 {
     mono_config_parse(NULL);
+
+    mono_set_dirs("./lib", "./etc");
     
     m_domain = mono_jit_init_version("Core", "v4.0");
     m_assembly = mono_domain_assembly_open(m_domain, "FlareCS.dll");

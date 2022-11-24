@@ -474,6 +474,7 @@ void VulkanRenderEngineBackend::Update()
     uint32_t buffersSize = (uint32_t)buffers.size();
     if (buffersSize > 0)
     {
+        // TODO: Find fix for first lot of buffers causing validation error
         m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
     }
 

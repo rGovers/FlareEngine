@@ -81,6 +81,10 @@ HeadlessAppWindow::HeadlessAppWindow()
 
     Logger::CallbackFunc = new Logger::Callback(std::bind(&HeadlessAppWindow::MessageCallback, this, std::placeholders::_1, std::placeholders::_2));
 
+    m_prevTime = std::chrono::high_resolution_clock::now();
+
+    m_time = 0.0;
+
     TRACE("Headless Window Initialised");
 }
 HeadlessAppWindow::~HeadlessAppWindow()
@@ -163,6 +167,13 @@ void HeadlessAppWindow::Update()
         return;
     }
 
+    const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
+
+    m_delta = std::chrono::duration<double>(time - m_prevTime).count();
+    m_time += m_delta;
+
+    m_prevTime = time;
+
     struct pollfd fds;
     fds.fd = m_sock;
     fds.events = POLLIN;
@@ -185,6 +196,12 @@ void HeadlessAppWindow::Update()
             case PipeMessageType_Close:
             {
                 m_close = true;
+
+                break;
+            }
+            case PipeMessageType_UnlockFrame:
+            {
+                m_unlockWindow = true;
 
                 break;
             }
@@ -213,10 +230,19 @@ void HeadlessAppWindow::Update()
         }
     }
 
-    if (m_frameData != nullptr)
+    const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
+    PipeMessage msg;
+    msg.Type = PipeMessageType_FrameData;
+    msg.Length = sizeof(glm::dvec2);
+    msg.Data = (char*)&tVec;
+
+    PushMessage(msg);
+
+    if (m_frameData != nullptr && m_unlockWindow)
     {
+        m_unlockWindow = false;
+
         const std::lock_guard g = std::lock_guard(m_fLock);
-        PipeMessage msg;
         msg.Type = PipeMessageType_PushFrame;
         msg.Length = m_width * m_height * 4;
         msg.Data = m_frameData;
