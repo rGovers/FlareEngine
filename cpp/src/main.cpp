@@ -5,13 +5,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <string_view>
 
 #include "Config.h"
 #include "FlareNativeConfig.h"
 #include "Application.h"
-
-constexpr std::string_view ExecDir = "./Flare.dll";
 
 int main(int a_argc, char* a_argv[])
 {
@@ -21,7 +18,8 @@ int main(int a_argc, char* a_argv[])
 
     for (int i = 0; i < a_argc; ++i)
     {
-        if (strcmp(a_argv[i], "--headless") == 0)
+        const char* arg = a_argv[i];
+        if (strcmp(arg, "--headless") == 0)
         {
             config->SetHeadless(true);
         }

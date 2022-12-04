@@ -11,16 +11,28 @@ namespace FlareEngine
         static Object GameObj;
         static Model Model;
 
+        const string WorkingDirArg = "--wDir";
+
         static void Main(string[] a_args)
         {
             Logger.Message("FlareCS: Started");
+
+            string workingDir = null;
+
+            foreach (string arg in a_args)
+            {
+                if (arg.StartsWith(WorkingDirArg))
+                {
+                    workingDir = arg.Substring(WorkingDirArg.Length + 1);
+                }
+            }
 
             Time.Init();
 
             AssetLibrary.Init();
             DefLibrary.Init();
 
-            // ModControl.Init();
+            ModControl.Init(workingDir);
 
             DefLibrary.LoadDefs("Defs");
 
@@ -43,7 +55,7 @@ namespace FlareEngine
 
         static void Shutdown()
         {
-            // ModControl.Close();
+            ModControl.Close();
 
             Cam.Dispose();
             GameObj.Dispose();
@@ -60,7 +72,7 @@ namespace FlareEngine
             Time.DDeltaTime = a_delta;
             Time.DTimePassed = a_time;
 
-            // ModControl.Update();
+            ModControl.Update();
 
             Object.UpdateObjects();
         }

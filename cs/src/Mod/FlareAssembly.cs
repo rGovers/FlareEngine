@@ -67,7 +67,14 @@ namespace FlareEngine.Mod
                     {
                         if (Path.GetExtension(str) == ".dll")
                         {
-                            asm.m_assemblies.Add(Assembly.Load(str));
+                            // Already loaded because we are it so can skip
+                            // Some compilers like to add to the output for some reason
+                            if (Path.GetFileNameWithoutExtension(str) == "FlareCS")
+                            {
+                                continue;
+                            }
+
+                            asm.m_assemblies.Add(Assembly.LoadFile(str));
                         }
                     }
 

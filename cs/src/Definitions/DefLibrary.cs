@@ -40,8 +40,7 @@ namespace FlareEngine.Definitions
 
             foreach (XmlNode node in a_element.ChildNodes)
             {
-                XmlElement element = node as XmlElement;
-                if (element != null)
+                if (node is XmlElement element)
                 {
                     DefDataObject? data = GetData(element);
                     if (data != null)
@@ -81,9 +80,9 @@ namespace FlareEngine.Definitions
 
                 switch (obj)
                 {
-                case Type val:
+                case Type _:
                 {
-                    val = Type.GetType(a_datObj.Text, false);
+                    Type val = Type.GetType(a_datObj.Text, false);
                     if (val != null)
                     {
                         field.SetValue(a_obj, val);
@@ -140,8 +139,11 @@ namespace FlareEngine.Definitions
 
                     if (fieldType.IsSubclassOf(typeof(Def)))
                     {
-                        Def def = new Def();
-                        def.DefName = a_datObj.Name;
+                        Def def = new Def()
+                        {
+                            DefName = a_datObj.Name
+                        };
+                        
                         field.SetValue(a_obj, def);
                     }
                     else if (fieldType == typeof(string))
@@ -237,13 +239,12 @@ namespace FlareEngine.Definitions
             {
                 FileInfo info = new FileInfo(file);
 
-                if (info.Extension == ".xml")
+                if (info.Extension == ".def")
                 {
                     XmlDocument doc = new XmlDocument();
                     doc.Load(file);
-                    
-                    XmlElement root = doc.DocumentElement as XmlElement;
-                    if (root != null)
+
+                    if (doc.DocumentElement is XmlElement root)
                     {
                         DefData data;
                         data.Type = root.Name;
@@ -272,7 +273,7 @@ namespace FlareEngine.Definitions
                             case "Abstract":
                             {
                                 bool val;
-                                if (Boolean.TryParse(att.Value, out val))
+                                if (bool.TryParse(att.Value, out val))
                                 {
                                     data.Abstract = val;
                                 }
@@ -294,8 +295,7 @@ namespace FlareEngine.Definitions
 
                         foreach (XmlNode node in root.ChildNodes)
                         {
-                            XmlElement element = node as XmlElement;
-                            if (element != null)
+                            if (node is XmlElement element)
                             {
                                 DefDataObject? dataObject = GetData(element);
                                 if (dataObject != null)
@@ -353,8 +353,6 @@ namespace FlareEngine.Definitions
             }
 
             a_def.DefName = a_data.Name;
-
-            Type type = a_def.GetType();
 
             foreach (DefDataObject obj in a_data.DefDataObjects)
             {
@@ -461,9 +459,11 @@ namespace FlareEngine.Definitions
                 else if (fieldType.IsSubclassOf(typeof(Def)))
                 {
                     Def stub = (Def)info.GetValue(a_obj);
+
                     if (stub != null)
                     {
                         Def resDef = GetDef(stub.DefName);
+
                         if (resDef != null)
                         {
                             info.SetValue(a_obj, resDef);
@@ -489,8 +489,7 @@ namespace FlareEngine.Definitions
 
                             foreach (object obj in enumer)
                             {
-                                Def stub = obj as Def;
-                                if (stub != null)
+                                if (obj is Def stub)
                                 {
                                     methodInfo.Invoke(list, new object[] { GetDef(stub.DefName) });
                                 }
@@ -533,9 +532,9 @@ namespace FlareEngine.Definitions
             
             foreach (Def def in m_defs)
             {
-                if (def is T)
+                if (def is T t)
                 {
-                    defs.Add((T)def);
+                    defs.Add(t);
                 }
             }
 
@@ -555,9 +554,9 @@ namespace FlareEngine.Definitions
             if (m_defLookup.ContainsKey(a_name))
             {
                 Def def = m_defLookup[a_name];
-                if (def is T)
+                if (def is T t)
                 {
-                    return (T)def;
+                    return t;
                 }
             }
 

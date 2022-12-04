@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 
 namespace FlareEngine.Mod
 {
@@ -8,11 +9,19 @@ namespace FlareEngine.Mod
 
         static List<FlareAssembly> Assemblies;
 
-        internal static void Init()
+        internal static void Init(string a_workingDir)
         {
             Assemblies = new List<FlareAssembly>();
 
-            CoreAssembly = FlareAssembly.GetFlareAssembly("./Core/");       
+            if (!string.IsNullOrWhiteSpace(a_workingDir))
+            {
+                CoreAssembly = FlareAssembly.GetFlareAssembly(Path.Combine(a_workingDir, "Core"));
+            }
+            else
+            {
+                CoreAssembly = FlareAssembly.GetFlareAssembly("./Core/");       
+            }
+
             CoreAssembly.AssemblyControl.Init();
 
             foreach (FlareAssembly asm in Assemblies)
