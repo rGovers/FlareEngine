@@ -3,28 +3,36 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#include <assert.h>
-#include <cstdlib>
+#ifndef WIN32
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <string>
 #include <unistd.h>
+#endif
+
+#include <cassert>
+#include <filesystem>
+#include <string>
 
 #include "Trace.h"
+
+static std::string GetAddr(const std::string_view& a_addr)
+{
+    return std::filesystem::temp_directory_path().string() + std::string(a_addr);
+}
 
 void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type)
 {
     const uint32_t strSize = (uint32_t)a_message.size();
     constexpr uint32_t TypeSize = sizeof(e_LoggerMessageType);
-    const uint32_t size = strSize + TypeSize;;
+    const uint32_t size = strSize + TypeSize;
 
     PipeMessage msg;
     msg.Type = PipeMessageType_Message;
     msg.Length = size;
     msg.Data = new char[size];
     memcpy(msg.Data, &a_type, TypeSize);
-    memcpy(msg.Data + TypeSize, a_message.begin(), strSize);
+    memcpy(msg.Data + TypeSize, a_message.data(), strSize);
 
     m_queuedMessages.Push(msg);
 }
@@ -36,26 +44,43 @@ HeadlessAppWindow::HeadlessAppWindow()
     m_close = false;
 
     m_frameData = nullptr;
-
-    const char* tempDir = std::getenv("TMPDIR");
-    if (tempDir == nullptr)
-    {
-        tempDir = std::getenv("TMP");
-    }
-    if (tempDir == nullptr)
-    {
-        tempDir = std::getenv("TEMP");
-    }
-    if (tempDir == nullptr)
-    {
-        tempDir = std::getenv("XDG_RUNTIME_DIR");
-    }
-
-    assert(tempDir != nullptr);
+    m_unlockWindow = false;
+    
+    m_delta = 0.0;
+    m_time = 0.0;
 
     TRACE("Initialising IPC");
-    const std::string addrStr = std::string(tempDir) + "/FlareEngine-IPC";
 
+    const std::string addrStr = GetAddr(PipeName);
+
+#if WIN32
+    WSADATA wsaData = { };
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
+        Logger::Error("Failed to start WSA");
+        assert(0);
+    }
+
+    m_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (m_sock != INVALID_SOCKET)
+    {
+        Logger::Error("Failed creating IPC");
+        perror("socket");
+        assert(0);
+    }
+
+    sockaddr_un addr;
+    ZeroMemory(&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strcpy_s(addr.sun_path, addrStr.c_str());
+    
+    if (connect(m_sock, (sockaddr*)&addr, sizeof(addr)))
+    {
+        Logger::Error("FlareEngine: Failed to connect to IPC");
+        perror("connect");
+        assert(0);
+    }
+#else
     m_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     assert(m_sock >= 0);
 
@@ -63,16 +88,16 @@ HeadlessAppWindow::HeadlessAppWindow()
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, addrStr.c_str());
-
+    
     if (connect(m_sock, (struct sockaddr*)&addr, SUN_LEN(&addr)) < 0)
     {
         Logger::Error("FlareEngine: Failed to connect to IPC");
         perror("connect");
-
         assert(0);
     }
+#endif
 
-    const PipeMessage msg = RecieveMessage();
+    const PipeMessage msg = ReceiveMessage();
     const glm::ivec2 size = *(glm::ivec2*)msg.Data;
 
     m_width = (uint32_t)size.x;
@@ -83,16 +108,23 @@ HeadlessAppWindow::HeadlessAppWindow()
 
     m_prevTime = std::chrono::high_resolution_clock::now();
 
-    m_time = 0.0;
-
     TRACE("Headless Window Initialised");
 }
 HeadlessAppWindow::~HeadlessAppWindow()
 {
+#if WIN32
+    if (m_sock != INVALID_SOCKET)
+    {
+        closesocket(m_sock);
+    }
+
+    WSACleanup();
+#else
     if (m_sock >= 0)
     {
         close(m_sock);
     }
+#endif
 
     if (m_frameData != nullptr)
     {
@@ -104,12 +136,12 @@ HeadlessAppWindow::~HeadlessAppWindow()
     Logger::CallbackFunc = nullptr;
 }
 
-PipeMessage HeadlessAppWindow::RecieveMessage() const
+PipeMessage HeadlessAppWindow::ReceiveMessage() const
 {
     PipeMessage msg;
-
-    const uint32_t size = (uint32_t)read(m_sock, &msg, PipeMessage::Size);
-    if (size >= 8)
+#if WIN32
+    const uint32_t size = (uint32_t)recv(m_sock, (char*)&msg, PipeMessage::Size, 0);
+    if (size >= PipeMessage::Size)
     {
         if (msg.Length <= 0)
         {
@@ -119,31 +151,59 @@ PipeMessage HeadlessAppWindow::RecieveMessage() const
         }
 
         msg.Data = new char[msg.Length];
-        char* DataBuffer = msg.Data;
-        uint32_t len = DataBuffer - msg.Data;
+        char* dataBuffer = msg.Data;
+        uint32_t len = (uint32_t)(dataBuffer - msg.Data);
         while (len < msg.Length)
         {
-            DataBuffer += read(m_sock, DataBuffer, msg.Length - len);
+            dataBuffer += recv(m_sock, dataBuffer, (int)(msg.Length - len), 0);
 
-            len = DataBuffer - msg.Data;
+            len = (uint32_t)(dataBuffer - msg.Data);
         }
 
         return msg;
     }
+#else
+    const uint32_t size = (uint32_t)read(m_sock, &msg, PipeMessage::Size);
+    if (size >= PipeMessage::Size)
+    {
+        if (msg.Length <= 0)
+        {
+            msg.Data = nullptr;
 
-    msg.Type = PipeMessageType_Null;
-    msg.Length = 0;
-    msg.Data = nullptr;
+            return msg;
+        }
 
-    return msg;
+        msg.Data = new char[msg.Length];
+        char* dataBuffer = msg.Data;
+        uint32_t len = (uint32_t)(dataBuffer - msg.Data);
+        while (len < msg.Length)
+        {
+            dataBuffer += read(m_sock, dataBuffer, msg.Length - len);
+
+            len = (uint32_t)(dataBuffer - msg.Data);
+        }
+
+        return msg;
+    }
+#endif
+    
+    return PipeMessage();
 }
 void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
 {
+#if WIN32
+    send(m_sock, (const char*)&a_message, PipeMessage::Size, 0);
+    if (a_message.Data != nullptr)
+    {
+        send(m_sock, a_message.Data, (int)a_message.Length, 0);
+    }
+#else
     write(m_sock, &a_message, PipeMessage::Size);
     if (a_message.Data != nullptr)
     {
         write(m_sock, a_message.Data, a_message.Length);
     }
+#endif
 }
 
 bool HeadlessAppWindow::ShouldClose() const
@@ -160,19 +220,88 @@ double HeadlessAppWindow::GetTime() const
     return 0.0;
 }
 
+bool HeadlessAppWindow::PollMessage()
+{
+    bool ret = true;
+
+    const PipeMessage msg = ReceiveMessage();
+
+    switch (msg.Type)
+    {
+    case PipeMessageType_Close:
+    {
+        m_close = true;
+
+        break;
+    }
+    case PipeMessageType_UnlockFrame:
+    {
+        m_unlockWindow = true;
+
+        break;
+    }
+    case PipeMessageType_Resize:
+    {
+        const std::lock_guard g = std::lock_guard(m_fLock);
+        const glm::ivec2 size = *(glm::ivec2*)msg.Data;
+
+        m_width = (uint32_t)size.x;
+        m_height = (uint32_t)size.y;
+
+        if (m_frameData != nullptr)
+        {
+            delete[] m_frameData;
+            m_frameData = nullptr;
+        }
+
+        break;
+    }
+    case PipeMessageType_Null:
+    {
+        ret = false;
+
+        break;
+    }
+    default:
+    {
+        Logger::Error("Invalid Message: " + std::to_string(msg.Type));
+        
+        break;
+    }
+    }
+
+    if (msg.Data)
+    {
+        delete[] msg.Data;
+    }
+
+    return ret;
+}
+
 void HeadlessAppWindow::Update()
 {
-    if (m_sock == -1)
+#if WIN32
+    if (m_sock != INVALID_SOCKET)
     {
         return;
     }
 
-    const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
+    timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 5;
 
-    m_delta = std::chrono::duration<double>(time - m_prevTime).count();
-    m_time += m_delta;
-
-    m_prevTime = time;
+    fd_set fdSet;
+    FD_ZERO(&fdSet);
+    FD_SET(m_sock, &fdSet);
+    if (select((int)(m_sock + 1), &fdSet, NULL, NULL, &tv) > 0)
+    {
+        PollMessage();
+    }
+#else
+    if (m_sock >= 0)
+    {
+        return;
+    }
 
     struct pollfd fds;
     fds.fd = m_sock;
@@ -189,65 +318,29 @@ void HeadlessAppWindow::Update()
 
         if (fds.revents & POLLIN)
         {
-            const PipeMessage msg = RecieveMessage();
-
-            switch (msg.Type)
-            {
-            case PipeMessageType_Close:
-            {
-                m_close = true;
-
-                break;
-            }
-            case PipeMessageType_UnlockFrame:
-            {
-                m_unlockWindow = true;
-
-                break;
-            }
-            case PipeMessageType_Resize:
-            {
-                const std::lock_guard g = std::lock_guard(m_fLock);
-                const glm::ivec2 size = *(glm::ivec2*)msg.Data;
-
-                m_width = (uint32_t)size.x;
-                m_height = (uint32_t)size.y;
-
-                if (m_frameData != nullptr)
-                {
-                    delete[] m_frameData;
-                    m_frameData = nullptr;
-                }
-
-                break;
-            }
-            }
-            
-            if (msg.Data)
-            {
-                delete[] msg.Data;
-            }
+            PollMessage();
         }
     }
+#endif
+
+    const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
+
+    m_delta = std::chrono::duration<double>(time - m_prevTime).count();
+    m_time += m_delta;
+
+    m_prevTime = time;
 
     const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
-    PipeMessage msg;
-    msg.Type = PipeMessageType_FrameData;
-    msg.Length = sizeof(glm::dvec2);
-    msg.Data = (char*)&tVec;
 
-    PushMessage(msg);
+    PushMessage({ PipeMessageType_FrameData, sizeof(glm::dvec2), (char*)&tVec});
 
     if (m_frameData != nullptr && m_unlockWindow)
     {
         m_unlockWindow = false;
 
         const std::lock_guard g = std::lock_guard(m_fLock);
-        msg.Type = PipeMessageType_PushFrame;
-        msg.Length = m_width * m_height * 4;
-        msg.Data = m_frameData;
-
-        PushMessage(msg);
+        
+        PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
     }
 
     if (!m_queuedMessages.Empty())

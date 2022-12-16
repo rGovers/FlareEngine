@@ -131,7 +131,7 @@ std::vector<unsigned int> spirv_fromGLSL(EShLanguage a_lang, const std::string_v
     glslang::TShader shader = glslang::TShader(a_lang);
 
     const char* strs[1];
-    strs[0] = a_str.begin();
+    strs[0] = a_str.data();
     shader.setStrings(strs, 1);
 
     const TBuiltInResource resource = spirv_create_resources();

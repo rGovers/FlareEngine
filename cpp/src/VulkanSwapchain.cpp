@@ -7,6 +7,9 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
+// Fixes error on Windows
+#undef min
+
 static vk::SurfaceFormatKHR GetSurfaceFormatFromFormats(const std::vector<vk::SurfaceFormatKHR>& a_formats)
 {
     for (const vk::SurfaceFormatKHR& format : a_formats)
@@ -20,7 +23,7 @@ static vk::SurfaceFormatKHR GetSurfaceFormatFromFormats(const std::vector<vk::Su
     return a_formats[0];
 }
 
-static vk::Extent2D GetSwapExtent(const vk::SurfaceCapabilitiesKHR& a_capabilities, const glm::ivec2& a_size)
+static constexpr vk::Extent2D GetSwapExtent(const vk::SurfaceCapabilitiesKHR& a_capabilities, const glm::ivec2& a_size)
 {
     const vk::Extent2D minExtent = a_capabilities.minImageExtent;
     const vk::Extent2D maxExtent = a_capabilities.maxImageExtent;
@@ -84,9 +87,9 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
     }
     TRACE("Created Vulkan Swapchain");
 
-    lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
+    std::ignore = lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
     std::vector<vk::Image> swapImages = std::vector<vk::Image>(imageCount);
-    lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
+    std::ignore = lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
 
     m_imageViews.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i)
@@ -412,22 +415,22 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
 {
     SwapChainSupportInfo info;
 
-    a_device.getSurfaceCapabilitiesKHR(a_surface, &info.Capabilites);
+    std::ignore = a_device.getSurfaceCapabilitiesKHR(a_surface, &info.Capabilites);
 
     uint32_t formatCount;
-    a_device.getSurfaceFormatsKHR(a_surface, &formatCount, nullptr);
+    std::ignore = a_device.getSurfaceFormatsKHR(a_surface, &formatCount, nullptr);
     if (formatCount != 0)
     {
         info.Formats.resize(formatCount);
-        a_device.getSurfaceFormatsKHR(a_surface, &formatCount, info.Formats.data());
+        std::ignore = a_device.getSurfaceFormatsKHR(a_surface, &formatCount, info.Formats.data());
     }
 
     uint32_t presentModeCount;
-    a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, nullptr);
+    std::ignore = a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, nullptr);
     if (presentModeCount != 0)
     {
         info.PresentModes.resize(presentModeCount);
-        a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, info.PresentModes.data());
+        std::ignore = a_device.getSurfacePresentModesKHR(a_surface, &presentModeCount, info.PresentModes.data());
     }
 
     return info;
@@ -439,7 +442,7 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
     const vk::Device device = m_engine->GetLogicalDevice();
     const glm::ivec2 size = m_window->GetSize();
 
-    device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+    std::ignore = device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
 
     if (m_window->IsHeadless())
     {
@@ -509,7 +512,7 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
     }
 
-    device.resetFences(1, &a_fence);
+    std::ignore = device.resetFences(1, &a_fence);
 
     return true;
 }
@@ -527,19 +530,15 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
 
             return;
         }
-
-        constexpr uint64_t WaitValue = 1;
-
+        
         const vk::CommandBuffer cmdBuffer = m_engine->CreateCommandBuffer(vk::CommandBufferLevel::ePrimary);
 
         constexpr vk::CommandBufferBeginInfo BufferBeginInfo = vk::CommandBufferBeginInfo
         (
             vk::CommandBufferUsageFlagBits::eOneTimeSubmit
         );
-        cmdBuffer.begin(&BufferBeginInfo);
-
-        constexpr vk::ImageSubresourceRange SubResourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-
+        std::ignore = cmdBuffer.begin(&BufferBeginInfo);
+        
         constexpr vk::ImageSubresourceLayers SubResource = vk::ImageSubresourceLayers
         (
             vk::ImageAspectFlagBits::eColor,
@@ -572,7 +571,10 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
             1, 
             &cmdBuffer
         );
-        graphicsQueue.submit(1, &submitInfo, a_fence);
+        if (graphicsQueue.submit(1, &submitInfo, a_fence) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to submit swap copy");
+        }
 
         m_lastCmd[a_imageIndex] = cmdBuffer;
     }
@@ -589,6 +591,9 @@ void VulkanSwapchain::EndFrame(const vk::Semaphore& a_semaphore, const vk::Fence
             &a_imageIndex
         );
 
-        presentQueue.presentKHR(&presentInfo);
+        if (presentQueue.presentKHR(&presentInfo) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to present swapchain");
+        }
     }
 }

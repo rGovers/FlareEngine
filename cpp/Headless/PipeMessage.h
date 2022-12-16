@@ -21,4 +21,23 @@ struct PipeMessage
     char* Data;
 
     static constexpr uint32_t Size = sizeof(Type) + sizeof(Length);
+
+    PipeMessage()
+    {
+        Type = PipeMessageType_Null;
+        Length = 0;
+        Data = nullptr;
+    }
+    PipeMessage(e_PipeMessageType a_type)
+    {
+        Type = a_type;
+        Length = 0;
+        Data = nullptr;
+    }
+    PipeMessage(e_PipeMessageType a_type, uint32_t a_dataLength, char* a_data)
+    {
+        Type = a_type;
+        Length = a_dataLength;
+        Data = a_data;
+    }
 };

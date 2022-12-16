@@ -2,6 +2,12 @@
 
 #include "AppWindow/AppWindow.h"
 
+#if WIN32
+#include <WinSock2.h>
+#include <Windows.h>
+#include <afunix.h>
+#endif
+
 #include <chrono>
 #include <cstdint>
 #include <mutex>
@@ -13,7 +19,13 @@
 class HeadlessAppWindow : public AppWindow
 {
 private:
+    static constexpr std::string_view PipeName = "FlareEngine-IPC";
+
+#if WIN32
+    SOCKET                                         m_sock;
+#else
     int                                            m_sock;
+#endif
 
     bool                                           m_unlockWindow;    
     bool                                           m_close;
@@ -32,10 +44,12 @@ private:
     double                                         m_delta;
     double                                         m_time;
 
-    PipeMessage RecieveMessage() const;
+    PipeMessage ReceiveMessage() const;
     void PushMessage(const PipeMessage& a_msg) const;
 
     void MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type);
+
+    bool PollMessage();
 
 protected:
 

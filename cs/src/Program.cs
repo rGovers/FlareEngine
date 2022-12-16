@@ -32,34 +32,34 @@ namespace FlareEngine
             AssetLibrary.Init();
             DefLibrary.Init();
 
-            ModControl.Init(workingDir);
+            //ModControl.Init(workingDir);
 
-            DefLibrary.LoadDefs("Defs");
+            //DefLibrary.LoadDefs("Defs");
 
-            DefLibrary.ResolveDefs();
+            //DefLibrary.ResolveDefs();
 
-            MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
+            //MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
 
-            Model = PrimitiveGenerator.CreateCube();
-            
-            Cam = Object.Instantiate<Camera>();
-            Cam.Transform.Translation = new Maths.Vector3(0.0f, -1.0f, 10.0f);
+            //Model = PrimitiveGenerator.CreateCube();
 
-            GameObj = Object.Instantiate<Object>();
-            MeshRenderer renderer = GameObj.AddComponent<MeshRenderer>();
-            renderer.Material = AssetLibrary.GetMaterial(def);
-            renderer.Model = Model;
+            //Cam = Object.Instantiate<Camera>();
+            //Cam.Transform.Translation = new Maths.Vector3(0.0f, -1.0f, 10.0f);
+
+            //GameObj = Object.Instantiate<Object>();
+            //MeshRenderer renderer = GameObj.AddComponent<MeshRenderer>();
+            //renderer.Material = AssetLibrary.GetMaterial(def);
+            //renderer.Model = Model;
 
             Logger.Message("FlareCS: Initialized");
         }
 
         static void Shutdown()
         {
-            ModControl.Close();
+            // ModControl.Close();
 
-            Cam.Dispose();
-            GameObj.Dispose();
-            Model.Dispose();
+            // Cam.Dispose();
+            // GameObj.Dispose();
+            // Model.Dispose();
 
             DefLibrary.Clear();
             AssetLibrary.ClearAssets();
@@ -72,9 +72,9 @@ namespace FlareEngine
             Time.DDeltaTime = a_delta;
             Time.DTimePassed = a_time;
 
-            ModControl.Update();
+            //ModControl.Update();
 
-            Object.UpdateObjects();
+            //Object.UpdateObjects();
         }
     }
 }

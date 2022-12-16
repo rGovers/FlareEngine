@@ -1,9 +1,10 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.8)
 
 project (FlareNative VERSION 0.1 LANGUAGES C CXX)
 
 option(GENERATE_CONFIG "Generates engine configuration file" OFF)
 option(ENABLE_TRACE "Enables tracing" OFF)
+option(OUTPUT_BIN "Outputs application to bin/" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -49,13 +50,37 @@ file(GLOB SOURCES "src/*.cpp" "lib/tinyxml2/tinyxml2.cpp")
 
 set(SKIP_GLSLANG_INSTALL ON)
 set(ENABLE_GLSLANG_BINARIES OFF)
+set(BUILD_EXTERNAL OFF)
 set(ENABLE_CTEST OFF)
 
-add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glfw")
+if (NOT TARGET glfw)
+    add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glfw/")
+endif()
 add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glslang")
+
+link_directories("${PROJECT_SOURCE_DIR}/../deps/mono/build/lib/")
 
 add_executable(FlareNative ${SOURCES})
 target_link_libraries(FlareNative glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES})
 
-link_directories(${CMAKE_SOURCE_DIR}/../deps/mono/build/lib/)
-target_link_libraries(FlareNative mono-2.0)
+if (OUTPUT_BIN)
+    set_target_properties(FlareNative
+        PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin/"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin/"
+    )
+endif()
+
+if (WIN32)
+    target_link_libraries(FlareNative wsock32 ws2_32)
+endif()
+
+if (MSVC)
+    target_link_libraries(FlareNative mono-2.0-sgen)
+    set_property(TARGET FlareNative PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+else()
+    target_link_libraries(FlareNative mono-2.0)
+endif()
