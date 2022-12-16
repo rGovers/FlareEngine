@@ -6,10 +6,8 @@ using System.Reflection;
 
 namespace FlareEngine.Mod
 {
-    public class FlareAssembly : IDisposable
+    public class FlareAssembly
     {
-        bool              m_disposed = false;
-
         AssemblyControl   m_assemblyControl = null;
 
         FlareAssemblyInfo m_assemblyInfo;
@@ -65,17 +63,18 @@ namespace FlareEngine.Mod
                     string[] paths = Directory.GetFiles(assemblyPath);
                     foreach (string str in paths)
                     {
-                        if (Path.GetExtension(str) == ".dll")
+                        if (Path.GetExtension(str) != ".dll")
                         {
-                            // Already loaded because we are it so can skip
-                            // Some compilers like to add to the output for some reason
-                            if (Path.GetFileNameWithoutExtension(str) == "FlareCS")
-                            {
-                                continue;
-                            }
-
-                            asm.m_assemblies.Add(Assembly.LoadFile(str));
+                            continue;
                         }
+                        // Already loaded because we are it so can skip
+                        // Some compilers like to add to the output for some reason
+                        if (Path.GetFileNameWithoutExtension(str) == "FlareCS")
+                        {
+                            continue;
+                        }
+
+                        asm.m_assemblies.Add(Assembly.LoadFile(str));
                     }
 
                     foreach (Assembly assembly in asm.m_assemblies)
@@ -98,42 +97,6 @@ namespace FlareEngine.Mod
             }
 
             return null;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool a_disposing)
-        {
-            if(!m_disposed)
-            {
-                if(a_disposing)
-                {
-                    foreach (Assembly asm in m_assemblies)
-                    {
-                        
-                    }
-                }
-                else
-                {
-                    Logger.Error("FlareCS: FlareAssembly Failed to Dispose");
-                }
-
-                m_disposed = true;
-            }
-            else
-            {
-                Logger.Error("FlareCS: FlareAssembly Multi Dispose");
-            }
-        }
-
-        ~FlareAssembly()
-        {
-            Dispose(false);
         }
     }
 }

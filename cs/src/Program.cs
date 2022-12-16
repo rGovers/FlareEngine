@@ -32,11 +32,11 @@ namespace FlareEngine
             AssetLibrary.Init();
             DefLibrary.Init();
 
-            //ModControl.Init(workingDir);
+            ModControl.Init(workingDir);
 
             //DefLibrary.LoadDefs("Defs");
 
-            //DefLibrary.ResolveDefs();
+            DefLibrary.ResolveDefs();
 
             //MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
 
@@ -55,7 +55,7 @@ namespace FlareEngine
 
         static void Shutdown()
         {
-            // ModControl.Close();
+            ModControl.Close();
 
             // Cam.Dispose();
             // GameObj.Dispose();
@@ -72,9 +72,9 @@ namespace FlareEngine
             Time.DDeltaTime = a_delta;
             Time.DTimePassed = a_time;
 
-            //ModControl.Update();
+            ModControl.Update();
 
-            //Object.UpdateObjects();
+            Object.UpdateObjects();
         }
     }
 }

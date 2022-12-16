@@ -62,7 +62,7 @@ HeadlessAppWindow::HeadlessAppWindow()
     }
 
     m_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (m_sock != INVALID_SOCKET)
+    if (m_sock == INVALID_SOCKET)
     {
         Logger::Error("Failed creating IPC");
         perror("socket");
@@ -74,7 +74,7 @@ HeadlessAppWindow::HeadlessAppWindow()
     addr.sun_family = AF_UNIX;
     strcpy_s(addr.sun_path, addrStr.c_str());
     
-    if (connect(m_sock, (sockaddr*)&addr, sizeof(addr)))
+    if (connect(m_sock, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
     {
         Logger::Error("FlareEngine: Failed to connect to IPC");
         perror("connect");
@@ -140,7 +140,7 @@ PipeMessage HeadlessAppWindow::ReceiveMessage() const
 {
     PipeMessage msg;
 #if WIN32
-    const uint32_t size = (uint32_t)recv(m_sock, (char*)&msg, PipeMessage::Size, 0);
+    const int size = recv(m_sock, (char*)&msg, PipeMessage::Size, 0);
     if (size >= PipeMessage::Size)
     {
         if (msg.Length <= 0)
@@ -191,6 +191,8 @@ PipeMessage HeadlessAppWindow::ReceiveMessage() const
 }
 void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
 {
+    assert(a_message.Type != PipeMessageType_Null);
+
 #if WIN32
     send(m_sock, (const char*)&a_message, PipeMessage::Size, 0);
     if (a_message.Data != nullptr)
@@ -258,13 +260,15 @@ bool HeadlessAppWindow::PollMessage()
     }
     case PipeMessageType_Null:
     {
+        Logger::Warning("Engine: Null Message");
+
         ret = false;
 
         break;
     }
     default:
     {
-        Logger::Error("Invalid Message: " + std::to_string(msg.Type));
+        Logger::Error("FlareEngine: Invalid Pipe Message: " + std::to_string(msg.Type) + " " + std::to_string(msg.Length));
         
         break;
     }
@@ -281,7 +285,7 @@ bool HeadlessAppWindow::PollMessage()
 void HeadlessAppWindow::Update()
 {
 #if WIN32
-    if (m_sock != INVALID_SOCKET)
+    if (m_sock == INVALID_SOCKET)
     {
         return;
     }
