@@ -18,7 +18,7 @@
 
 static std::string GetAddr(const std::string_view& a_addr)
 {
-    return std::filesystem::temp_directory_path().string() + std::string(a_addr);
+    return (std::filesystem::temp_directory_path() / a_addr).string();
 }
 
 void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type)
@@ -302,7 +302,7 @@ void HeadlessAppWindow::Update()
         PollMessage();
     }
 #else
-    if (m_sock >= 0)
+    if (m_sock < 0)
     {
         return;
     }

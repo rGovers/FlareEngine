@@ -34,21 +34,21 @@ namespace FlareEngine
 
             ModControl.Init(workingDir);
 
-            //DefLibrary.LoadDefs("Defs");
+            DefLibrary.LoadDefs("Defs");
 
             DefLibrary.ResolveDefs();
 
-            //MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
+            MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
 
-            //Model = PrimitiveGenerator.CreateCube();
+            Model = PrimitiveGenerator.CreateCube();
 
-            //Cam = Object.Instantiate<Camera>();
-            //Cam.Transform.Translation = new Maths.Vector3(0.0f, -1.0f, 10.0f);
+            Cam = Object.Instantiate<Camera>();
+            Cam.Transform.Translation = new Maths.Vector3(0.0f, -1.0f, 10.0f);
 
-            //GameObj = Object.Instantiate<Object>();
-            //MeshRenderer renderer = GameObj.AddComponent<MeshRenderer>();
-            //renderer.Material = AssetLibrary.GetMaterial(def);
-            //renderer.Model = Model;
+            GameObj = Object.Instantiate<Object>();
+            MeshRenderer renderer = GameObj.AddComponent<MeshRenderer>();
+            renderer.Material = AssetLibrary.GetMaterial(def);
+            renderer.Model = Model;
 
             Logger.Message("FlareCS: Initialized");
         }
@@ -57,9 +57,9 @@ namespace FlareEngine
         {
             ModControl.Close();
 
-            // Cam.Dispose();
-            // GameObj.Dispose();
-            // Model.Dispose();
+            Cam.Dispose();
+            GameObj.Dispose();
+            Model.Dispose();
 
             DefLibrary.Clear();
             AssetLibrary.ClearAssets();
