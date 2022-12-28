@@ -7,6 +7,7 @@
 #include "ObjectManager.h"
 #include "Rendering/RenderEngine.h"
 #include "RuntimeManager.h"
+#include "Trace.h"
 
 Application::Application(Config* a_config)
 {
@@ -30,11 +31,13 @@ Application::Application(Config* a_config)
 }
 Application::~Application()
 {
+    TRACE("Disposing App");
     delete m_runtime;
     delete m_renderEngine;
     delete m_objectManager;
     delete m_config;
 
+    TRACE("Final Disposal");
     delete m_appWindow;
 }
 
@@ -49,8 +52,6 @@ void Application::Run(int32_t a_argc, char* a_argv[])
         m_appWindow->Update();
 
         m_runtime->Update(m_appWindow->GetDelta(), m_appWindow->GetTime());
- 
-        // m_renderEngine->Update();
     }
 
     m_renderEngine->Stop();

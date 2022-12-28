@@ -79,6 +79,7 @@ void RenderEngine::Run()
     }
     
     m_join = true;
+    TRACE("Render Thread joining");
 }
 void RenderEngine::Update()
 {

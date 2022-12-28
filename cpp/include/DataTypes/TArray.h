@@ -198,4 +198,8 @@ public:
 
         m_size = 0;
     }
+    void UClear()
+    {
+        m_size = 0;
+    }
 };

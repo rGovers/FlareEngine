@@ -79,7 +79,6 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     TRACE("Checking if models where deleted");
     for (uint32_t i = 0; i < m_models.Size(); ++i)
     {
-        const std::lock_guard lock = std::lock_guard(m_models[i]->GetLock());
         if (m_models[i] != nullptr)
         {
             Logger::Warning("Model was not destroyed");

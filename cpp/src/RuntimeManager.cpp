@@ -37,7 +37,7 @@ RuntimeManager::~RuntimeManager()
 
     mono_jit_cleanup(m_domain);
 
-    mono_runtime_cleanup(m_domain);
+    // TODO: Find non-locking mono cleanup
 }
 
 void RuntimeManager::Exec(int a_argc, char* a_argv[])

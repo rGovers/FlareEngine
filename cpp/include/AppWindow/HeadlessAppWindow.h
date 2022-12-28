@@ -44,6 +44,8 @@ private:
     double                                         m_delta;
     double                                         m_time;
 
+    void PushMessageQueue();
+
     PipeMessage ReceiveMessage() const;
     void PushMessage(const PipeMessage& a_msg) const;
 

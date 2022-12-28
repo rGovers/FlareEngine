@@ -112,6 +112,12 @@ HeadlessAppWindow::HeadlessAppWindow()
 }
 HeadlessAppWindow::~HeadlessAppWindow()
 {
+    TRACE("Cleaning up Headless Window");
+
+    PushMessageQueue();
+
+    PushMessage({ PipeMessageType_Close });
+
 #if WIN32
     if (m_sock != INVALID_SOCKET)
     {
@@ -134,6 +140,29 @@ HeadlessAppWindow::~HeadlessAppWindow()
 
     delete Logger::CallbackFunc;
     Logger::CallbackFunc = nullptr;
+}
+
+void HeadlessAppWindow::PushMessageQueue()
+{
+    if (!m_queuedMessages.Empty())
+    {
+        std::mutex& l = m_queuedMessages.Lock();
+
+        l.lock();
+
+        const uint32_t size = m_queuedMessages.Size();
+        const PipeMessage* pipeMessages = m_queuedMessages.Data();
+
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            PushMessage(pipeMessages[i]);
+            delete[] pipeMessages[i].Data;
+        }
+
+        m_queuedMessages.UClear();
+        
+        l.unlock();
+    }
 }
 
 PipeMessage HeadlessAppWindow::ReceiveMessage() const
@@ -347,25 +376,7 @@ void HeadlessAppWindow::Update()
         PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
     }
 
-    if (!m_queuedMessages.Empty())
-    {
-        std::mutex& l = m_queuedMessages.Lock();
-
-        l.lock();
-
-        const uint32_t size = m_queuedMessages.Size();
-        const PipeMessage* pipeMessages = m_queuedMessages.Data();
-
-        for (uint32_t i = 0; i < size; ++i)
-        {
-            PushMessage(pipeMessages[i]);
-            delete[] pipeMessages[i].Data;
-        }
-
-        l.unlock();
-
-        m_queuedMessages.Clear();
-    }
+    PushMessageQueue();
 }
 
 glm::ivec2 HeadlessAppWindow::GetSize() const
