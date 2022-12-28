@@ -29,12 +29,10 @@ namespace FlareEngine
 
             Time.Init();
 
-            AssetLibrary.Init();
+            AssetLibrary.Init(workingDir);
             DefLibrary.Init();
 
             ModControl.Init(workingDir);
-
-            DefLibrary.LoadDefs("Defs");
 
             DefLibrary.ResolveDefs();
 

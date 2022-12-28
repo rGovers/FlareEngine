@@ -6,12 +6,12 @@ namespace FlareEngine.Rendering
 {
     public class VertexShader : IDisposable
     {
-        bool m_disposed = false;
-        uint m_internalAddr;
+        bool          m_disposed = false;
+        readonly uint m_internalAddr;
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateShader(string a_shader); 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
 
         public VertexShader(string a_shader)
@@ -35,6 +35,14 @@ namespace FlareEngine.Rendering
                 {
                     return new VertexShader(str);
                 }
+                else
+                {
+                    Logger.Error($"FlareCS: VertexShader Empty: {a_path}");
+                }
+            }
+            else
+            {
+                Logger.Error($"FlareCS: VertexShader does not exist: {a_path}");
             }
 
             return null;

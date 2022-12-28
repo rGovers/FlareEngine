@@ -1,79 +1,112 @@
 using FlareEngine.Definitions;
 using FlareEngine.Rendering;
 using System.Collections.Generic;
+using System.IO;
 
 namespace FlareEngine
 {
     public static class AssetLibrary
     {
-        static Dictionary<string, Material>     m_materials;
-        static Dictionary<string, VertexShader> m_vertexShaders;
-        static Dictionary<string, PixelShader>  m_pixelShaders;
+        static string                           WorkingDir;
+        static Dictionary<string, Material>     Materials;
+        static Dictionary<string, VertexShader> VertexShaders;
+        static Dictionary<string, PixelShader>  PixelShaders;
 
-        internal static void Init()
+        internal static void Init(string a_workingDir)
         {
-            m_materials = new Dictionary<string, Material>();
+            WorkingDir = a_workingDir;
 
-            m_vertexShaders = new Dictionary<string, VertexShader>();
-            m_pixelShaders = new Dictionary<string, PixelShader>();
+            Materials = new Dictionary<string, Material>();
+
+            VertexShaders = new Dictionary<string, VertexShader>();
+            PixelShaders = new Dictionary<string, PixelShader>();
         }
 
         public static void ClearAssets()
         {
-            foreach (VertexShader vShader in m_vertexShaders.Values)
+            foreach (VertexShader vShader in VertexShaders.Values)
             {
                 vShader.Dispose();
             }
-            m_vertexShaders.Clear();
+            VertexShaders.Clear();
 
-            foreach (PixelShader pShader in m_pixelShaders.Values)
+            foreach (PixelShader pShader in PixelShaders.Values)
             {
                 pShader.Dispose();
             }
-            m_pixelShaders.Clear();
+            PixelShaders.Clear();
 
-            foreach (Material mat in m_materials.Values)
+            foreach (Material mat in Materials.Values)
             {
                 mat.Dispose();
             }
-            m_materials.Clear();
+            Materials.Clear();
         }
 
         public static VertexShader LoadVertexShader(string a_path)
         {
-            if (m_vertexShaders.ContainsKey(a_path))
+            if (VertexShaders.ContainsKey(a_path))
             {
-                return m_vertexShaders[a_path];
+                return VertexShaders[a_path];
             }
 
-            VertexShader shader = VertexShader.LoadVertexShader(a_path);
+            string path = Path.Combine("Assets", a_path);
+
+            VertexShader shader;
+
+            if (!string.IsNullOrWhiteSpace(WorkingDir))
+            {
+                shader = VertexShader.LoadVertexShader(Path.Combine(WorkingDir, "Core", path));
+                if (shader != null)
+                {
+                    VertexShaders.Add(a_path, shader);
+
+                    return shader;
+                }
+            }
+
+            shader = VertexShader.LoadVertexShader(path);
             if (shader == null)
             {
-                Logger.Error("FlareCS: Error loading VertexShader: " + a_path);
+                Logger.Error($"FlareCS: Error loading VertexShader: {a_path}");
 
                 return null;
             }
 
-            m_vertexShaders.Add(a_path, shader);
+            VertexShaders.Add(a_path, shader);
 
             return shader;
         }
         public static PixelShader LoadPixelShader(string a_path)
         {
-            if (m_pixelShaders.ContainsKey(a_path))
+            if (PixelShaders.ContainsKey(a_path))
             {
-                return m_pixelShaders[a_path];
+                return PixelShaders[a_path];
             }
 
-            PixelShader shader = PixelShader.LoadPixelShader(a_path);
+            string path = Path.Combine("Assets", a_path);
+
+            PixelShader shader;
+            if (!string.IsNullOrWhiteSpace(WorkingDir))
+            {
+                shader = PixelShader.LoadPixelShader(Path.Combine(WorkingDir, "Core", path));
+                if (shader != null)
+                {
+                    PixelShaders.Add(a_path, shader);
+
+                    return shader;
+                }
+            }
+
+            shader = PixelShader.LoadPixelShader(path);
             if (shader == null)
             {
-                Logger.Error("FlareCS: Error loading PixelShader: " + a_path);
+                Logger.Error($"FlareCS: Error loading PixelShader: {a_path}");
 
                 return null;
             }
 
-            m_pixelShaders.Add(a_path, shader);
+            PixelShaders.Add(a_path, shader);
 
             return shader;
         }
@@ -87,16 +120,16 @@ namespace FlareEngine
                 return null;
             }
 
-            string str = string.Format("[{0}] [{1}]", a_def.VertexShaderPath, a_def.PixelShaderPath);
-            if (m_materials.ContainsKey(str))
+            string str = $"[{a_def.VertexShaderPath}] [{a_def.PixelShaderPath}]";
+            if (Materials.ContainsKey(str))
             {
-                return m_materials[str];
+                return Materials[str];
             }
 
             Material mat = Material.FromDef(a_def);
             if (mat != null)
             {
-                m_materials.Add(str, mat);
+                Materials.Add(str, mat);
             }
 
             return mat;

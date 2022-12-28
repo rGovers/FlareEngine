@@ -88,12 +88,16 @@ namespace FlareEngine
 
                     Objs.Remove(this);
 
+                    if (!string.IsNullOrWhiteSpace(m_tag) && ObjDictionary.ContainsKey(m_tag))
+                    {
+                        ObjDictionary.Remove(m_tag);
+                    }
+
                     foreach (Component comp in m_components)
                     {
-                        IDisposable disposable = comp as IDisposable;
-                        if (disposable != null)
+                        if (comp is IDisposable val)
                         {
-                            disposable.Dispose();
+                            val.Dispose();
                         }
                     }
                     m_components.Clear();
@@ -164,8 +168,7 @@ namespace FlareEngine
         {
             foreach (Component comp in m_components)
             {
-                T val = comp as T;
-                if (val != null)
+                if (comp is T val)
                 {
                     return val;
                 }
@@ -202,6 +205,11 @@ namespace FlareEngine
                 {
                     RemoveComponent(comp);
 
+                    if (comp is IDisposable val)
+                    {
+                        val.Dispose();
+                    }
+
                     return;
                 }
             }
@@ -219,6 +227,8 @@ namespace FlareEngine
                 ObjDictionary.Add(a_tag, obj);
             }
 
+            Objs.Add(obj);
+
             obj.Init();
 
             return obj;
@@ -232,6 +242,8 @@ namespace FlareEngine
             {
                 ObjDictionary.Add(a_tag, obj);
             }
+
+            Objs.Add(obj);
 
             obj.Init();
 
@@ -252,6 +264,8 @@ namespace FlareEngine
             {
                 ObjDictionary.Add(a_tag, obj);
             }
+
+            Objs.Add(obj);
 
             obj.Init();
 
