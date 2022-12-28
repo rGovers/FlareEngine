@@ -80,6 +80,13 @@ namespace FlareEngine
 
         public static Material GetMaterial(MaterialDef a_def)
         {
+            if (a_def == null)
+            {
+                Logger.Warning("FlareCS: Null MaterialDef");
+
+                return null;
+            }
+
             string str = string.Format("[{0}] [{1}]", a_def.VertexShaderPath, a_def.PixelShaderPath);
             if (m_materials.ContainsKey(str))
             {

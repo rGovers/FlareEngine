@@ -320,7 +320,7 @@ namespace FlareEngine.Definitions
             string[] dirs = Directory.GetDirectories(a_path);
             foreach (string dir in dirs)
             {
-                LoadDefData(a_path, ref a_data);
+                LoadDefData(dir, ref a_data);
             }
         }
 
