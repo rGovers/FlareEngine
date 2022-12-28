@@ -8,12 +8,13 @@
 #include "Rendering/RenderProgram.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 
-class CameraBuffer;
 class ObjectManager;
 class VulkanGraphicsEngine;
 class VulkanRenderEngineBackend;
 class VulkanRenderPass;
 class VulkanUniformBuffer;
+
+struct CameraBuffer;
 
 class VulkanPipeline
 {

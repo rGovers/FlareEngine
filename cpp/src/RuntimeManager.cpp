@@ -56,7 +56,7 @@ void RuntimeManager::Update(double a_delta, double a_time)
 
 void RuntimeManager::BindFunction(const std::string_view& a_location, void* a_function)
 {
-    mono_add_internal_call(a_location.begin(), a_function);
+    mono_add_internal_call(a_location.data(), a_function);
 }
 
 void RuntimeManager::AttachThread()

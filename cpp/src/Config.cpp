@@ -7,7 +7,7 @@
 Config::Config(const std::string_view& a_path)
 {
     tinyxml2::XMLDocument doc;
-    if (doc.LoadFile(a_path.begin()) == tinyxml2::XML_SUCCESS)
+    if (doc.LoadFile(a_path.data()) == tinyxml2::XML_SUCCESS)
     {
         tinyxml2::XMLElement* configEle = doc.FirstChildElement("Config");
         assert(configEle != nullptr);
@@ -24,11 +24,11 @@ Config::Config(const std::string_view& a_path)
                 std::string_view engineName = element->GetText();
                 if (engineName == "Vulkan")
                 {
-                    m_renderingEngine == RenderingEngine_Vulkan;
+                    m_renderingEngine = RenderingEngine_Vulkan;
                 }
                 else
                 {
-                    m_renderingEngine == RenderingEngine_Null;
+                    m_renderingEngine = RenderingEngine_Null;
                 }
             }
         }
