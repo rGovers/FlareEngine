@@ -220,6 +220,8 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     m_camBufferAddr = a_camBufferAddr;
     m_program = a_program;
 
+    m_transformBufferInput.ShaderSlot = ShaderSlot_Null;
+
     const vk::Device device = m_engine->GetLogicalDevice();
 
     for (uint16_t i = 0; i < m_program.ShaderBufferInputCount; ++i)
@@ -233,6 +235,12 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
                 m_cameraUniformBuffer = new VulkanUniformBuffer(m_engine, sizeof(CameraShaderBuffer));
                 m_cameraBufferInput = m_program.ShaderBufferInputs[i];
             }
+
+            break;
+        }
+        case ShaderBufferType_Model:
+        {
+            m_transformBufferInput = m_program.ShaderBufferInputs[i];
 
             break;
         }
@@ -459,10 +467,10 @@ VulkanPipeline::~VulkanPipeline()
 
 void VulkanPipeline::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const
 {
-    const vk::Device device = m_engine->GetLogicalDevice();
-
     if (m_cameraUniformBuffer != nullptr)
     {
+        const vk::Device device = m_engine->GetLogicalDevice();
+
         TransformBuffer camTrans = a_objectManager->GetTransformBuffer(a_buffer.TransformAddr);
 
         CameraShaderBuffer buffer;
@@ -493,6 +501,17 @@ void VulkanPipeline::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_scr
         );
 
         device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
+    }
+}
+void VulkanPipeline::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, TransformBuffer& a_buffer, ObjectManager* a_objectManager) const
+{
+    if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
+    {
+        ModelShaderBuffer buffer;
+        buffer.Model = a_buffer.ToGlobalMat4(a_objectManager);
+        buffer.InvModel = glm::inverse(buffer.Model);
+
+        a_commandBuffer.pushConstants(m_layout, GetShaderStage(m_transformBufferInput.ShaderSlot), 0, sizeof(ModelShaderBuffer), &buffer);
     }
 }
 void VulkanPipeline::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const

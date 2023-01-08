@@ -1,16 +1,16 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
 #include "Logger.h"
-#include "RuntimeManager.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 static VulkanGraphicsEngineBindings* Engine = nullptr;
 
-static uint32_t VertexShader_GenerateShader(MonoString* a_string)
+FLARE_MONO_EXPORT(uint32_t, VertexShader_GenerateShader, MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
@@ -20,12 +20,12 @@ static uint32_t VertexShader_GenerateShader(MonoString* a_string)
 
     return ret;
 }
-static void VertexShader_DestroyShader(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, VertexShader_DestroyShader, uint32_t a_addr)
 {
     Engine->DestroyVertexShader(a_addr);
 }
 
-static uint32_t PixelShader_GenerateShader(MonoString* a_string)
+FLARE_MONO_EXPORT(uint32_t, PixelShader_GenerateShader, MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
@@ -35,12 +35,12 @@ static uint32_t PixelShader_GenerateShader(MonoString* a_string)
 
     return ret;
 }
-static void PixelShader_DestroyShader(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, PixelShader_DestroyShader, uint32_t a_addr)
 {
     Engine->DestroyPixelShader(a_addr);
 }
 
-static uint32_t Material_GenerateProgram(uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs)
+FLARE_MONO_EXPORT(uint32_t, Material_GenerateProgram, uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs)
 {
     RenderProgram program;
     program.VertexShader = a_vertexShader;
@@ -84,7 +84,7 @@ static uint32_t Material_GenerateProgram(uint32_t a_vertexShader, uint32_t a_pix
 
     return Engine->GenerateShaderProgram(program);
 }
-static void Material_DestroyProgram(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, Material_DestroyProgram, uint32_t a_addr)
 {
     const RenderProgram program = Engine->GetRenderProgram(a_addr);
 
@@ -99,33 +99,33 @@ static void Material_DestroyProgram(uint32_t a_addr)
 
     Engine->DestroyShaderProgram(a_addr);
 }
-static RenderProgram Material_GetProgramBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(RenderProgram, Material_GetProgramBuffer, uint32_t a_addr)
 {
     return Engine->GetRenderProgram(a_addr);
 }
-static void Material_SetProgramBuffer(uint32_t a_addr, RenderProgram a_program)
+FLARE_MONO_EXPORT(void, Material_SetProgramBuffer, uint32_t a_addr, RenderProgram a_program)
 {
     Engine->SetRenderProgram(a_addr, a_program);
 }
 
-static uint32_t Camera_GenerateBuffer(uint32_t a_transformAddr)
+FLARE_MONO_EXPORT(uint32_t, Camera_GenerateBuffer, uint32_t a_transformAddr)
 {
     return Engine->GenerateCameraBuffer(a_transformAddr);
 }
-static void Camera_DestroyBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, Camera_DestroyBuffer, uint32_t a_addr)
 {
     Engine->DestroyCameraBuffer(a_addr);
 }
-static CameraBuffer Camera_GetBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(CameraBuffer, Camera_GetBuffer, uint32_t a_addr)
 {
     return Engine->GetCameraBuffer(a_addr);
 }
-static void Camera_SetBuffer(uint32_t a_addr, CameraBuffer a_buffer)
+FLARE_MONO_EXPORT(void, Camera_SetBuffer, uint32_t a_addr, CameraBuffer a_buffer)
 {
     Engine->SetCameraBuffer(a_addr, a_buffer);
 }
 
-static uint32_t MeshRenderer_GenerateBuffer(uint32_t a_transformAddr, uint32_t a_materialAddr, uint32_t a_modelAddr)
+FLARE_MONO_EXPORT(uint32_t, MeshRenderer_GenerateBuffer, uint32_t a_transformAddr, uint32_t a_materialAddr, uint32_t a_modelAddr)
 {
     MeshRenderBuffer buffer;
     buffer.MaterialAddr = a_materialAddr;
@@ -134,20 +134,20 @@ static uint32_t MeshRenderer_GenerateBuffer(uint32_t a_transformAddr, uint32_t a
 
     return Engine->GenerateMeshRenderBuffer(buffer);
 }
-static void MeshRenderer_DestroyBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, MeshRenderer_DestroyBuffer, uint32_t a_addr)
 {
     Engine->DestroyMeshRenderBuffer(a_addr);
 }
-static void MeshRenderer_GenerateRenderStack(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, MeshRenderer_GenerateRenderStack, uint32_t a_addr)
 {
     Engine->GenerateRenderStack(a_addr);
 }
-static void MeshRenderer_DestroyRenderStack(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, MeshRenderer_DestroyRenderStack, uint32_t a_addr)
 {
     Engine->DestroyRenderStack(a_addr);
 }
 
-static uint32_t Model_GenerateModel(MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
+FLARE_MONO_EXPORT(uint32_t, Model_GenerateModel, MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
 {
     const uint32_t vertexCount = (uint32_t)mono_array_length(a_vertices);
     const uint32_t indexCount = (uint32_t)mono_array_length(a_indices);
@@ -173,7 +173,7 @@ static uint32_t Model_GenerateModel(MonoArray* a_vertices, MonoArray* a_indices,
 
     return addr;
 }
-static void Model_DestroyModel(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, Model_DestroyModel, uint32_t a_addr)
 {
     Engine->DestroyModel(a_addr);
 }

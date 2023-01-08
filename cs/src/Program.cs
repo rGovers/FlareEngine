@@ -1,4 +1,5 @@
 using FlareEngine.Definitions;
+using FlareEngine.Maths;
 using FlareEngine.Mod;
 using FlareEngine.Rendering;
 
@@ -71,6 +72,8 @@ namespace FlareEngine
             Time.DTimePassed = a_time;
 
             ModControl.Update();
+
+            GameObj.Transform.Rotation = Quaternion.FromAxisAngle(Vector3.Up, Time.TimePassed);
 
             Object.UpdateObjects();
         }

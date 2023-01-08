@@ -456,7 +456,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     TRACE("Vulkan cleaned up");
 }
 
-void VulkanRenderEngineBackend::Update()
+void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 {
     AppWindow* window = GetRenderEngine()->m_window;
     if (m_swapchain == nullptr)
@@ -464,7 +464,7 @@ void VulkanRenderEngineBackend::Update()
         m_swapchain = new VulkanSwapchain(this, window);
     }
 
-    if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex))
+    if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex, a_delta, a_time))
     {
         return;
     }

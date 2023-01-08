@@ -547,6 +547,8 @@ namespace FlareEngine.Definitions
                 return m_defLookup[a_name];
             }
 
+            Logger.Warning($"FlareCS: Cannot find def of name: {a_name}");
+
             return null;
         }
         public static T GetDef<T>(string a_name) where T : Def
@@ -559,6 +561,8 @@ namespace FlareEngine.Definitions
                     return t;
                 }
             }
+
+            Logger.Warning($"FlareCS: Cannot find def of name and type: {a_name}, {typeof(T).ToString()}");
 
             return null;
         }

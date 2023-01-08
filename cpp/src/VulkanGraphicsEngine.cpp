@@ -14,7 +14,8 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
-#include "RuntimeManager.h"
+#include "Runtime/RuntimeFunction.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRenderEngineBackend* a_vulkanEngine)
@@ -38,11 +39,23 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
         assert(0);
     }
 
-    m_runtimeBindings = new VulkanGraphicsEngineBindings(a_runtime, this);
+    m_runtimeBindings = new VulkanGraphicsEngineBindings(m_runtimeManager, this);
+
+    m_preShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreShadow(uint)");
+    m_postShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostShadow(uint)");
+    m_preRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreRender(uint)");
+    m_postRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostRender(uint)");
+    m_postProcessFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostProcess(uint)"); 
 }
 VulkanGraphicsEngine::~VulkanGraphicsEngine()
 {
     delete m_runtimeBindings;
+
+    delete m_preShadowFunc;
+    delete m_postShadowFunc;
+    delete m_preRenderFunc;
+    delete m_postRenderFunc;
+    delete m_postProcessFunc;
 
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
 
@@ -149,6 +162,13 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
     );
     commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
+    void* args[] = 
+    { 
+        &a_camIndex 
+    };
+
+    m_preRenderFunc->Exec(args);
+
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
     for (const MaterialRenderStack& renderStack : stacks)
@@ -191,12 +211,22 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
                     {
                         model->Bind(commandBuffer);
                         const uint32_t indexCount = model->GetIndexCount();
-                        commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
+                        for (uint32_t tAddr : modelBuff.TransformAddr)
+                        {
+                            TransformBuffer buffer = objectManager->GetTransformBuffer(tAddr);
+
+                            pipeline->UpdateTransformBuffer(commandBuffer, curFrame, buffer, objectManager);
+
+                            commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
+                        }
                     }
                 }
             }
         }
     }
+
+    m_postRenderFunc->Exec(args);
+
     commandBuffer.endRenderPass();
     commandBuffer.end();
 

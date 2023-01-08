@@ -1,5 +1,7 @@
+using FlareEngine.Definitions;
 using FlareEngine.Maths;
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -18,16 +20,18 @@ namespace FlareEngine.Rendering
 
     public class Camera : Object
     {
-        bool m_disposed = false;
-        uint m_bufferAddr;
+        static Dictionary<uint, Camera> BufferLookup = new Dictionary<uint, Camera>();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        bool          m_disposed = false;
+        readonly uint m_bufferAddr;
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateBuffer(uint a_transformAddr);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyBuffer(uint a_addr);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static CameraBuffer GetBuffer(uint a_addr);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void SetBuffer(uint a_addr, CameraBuffer a_buffer);
 
         public Viewport Viewport
@@ -112,17 +116,53 @@ namespace FlareEngine.Rendering
         {            
             m_bufferAddr = GenerateBuffer(Transform.InternalAddr);
             
-            Viewport = new Viewport()
+            CameraBuffer val = new CameraBuffer()
             {
-                Position = Vector2.Zero,
-                Size = Vector2.One,
-                MinDepth = 0.0f,
-                MaxDepth = 1.0f
+                Viewport = new Viewport()
+                {
+                    Position = Vector2.Zero,
+                    Size = Vector2.One,
+                    MinDepth = 0.0f,
+                    MaxDepth = 1.0f
+                },
+                FOV = (float)(Math.PI * 0.45),
+                Near = 0.1f,
+                Far = 100.0f,
+                RenderLayer = 0b1
             };
-            FOV = (float)(Math.PI * 0.45);
-            Near = 0.1f;
-            Far = 100.0f;
-            RenderLayer = 0b1;
+
+            SetBuffer(m_bufferAddr, val);
+
+            BufferLookup.Add(m_bufferAddr, this);
+        }
+
+        public override void Init()
+        {
+            base.Init();
+
+            if (Def is CameraDef def)
+            {
+                CameraBuffer val = new CameraBuffer()
+                {
+                    Viewport = def.Viewport,
+                    FOV = def.FOV,
+                    Near = def.Near,
+                    Far = def.Far,
+                    RenderLayer = def.RenderLayer
+                };
+
+                SetBuffer(m_bufferAddr, val);
+            }
+        }
+
+        internal static Camera GetCamera(uint a_buffer)
+        {
+            if (BufferLookup.ContainsKey(a_buffer))
+            {
+                return BufferLookup[a_buffer];
+            }
+
+            return null;
         }
 
         protected override void Dispose(bool a_disposing)
@@ -134,6 +174,8 @@ namespace FlareEngine.Rendering
                 if(a_disposing)
                 {
                     DestroyBuffer(m_bufferAddr);
+
+                    BufferLookup.Remove(m_bufferAddr);
                 }
                 else
                 {
@@ -147,5 +189,4 @@ namespace FlareEngine.Rendering
                 Logger.Error("FlareCS: Multiple Camera Dispose");
             }
         }
-    };
-}
+    }}

@@ -6,7 +6,7 @@
 #include "Logger.h"
 #include "ObjectManager.h"
 #include "Rendering/RenderEngine.h"
-#include "RuntimeManager.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 Application::Application(Config* a_config)

@@ -436,7 +436,7 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
     return info;
 }
 
-bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex)
+bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex, double a_delta, double a_time)
 {
     const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
@@ -476,7 +476,7 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
 
         HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
-        window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, dat);
+        window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, dat, a_delta, a_time);
 
         vmaUnmapMemory(allocator, m_allocBuffer);
     }

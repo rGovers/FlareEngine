@@ -50,7 +50,7 @@ public:
     VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine);
     virtual ~VulkanRenderEngineBackend();
 
-    virtual void Update();
+    virtual void Update(double a_delta, double a_time);
 
     vk::CommandBuffer CreateCommandBuffer(vk::CommandBufferLevel a_level) const;
     void DestroyCommandBuffer(const vk::CommandBuffer& a_buffer) const;

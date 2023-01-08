@@ -15,6 +15,7 @@ class VulkanRenderPass;
 class VulkanUniformBuffer;
 
 struct CameraBuffer;
+struct TransformBuffer;
 
 class VulkanPipeline
 {
@@ -33,6 +34,7 @@ private:
     VulkanUniformBuffer*       m_cameraUniformBuffer = nullptr;
     ShaderBufferInput          m_cameraBufferInput;
 
+    ShaderBufferInput          m_transformBufferInput;
 protected:
 
 public:
@@ -45,6 +47,7 @@ public:
     }
 
     void UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const;
-    
+    void UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, TransformBuffer& a_buffer, ObjectManager* a_objectManager) const;
+
     void Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const;
 };

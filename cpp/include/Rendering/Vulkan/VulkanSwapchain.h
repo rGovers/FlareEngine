@@ -84,6 +84,6 @@ public:
         return m_init & 0b1 << a_index;
     }
 
-    bool StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex);
+    bool StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex, double a_delta, double a_time);
     void EndFrame(const vk::Semaphore& a_semaphores, const vk::Fence& a_fence, uint32_t a_imageIndex);
 };

@@ -4,6 +4,9 @@
 #include <mutex>
 #include <vector>
 
+// When in doubt with memory issues write it C style with C++ features
+// Using C++ memory features was causing seg-faults and leaks so just done it C style and just manually call the deconstructor when I need to
+// All this because I am too lazy to implement constructors
 template<typename T>
 class TArray
 {
@@ -11,6 +14,17 @@ private:
     std::mutex m_mutex;
     uint32_t   m_size;
     T*         m_data;
+
+    inline void DestroyData()
+    {
+        if constexpr (std::is_destructible<T>())
+        {
+            for (uint32_t i = 0; i < m_size; ++i)
+            {
+                (&(m_data[i]))->~T();
+            }
+        }
+    }
 
 protected:
 
@@ -24,11 +38,9 @@ public:
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         m_size = a_other.m_size;
-        m_data = new T[m_size];
-        for (uint32_t i = 0; i < m_size; ++i)
-        {
-            m_data[i] = a_other.m_data[i];
-        }
+        const uint32_t aSize = sizeof(T) * m_size;
+        m_data = (T*)malloc(aSize);
+        memcpy(m_data, a_other.m_data, aSize);
     }
     TArray(TArray&& a_other)
     {
@@ -45,8 +57,10 @@ public:
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         m_size = a_size;
-        m_data = new T[m_size];
-        for (uint32_t i = 0; i < a_size; ++i)
+        const uint32_t aSize = sizeof(T) * m_size;
+        m_data = (T*)malloc(aSize);
+        memset(m_data, 0, aSize);
+        for (uint32_t i = 0; i < m_size; ++i)
         {
             m_data[i] = a_data[i];
         }
@@ -55,8 +69,10 @@ public:
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
         
-        m_size = a_end - a_start;
-        m_data = new T[m_size];
+        const uint32_t aSize = a_end - a_start;
+        m_size = aSize / sizeof(T);
+        m_data = (T*)malloc(aSize);
+        memset(m_data, 0, aSize);
         for (uint32_t i = 0; i < m_size; ++i)
         {
             m_data[i] = a_start[i];
@@ -67,7 +83,9 @@ public:
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         m_size = (uint32_t)a_vec.size();
-        m_data = new T[m_size];
+        const uint32_t aSize = sizeof(T) * m_size;
+        m_data = (T*)malloc(aSize);
+        memset(m_data, 0, aSize);
         for (uint32_t i = 0; i < m_size; ++i)
         {
             m_data[i] = a_vec[i];
@@ -79,8 +97,9 @@ public:
 
         if (m_data != nullptr)
         {
+            DestroyData();
+
             free(m_data);
-            m_data = nullptr;
         }
     }
 
@@ -91,12 +110,15 @@ public:
 
         if (m_data != nullptr)
         {
+            DestroyData();
+
             free(m_data);
-            m_data = nullptr;
         }
 
         m_size = a_other.m_size;
-        m_data = new T[m_size];
+        const uint32_t aSize = m_size * sizeof(T);
+        m_data = (T*)malloc(aSize);
+        memset(m_data, 0, aSize);
         for (uint32_t i = 0; i < m_size; ++i)
         {
             m_data[i] = a_other.m_data[i];
@@ -141,21 +163,16 @@ public:
         return m_data[a_index];
     }
 
-    void Push(T a_data)
+    void Push(const T& a_data)
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         const uint32_t aSize = (m_size + 1) * sizeof(T);
-
-        // T* dat = new T[m_size + 1];
         T* dat = (T*)malloc(aSize);
         memset(dat, 0, aSize);
         if (m_data != nullptr)
         {   
-            for (uint32_t i = 0; i < m_size; ++i)
-            {
-                dat[i] = m_data[i];
-            }
+            memcpy(dat, m_data, m_size * sizeof(T));
 
             free(m_data);
         }
@@ -167,39 +184,88 @@ public:
     T Pop()
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
+        
+        T dat = m_data[--m_size];
 
-        return m_data[--m_size];
+        if constexpr (std::is_destructible<T>())
+        {
+            (&(m_data[m_size]))->~T();
+        }
+
+        return dat;
     }
     void Erase(uint32_t a_index)
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
 
-        --m_size;
-        for (uint32_t i = a_index; i < m_size; ++i)
+        const uint32_t aSize = (m_size - 1) * sizeof(T);
+
+        if constexpr (std::is_destructible<T>())
         {
-            m_data[i] = m_data[i + 1];
+            (&(m_data[a_index]))->~T();
         }
+
+        T* dat = (T*)malloc(aSize);
+        memset(dat, 0, aSize);
+        if (m_data != nullptr)
+        {
+            memcpy(dat, m_data, a_index * sizeof(T));
+            memcpy(dat + (a_index * sizeof(T)), m_data + ((a_index + 1) * sizeof(T)), (m_size - a_index - 1) * sizeof(T));
+
+            free(m_data);
+        }
+
+        --m_size;
+        m_data = dat;
     }
     void Erase(uint32_t a_start, uint32_t a_end)
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         const uint32_t diff = a_end - a_start;
-        m_size -= diff;
-        for (uint32_t i = a_start; i < a_end; ++i)
+
+        const uint32_t aSize = (m_size - diff) * sizeof(T);
+
+        if constexpr (std::is_destructible<T>())
         {
-            m_data[i] = m_data[i + 1];
+            for (uint32_t i = a_start; i < a_end; ++i)
+            {
+                (&(m_data[i]))->~T();
+            }
         }
+
+        T* dat = (T*)malloc(aSize);
+        memset(dat, 0, aSize);
+        if (m_data != nullptr)
+        {
+            memcpy(dat, m_data, a_start * sizeof(T));
+            memcpy(dat + (a_start * sizeof(T)), m_data + ((a_end + 1) * sizeof(T)), (m_size - a_start - diff) * sizeof(T));
+
+            free(m_data);
+        }
+
+        m_size -= diff;
+        m_data = dat;
     }
 
     void Clear()
     {
         const std::lock_guard g = std::lock_guard(m_mutex);
 
+        DestroyData();
+
+        free(m_data);
+
         m_size = 0;
+        m_data = nullptr;
     }
     void UClear()
     {
+        DestroyData();
+
+        free(m_data);
+
         m_size = 0;
+        m_data = nullptr;
     }
 };

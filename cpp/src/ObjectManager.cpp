@@ -1,23 +1,23 @@
 #include "ObjectManager.h"
 
-#include "RuntimeManager.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 static ObjectManager* OManager = nullptr;
 
-static uint32_t Transform_GenerateTransformBuffer()
+FLARE_MONO_EXPORT(uint32_t, Transform_GenerateTransformBuffer)
 {
     return OManager->CreateTransformBuffer();
 }
-static TransformBuffer Transform_GetTransformBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(TransformBuffer, Transform_GetTransformBuffer, uint32_t a_addr)
 {
     return OManager->GetTransformBuffer(a_addr);
 }
-static void Transform_SetTransformBuffer(uint32_t a_addr, TransformBuffer a_buffer)
+FLARE_MONO_EXPORT(void, Transform_SetTransformBuffer, uint32_t a_addr, TransformBuffer a_buffer)
 {
     OManager->SetTransformBuffer(a_addr, a_buffer);
 }
-static void Transform_DestroyTransformBuffer(uint32_t a_addr)
+FLARE_MONO_EXPORT(void, Transform_DestroyTransformBuffer, uint32_t a_addr)
 {
     OManager->DestroyTransformBuffer(a_addr);
 }

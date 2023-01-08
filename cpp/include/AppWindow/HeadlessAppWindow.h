@@ -81,5 +81,5 @@ public:
         return vk::SurfaceKHR();
     }
 
-    void PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer);
+    void PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer, double a_delta, double a_time);
 };

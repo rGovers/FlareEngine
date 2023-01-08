@@ -2,12 +2,12 @@
 
 #include <iostream>
 
-#include "RuntimeManager.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 Logger::Callback* Logger::CallbackFunc = nullptr;
 
-static void Logger_PushMessage(MonoString* a_string)
+FLARE_MONO_EXPORT(void, Logger_PushMessage, MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
@@ -15,7 +15,7 @@ static void Logger_PushMessage(MonoString* a_string)
 
     mono_free(str);
 }
-static void Logger_PushWarning(MonoString* a_string)
+FLARE_MONO_EXPORT(void, Logger_PushWarning, MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 
@@ -23,7 +23,7 @@ static void Logger_PushWarning(MonoString* a_string)
 
     mono_free(str);
 }
-static void Logger_PushError(MonoString* a_string)
+FLARE_MONO_EXPORT(void, Logger_PushError, MonoString* a_string)
 {
     char* str = mono_string_to_utf8(a_string);
 

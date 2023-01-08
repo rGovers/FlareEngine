@@ -6,7 +6,6 @@
 #include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
-#include "RuntimeManager.h"
 #include "Trace.h"
 
 RenderEngine::RenderEngine(RuntimeManager* a_runtime, ObjectManager* a_objectManager, AppWindow* a_window, Config* a_config)
@@ -73,15 +72,24 @@ void RenderEngine::Stop()
 
 void RenderEngine::Run()
 {
+    std::chrono::time_point prevTime = std::chrono::high_resolution_clock::now();
+
     while (!m_shutdown)
     {
-        m_backend->Update();
+        const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
+
+        const double delta = std::chrono::duration<double>(time - prevTime).count();
+        m_time += delta;
+
+        m_backend->Update(delta, m_time);
+
+        prevTime = time;
     }
     
     m_join = true;
     TRACE("Render Thread joining");
 }
-void RenderEngine::Update()
+void RenderEngine::Update(double a_delta, double a_time)
 {
-    m_backend->Update();
+    m_backend->Update(a_delta, a_time);
 }

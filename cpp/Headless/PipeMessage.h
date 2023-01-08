@@ -8,6 +8,7 @@ enum e_PipeMessageType : uint32_t
     PipeMessageType_Close,
     PipeMessageType_Resize,
     PipeMessageType_FrameData,
+    PipeMessageType_UpdateData,
     PipeMessageType_UnlockFrame,
     PipeMessageType_PushFrame,
     PipeMessageType_Message,

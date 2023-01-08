@@ -5,6 +5,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+class RuntimeFunction;
 class RuntimeManager;
 class VulkanGraphicsEngineBindings;
 class VulkanModel;
@@ -28,6 +29,12 @@ private:
     // This despite not being needed is used to fix a crash
     RuntimeManager*                               m_runtimeManager;
     VulkanGraphicsEngineBindings*                 m_runtimeBindings;
+
+    RuntimeFunction*                              m_preShadowFunc;
+    RuntimeFunction*                              m_postShadowFunc;
+    RuntimeFunction*                              m_preRenderFunc;
+    RuntimeFunction*                              m_postRenderFunc;
+    RuntimeFunction*                              m_postProcessFunc;
 
     VulkanRenderEngineBackend*                    m_vulkanEngine;
 

@@ -20,6 +20,8 @@ class RenderEngine
 private:
     friend class VulkanRenderEngineBackend;
 
+    double               m_time;
+
     bool                 m_shutdown;
     bool                 m_join;
     std::thread          m_thread;
@@ -32,7 +34,7 @@ private:
 
     AppWindow*           m_window;
 
-    void Update();
+    void Update(double a_delta, double a_time);
     void Run();
 protected:
 

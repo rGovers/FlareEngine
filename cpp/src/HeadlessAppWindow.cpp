@@ -244,11 +244,11 @@ bool HeadlessAppWindow::ShouldClose() const
 
 double HeadlessAppWindow::GetDelta() const
 {
-    return 0.0;
+    return m_delta;
 }
 double HeadlessAppWindow::GetTime() const
 {
-    return 0.0;
+    return m_time;
 }
 
 bool HeadlessAppWindow::PollMessage()
@@ -365,7 +365,7 @@ void HeadlessAppWindow::Update()
 
     const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
 
-    PushMessage({ PipeMessageType_FrameData, sizeof(glm::dvec2), (char*)&tVec});
+    PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
 
     if (m_frameData != nullptr && m_unlockWindow)
     {
@@ -384,8 +384,18 @@ glm::ivec2 HeadlessAppWindow::GetSize() const
     return glm::ivec2((int)m_width, (int)m_height);
 }
 
-void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer)
+void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer, double a_delta, double a_time)
 {
+    constexpr int Size = sizeof(glm::dvec2);
+
+    PipeMessage msg;
+    msg.Type = PipeMessageType_FrameData;
+    msg.Length = Size;
+    msg.Data = new char[Size];
+    (*(glm::dvec2*)msg.Data).x = a_delta;
+    (*(glm::dvec2*)msg.Data).y = a_time;
+    m_queuedMessages.Push(msg);
+
     const std::lock_guard g = std::lock_guard(m_fLock);
     if (m_width == a_width && m_height == a_height)
     {

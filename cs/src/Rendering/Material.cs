@@ -26,6 +26,7 @@ namespace FlareEngine.Rendering
 
     public enum ShaderSlot : ushort
     {
+        Null = ushort.MaxValue,
         Vertex = 0,
         Pixel = 1,
         All = 2

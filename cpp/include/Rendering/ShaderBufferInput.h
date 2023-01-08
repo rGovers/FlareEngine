@@ -10,6 +10,7 @@ enum e_ShaderBufferType : uint16_t
 
 enum e_ShaderSlot : uint16_t
 {
+    ShaderSlot_Null = UINT16_MAX,
     ShaderSlot_Vertex = 0,
     ShaderSlot_Pixel = 1,
     ShaderSlot_All = 2

@@ -23,5 +23,5 @@ public:
         return m_renderEngine;
     }
 
-    virtual void Update() = 0;
+    virtual void Update(double a_delta, double a_time) = 0;
 };
