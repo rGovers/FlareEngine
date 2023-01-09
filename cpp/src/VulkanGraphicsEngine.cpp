@@ -62,7 +62,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     TRACE("Deleting command pool");
     device.destroyCommandPool(m_commandPool);
 
-    TRACE("Deleting Pipelines")
+    TRACE("Deleting Pipelines");
     for (const auto& iter : m_pipelines)
     {
         delete iter.second;

@@ -4,6 +4,7 @@
 
 #include "Config.h"
 #include "Logger.h"
+#include "Profiler.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -66,6 +67,12 @@ void RenderEngine::Stop()
 
     TRACE("Stopping Render Thread");
     m_shutdown = true;
+    // This exists purely to stop a crash that happens in release do not delete
+    // Compiler does weird stuff otherwise when it optimizes
+    // Looking at disassembly GCC completly deletes the function when it optimizes if I do not have this print
+    // It still deletes the function if I have an empty string hence the space
+    // Would probably be better to do a scope lock and join however 5 mins of effort and I am lazy
+    printf(" ");
     while (!m_join) { }
     m_thread.join();
 }
@@ -76,14 +83,22 @@ void RenderEngine::Run()
 
     while (!m_shutdown)
     {
-        const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
+        Profiler::Start("Render Thread");
+        
+        {
+            PROFILESTACK("Render Update");
 
-        const double delta = std::chrono::duration<double>(time - prevTime).count();
-        m_time += delta;
+            const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
 
-        m_backend->Update(delta, m_time);
+            const double delta = std::chrono::duration<double>(time - prevTime).count();
+            m_time += delta;
 
-        prevTime = time;
+            m_backend->Update(delta, m_time);
+
+            prevTime = time;
+        }   
+        
+        Profiler::Stop();
     }
     
     m_join = true;

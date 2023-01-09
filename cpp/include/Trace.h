@@ -3,9 +3,11 @@
 #include <stdio.h>
 
 #ifndef NDEBUG
-#define TRACE(str) printf("FlareEngine: %s \n", str);
-#elif defined FLARENATIVE_ENABLE_TRACE
-#define TRACE(str) printf("FlareEngine: %s \n", str);
+#define FLARENATIVE_ENABLE_TRACE
+#endif
+
+#ifdef FLARENATIVE_ENABLE_TRACE
+#define TRACE(str) printf("FlareEngine: %s \n", str)
 #else
-#define TRACE(str)
+#define TRACE(str) void(0)
 #endif

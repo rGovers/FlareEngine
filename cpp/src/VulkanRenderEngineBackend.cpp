@@ -9,6 +9,7 @@
 #include "Config.h"
 #include "FlareNativeConfig.h"
 #include "Logger.h"
+#include "Profiler.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
@@ -431,7 +432,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
         m_lDevice.destroyFence(m_inFlight[i]);
     }
     
-    TRACE("Destroy Vulkan Allocator")
+    TRACE("Destroy Vulkan Allocator");
     vmaDestroyAllocator(m_allocator);
     
     vk::SurfaceKHR surface = window->GetSurface(m_instance);
@@ -451,6 +452,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     }
 
     TRACE("Destroying Vulkan Instance");
+    // TODO: Need to work out why this take longer to dispose the longer the app is open
     m_instance.destroy();
 
     TRACE("Vulkan cleaned up");
@@ -458,6 +460,8 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 {
+    Profiler::StartFrame("Vulkan Render Setup");
+
     AppWindow* window = GetRenderEngine()->m_window;
     if (m_swapchain == nullptr)
     {
@@ -466,6 +470,8 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex, a_delta, a_time))
     {
+        Profiler::StopFrame();
+
         return;
     }
 
@@ -478,11 +484,17 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
         m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
     }
 
+    Profiler::StopFrame();
+
+    Profiler::StartFrame("Vulkan Render Update");
+
     buffers = m_graphicsEngine->Update(m_swapchain);
     buffersSize = (uint32_t)buffers.size();
     // If there is nothing to render no point doing anything
     if (buffersSize <= 0)
     {
+        Profiler::StopFrame();
+
         return;
     }
 
@@ -527,9 +539,15 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
         }
     }
 
+    Profiler::StopFrame();
+
+    Profiler::StartFrame("Vulkan Render Present");
+
     m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[m_currentFrame], m_imageIndex);
 
     m_currentFrame = (m_currentFrame + 1) % VulkanMaxFlightFrames;
+
+    Profiler::StopFrame();
 }
 
 vk::CommandBuffer VulkanRenderEngineBackend::CreateCommandBuffer(vk::CommandBufferLevel a_level) const

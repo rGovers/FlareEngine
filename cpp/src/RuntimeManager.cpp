@@ -4,6 +4,7 @@
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
 
+#include "Profiler.h"
 #include "Rendering/RenderEngine.h"
 #include "Runtime/RuntimeFunction.h"
 
@@ -52,6 +53,8 @@ void RuntimeManager::Exec(int a_argc, char* a_argv[])
 }
 void RuntimeManager::Update(double a_delta, double a_time)
 {
+    PROFILESTACK("Runtime Update");
+    
     void* args[2];
     args[0] = &a_delta;
     args[1] = &a_time;

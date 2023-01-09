@@ -36,6 +36,42 @@ void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_Log
 
     m_queuedMessages.Push(msg);
 }
+void HeadlessAppWindow::ProfilerCallback(const Profiler::PData& a_profilerData)
+{
+    constexpr uint32_t ScopeSize = sizeof(ProfileScope);
+
+    PipeMessage msg;
+    msg.Type = PipeMessageType_ProfileScope;
+    msg.Length = ScopeSize;
+    msg.Data = new char[ScopeSize];
+
+    ProfileScope* scope = (ProfileScope*)msg.Data;
+    
+    const int nameSize = glm::min((int)a_profilerData.Name.size(), NameMax - 1);
+    for (int i = 0; i < nameSize; ++i)
+    {
+        scope->Name[i] = a_profilerData.Name[i];
+    }
+    scope->Name[nameSize] = 0;
+
+    scope->FrameCount = (uint16_t)glm::min((int)a_profilerData.Frames.size(), FrameMax);
+    for (uint16_t i = 0; i < scope->FrameCount; ++i)
+    {
+        const ProfileFrame& pFrame = a_profilerData.Frames[i];
+        ProfileTFrame& frame = scope->Frames[i];
+
+        const int frameNameSize = glm::min((int)pFrame.Name.size(), NameMax - 1);
+        for (int j = 0; j < frameNameSize; ++j)
+        {
+            frame.Name[j] = pFrame.Name[j];
+        }
+        frame.Name[frameNameSize] = 0;
+        frame.Stack = pFrame.Stack;
+        frame.Time = std::chrono::duration<float>(pFrame.EndTime - pFrame.StartTime).count();
+    }
+
+    m_queuedMessages.Push(msg);
+}
 
 HeadlessAppWindow::HeadlessAppWindow()
 {
@@ -105,6 +141,7 @@ HeadlessAppWindow::HeadlessAppWindow()
     delete[] msg.Data;
 
     Logger::CallbackFunc = new Logger::Callback(std::bind(&HeadlessAppWindow::MessageCallback, this, std::placeholders::_1, std::placeholders::_2));
+    Profiler::CallbackFunc = new Profiler::Callback(std::bind(&HeadlessAppWindow::ProfilerCallback, this, std::placeholders::_1));
 
     m_prevTime = std::chrono::high_resolution_clock::now();
 

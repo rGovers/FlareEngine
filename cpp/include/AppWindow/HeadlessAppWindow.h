@@ -15,10 +15,28 @@
 #include "DataTypes/TArray.h"
 #include "Logger.h"
 #include "PipeMessage.h"
+#include "Profiler.h"
 
 class HeadlessAppWindow : public AppWindow
 {
 private:
+    static constexpr int NameMax = 16;
+    static constexpr int FrameMax = 64;
+
+    struct ProfileTFrame
+    {
+        char Name[NameMax];
+        float Time;
+        uint8_t Stack;
+    };
+
+    struct ProfileScope
+    {
+        char Name[NameMax];
+        uint16_t FrameCount;
+        ProfileTFrame Frames[FrameMax];
+    };
+
     static constexpr std::string_view PipeName = "FlareEngine-IPC";
 
 #if WIN32
@@ -50,6 +68,7 @@ private:
     void PushMessage(const PipeMessage& a_msg) const;
 
     void MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type);
+    void ProfilerCallback(const Profiler::PData& a_profilerData);
 
     bool PollMessage();
 

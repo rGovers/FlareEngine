@@ -257,7 +257,7 @@ void VulkanSwapchain::Destroy()
         device.destroyImageView(imageView);
     }
 
-    TRACE("Destroying Framebuffers")
+    TRACE("Destroying Framebuffers");
     for (const vk::Framebuffer& framebuffer : m_framebuffers)
     {
         device.destroyFramebuffer(framebuffer);

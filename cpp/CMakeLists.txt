@@ -4,6 +4,7 @@ project (FlareNative VERSION 0.1 LANGUAGES C CXX)
 
 option(GENERATE_CONFIG "Generates engine configuration file" OFF)
 option(ENABLE_TRACE "Enables tracing" OFF)
+option(ENABLE_PROFILER "Enables inbuilt profiler" OFF)
 option(OUTPUT_BIN "Outputs application to bin/" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -27,6 +28,9 @@ configure_file(
 
 if (ENABLE_TRACE)
     add_compile_definitions(FLARENATIVE_ENABLE_TRACE)
+endif()
+if (ENABLE_PROFILER)
+    add_compile_definitions(FLARENATIVE_ENABLE_PROFILER)
 endif()
 
 if (GENERATE_CONFIG)

@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "Logger.h"
 #include "ObjectManager.h"
+#include "Profiler.h"
 #include "Rendering/RenderEngine.h"
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
@@ -22,6 +23,8 @@ Application::Application(Config* a_config)
         m_appWindow = new GLFWAppWindow(a_config);
     }
 
+    Profiler::Init();
+
     m_runtime = new RuntimeManager();
     Logger::InitRuntime(m_runtime);
     
@@ -37,6 +40,8 @@ Application::~Application()
     delete m_objectManager;
     delete m_config;
 
+    Profiler::Destroy();
+
     TRACE("Final Disposal");
     delete m_appWindow;
 }
@@ -49,9 +54,20 @@ void Application::Run(int32_t a_argc, char* a_argv[])
 
     while (!m_appWindow->ShouldClose())
     {
-        m_appWindow->Update();
+        Profiler::Start("Update Thread");
+    
+        {
+            PROFILESTACK("Update");
+            Profiler::StartFrame("Window Update");
 
-        m_runtime->Update(m_appWindow->GetDelta(), m_appWindow->GetTime());
+            m_appWindow->Update();
+
+            Profiler::StopFrame();
+
+            m_runtime->Update(m_appWindow->GetDelta(), m_appWindow->GetTime());
+        }
+
+        Profiler::Stop();
     }
 
     m_renderEngine->Stop();
