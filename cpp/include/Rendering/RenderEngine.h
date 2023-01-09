@@ -22,8 +22,10 @@ private:
 
     double               m_time;
 
-    bool                 m_shutdown;
-    bool                 m_join;
+    // If not volatile GCC may optimize away the stop function
+    // Program will not terminate if stop is optimized away
+    volatile bool        m_shutdown;
+    volatile bool        m_join;
     std::thread          m_thread;
 
     Config*              m_config;

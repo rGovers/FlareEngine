@@ -67,12 +67,6 @@ void RenderEngine::Stop()
 
     TRACE("Stopping Render Thread");
     m_shutdown = true;
-    // This exists purely to stop a crash that happens in release do not delete
-    // Compiler does weird stuff otherwise when it optimizes
-    // Looking at disassembly GCC completly deletes the function when it optimizes if I do not have this print
-    // It still deletes the function if I have an empty string hence the space
-    // Would probably be better to do a scope lock and join however 5 mins of effort and I am lazy
-    printf(" ");
     while (!m_join) { }
     m_thread.join();
 }
@@ -86,7 +80,7 @@ void RenderEngine::Run()
         Profiler::Start("Render Thread");
         
         {
-            PROFILESTACK("Render Update");
+            PROFILESTACK("Update");
 
             const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
 

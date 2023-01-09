@@ -5,6 +5,7 @@
 
 #include "Logger.h"
 #include "ObjectManager.h"
+#include "Profiler.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
@@ -240,41 +241,47 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchai
 
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
 
-    // TODO: Rewrite down the line
     const uint32_t camBufferSize = m_cameraBuffers.Size();
-    const uint32_t renderBufferSize = m_shaderPrograms.Size();
-    for (uint32_t i = 0; i < camBufferSize; ++i)
+    std::vector<vk::CommandBuffer> cmdBuffers;
     {
-        const CameraBuffer& camBuffer = m_cameraBuffers[i];
-
-        for (uint32_t j = 0; j < renderBufferSize; ++j)
+        PROFILESTACK("Drawing Setup");
+        // TODO: Rewrite down the line
+        const uint32_t renderBufferSize = m_shaderPrograms.Size();
+        for (uint32_t i = 0; i < camBufferSize; ++i)
         {
-            const RenderProgram& program = m_shaderPrograms[j];
+            const CameraBuffer& camBuffer = m_cameraBuffers[i];
 
-            if (camBuffer.RenderLayer & program.RenderLayer)
+            for (uint32_t j = 0; j < renderBufferSize; ++j)
             {
-                const uint64_t ind = i | (uint64_t)j << 32;
-                const auto iter = m_pipelines.find(ind);
-                if (iter == m_pipelines.end())
+                const RenderProgram& program = m_shaderPrograms[j];
+
+                if (camBuffer.RenderLayer & program.RenderLayer)
                 {
-                    TRACE("Creating Vulkan Pipeline");
-                    m_pipelines.emplace(ind, new VulkanPipeline(m_vulkanEngine, this, a_swapchain->GetRenderPass(), i, program));
+                    const uint64_t ind = i | (uint64_t)j << 32;
+                    const auto iter = m_pipelines.find(ind);
+                    if (iter == m_pipelines.end())
+                    {
+                        TRACE("Creating Vulkan Pipeline");
+                        m_pipelines.emplace(ind, new VulkanPipeline(m_vulkanEngine, this, a_swapchain->GetRenderPass(), i, program));
+                    }
                 }
             }
         }
     }
-
-    std::vector<std::future<vk::CommandBuffer>> futures;
-    for (uint32_t i = 0; i < camBufferSize; ++i)
+    
     {
-        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawCamera, this, i, a_swapchain)));
-    }
+        PROFILESTACK("Drawing Pass");
+        std::vector<std::future<vk::CommandBuffer>> futures;
+        for (uint32_t i = 0; i < camBufferSize; ++i)
+        {
+            futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawCamera, this, i, a_swapchain)));
+        }
 
-    std::vector<vk::CommandBuffer> cmdBuffers;
-    for (std::future<vk::CommandBuffer>& f : futures)
-    {
-        f.wait();
-        cmdBuffers.emplace_back(f.get());
+        for (std::future<vk::CommandBuffer>& f : futures)
+        {
+            f.wait();
+            cmdBuffers.emplace_back(f.get());
+        }
     }
 
     return cmdBuffers;

@@ -14,6 +14,7 @@
 
 struct ProfileFrame
 {
+    bool End;
     uint32_t Stack;
     std::string Name;
     std::chrono::high_resolution_clock::time_point StartTime;
@@ -69,7 +70,7 @@ struct StackProfilerFrame
 };
 
 #ifdef FLARENATIVE_ENABLE_PROFILER
-#define PROFILESTACK(str) StackProfilerFrame(str)
+#define PROFILESTACK(str) volatile StackProfilerFrame stackPFrame = StackProfilerFrame(str)
 #else
 #define PROFILESTACK(str) void(0)
 #endif

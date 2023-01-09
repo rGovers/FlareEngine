@@ -460,7 +460,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 {
-    Profiler::StartFrame("Vulkan Render Setup");
+    Profiler::StartFrame("Render Setup");
 
     AppWindow* window = GetRenderEngine()->m_window;
     if (m_swapchain == nullptr)
@@ -486,7 +486,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StopFrame();
 
-    Profiler::StartFrame("Vulkan Render Update");
+    Profiler::StartFrame("Render Update");
 
     buffers = m_graphicsEngine->Update(m_swapchain);
     buffersSize = (uint32_t)buffers.size();
@@ -541,7 +541,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StopFrame();
 
-    Profiler::StartFrame("Vulkan Render Present");
+    Profiler::StartFrame("Render Present");
 
     m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[m_currentFrame], m_imageIndex);
 

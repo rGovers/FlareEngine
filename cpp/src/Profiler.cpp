@@ -107,6 +107,7 @@ void Profiler::StartFrame(const std::string_view& a_name)
     frame.EndTime = frame.StartTime;
     frame.Name = std::string(a_name);
     frame.Stack = 0;
+    frame.End = false;
     if (!iter->second->Frames.empty())
     {
         auto iIter = iter->second->Frames.end();
@@ -114,7 +115,7 @@ void Profiler::StartFrame(const std::string_view& a_name)
         {
             --iIter;
 
-            if (iIter->EndTime == iIter->StartTime)
+            if (!iIter->End)
             {
                 frame.Stack = iIter->Stack + 1;
 
@@ -151,9 +152,10 @@ void Profiler::StopFrame()
     {
         --iIter;
 
-        if (iIter->EndTime == iIter->StartTime)
+        if (!iIter->End)
         {
             iIter->EndTime = std::chrono::high_resolution_clock::now();
+            iIter->End = true;
 
             return;
         }
