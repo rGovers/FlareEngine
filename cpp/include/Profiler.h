@@ -12,6 +12,8 @@
 #define FLARENATIVE_ENABLE_PROFILER
 #endif
 
+class RuntimeManager;
+
 struct ProfileFrame
 {
     bool End;
@@ -38,7 +40,7 @@ private:
     std::shared_mutex                           m_mutex;
     std::unordered_map<std::thread::id, PData*> m_data;
 
-    Profiler();
+    Profiler(RuntimeManager* a_runtimeManager);
 
 protected:
 
@@ -47,7 +49,7 @@ public:
 
     static Callback* CallbackFunc;
 
-    static void Init();
+    static void Init(RuntimeManager* a_runtimeManager);
     static void Destroy();
 
     static void Start(const std::string_view& a_name);

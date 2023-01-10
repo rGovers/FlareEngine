@@ -4,14 +4,29 @@
 #include <mutex>
 
 #include "Logger.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 Profiler* Profiler::Instance = nullptr;
 Profiler::Callback* Profiler::CallbackFunc = nullptr;
 
-Profiler::Profiler()
+FLARE_MONO_EXPORT(void, Profiler_StartFrame, MonoString* a_frameName)
 {
+    char* str = mono_string_to_utf8(a_frameName);
 
+    Profiler::StartFrame(str);
+
+    mono_free(str);
+}
+FLARE_MONO_EXPORT(void, Profiler_StopFrame)
+{
+    Profiler::StopFrame();
+}
+
+Profiler::Profiler(RuntimeManager* a_runtimeManager)
+{
+    a_runtimeManager->BindFunction("FlareEngine.Profiler::StartFrame", (void*)Profiler_StartFrame);
+    a_runtimeManager->BindFunction("FlareEngine.Profiler::StopFrame", (void*)Profiler_StopFrame);
 }
 Profiler::~Profiler()
 {
@@ -21,13 +36,13 @@ Profiler::~Profiler()
     }
 }
 
-void Profiler::Init()
+void Profiler::Init(RuntimeManager* a_runtimeManager)
 {
 #ifdef FLARENATIVE_ENABLE_PROFILER
     TRACE("Initializing Profiler");
     if (Instance == nullptr)
     {
-        Instance = new Profiler();
+        Instance = new Profiler(a_runtimeManager);
     }
 #endif
 }

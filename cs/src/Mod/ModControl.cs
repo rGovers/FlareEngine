@@ -35,6 +35,8 @@ namespace FlareEngine.Mod
 
         internal static void Update()
         {
+            Profiler.StartFrame("Assembly Update");
+
             CoreAssembly.AssemblyControl.Update();
 
             foreach (FlareAssembly asm in Assemblies)
@@ -44,6 +46,8 @@ namespace FlareEngine.Mod
                     asm.AssemblyControl.Update();
                 }
             }
+
+            Profiler.StopFrame();
         }
 
         internal static void Close()

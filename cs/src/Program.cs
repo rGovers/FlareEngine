@@ -1,3 +1,4 @@
+using System;
 using FlareEngine.Definitions;
 using FlareEngine.Maths;
 using FlareEngine.Mod;
@@ -70,10 +71,13 @@ namespace FlareEngine
         {
             Time.DDeltaTime = a_delta;
             Time.DTimePassed = a_time;
+            
+            Profiler.StartFrame("Testing Code");
+            GameObj.Transform.Rotation = Quaternion.FromAxisAngle(Vector3.Up, Time.TimePassed);
+            GameObj.Transform.Translation = new Vector3(0.0f, (float)Math.Sin(Time.DTimePassed * 0.5), 0.0f);
+            Profiler.StopFrame();
 
             ModControl.Update();
-
-            GameObj.Transform.Rotation = Quaternion.FromAxisAngle(Vector3.Up, Time.TimePassed);
 
             Object.UpdateObjects();
         }

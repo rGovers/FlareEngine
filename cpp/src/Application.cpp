@@ -23,9 +23,9 @@ Application::Application(Config* a_config)
         m_appWindow = new GLFWAppWindow(a_config);
     }
 
-    Profiler::Init();
-
     m_runtime = new RuntimeManager();
+
+    Profiler::Init(m_runtime);
     Logger::InitRuntime(m_runtime);
     
     m_objectManager = new ObjectManager(m_runtime);

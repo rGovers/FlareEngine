@@ -122,10 +122,14 @@ namespace FlareEngine
 
         internal static void UpdateObjects()
         {
+            Profiler.StartFrame("Object Update");
+
             foreach (Object obj in Objs)
             {
                 obj.Update();
             }
+
+            Profiler.StopFrame();
         }
 
         public virtual void Init() { }
