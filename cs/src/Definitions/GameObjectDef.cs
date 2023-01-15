@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace FlareEngine.Definitions
 {
-    public class ObjectDef : Def
+    public class GameObjectDef : Def
     {
-        public Type ObjectType = typeof(Object);
+        public Type ObjectType = typeof(GameObject);
 
         public List<ComponentDef> Components = new List<ComponentDef>();
 

@@ -4,12 +4,12 @@ using System.Collections.Generic;
 
 namespace FlareEngine
 {
-    public class Object : IDisposable
+    public class GameObject : IDisposable
     {
         static List<Object> Objs = new List<Object>();
         static Dictionary<string, Object> ObjDictionary = new Dictionary<string, Object>();
 
-        ObjectDef       m_def = null;
+        GameObjectDef   m_def = null;
 
         List<Component> m_components;
 
@@ -19,7 +19,7 @@ namespace FlareEngine
 
         Transform       m_transform;
 
-        public ObjectDef Def
+        public GameObjectDef Def
         {
             get
             {
@@ -43,7 +43,7 @@ namespace FlareEngine
             }
         }
 
-        public Object Parent 
+        public GameObject Parent 
         {
             get
             {
@@ -63,7 +63,7 @@ namespace FlareEngine
             }
         }
 
-        public Object()
+        public GameObject()
         {
             m_transform = new Transform(this);
 
@@ -115,7 +115,7 @@ namespace FlareEngine
             }
         }
 
-        ~Object()
+        ~GameObject()
         {
             Dispose(false);
         }
@@ -124,7 +124,7 @@ namespace FlareEngine
         {
             Profiler.StartFrame("Object Update");
 
-            foreach (Object obj in Objs)
+            foreach (GameObject obj in Objs)
             {
                 obj.Update();
             }
@@ -219,9 +219,9 @@ namespace FlareEngine
             }
         }
 
-        public static Object Instantiate(string a_tag = null)
+        public static GameObject Instantiate(string a_tag = null)
         {
-            Object obj = new Object()
+            GameObject obj = new GameObject()
             {
                 m_tag = a_tag
             };
@@ -237,7 +237,7 @@ namespace FlareEngine
 
             return obj;
         }
-        public static T Instantiate<T>(string a_tag = null) where T : Object
+        public static T Instantiate<T>(string a_tag = null) where T : GameObject
         {
             T obj = Activator.CreateInstance<T>();
             obj.m_tag = a_tag;
@@ -254,11 +254,11 @@ namespace FlareEngine
             return obj;
         }   
 
-        public static Object FromDef(ObjectDef a_def, string a_tag = null)
+        public static GameObject FromDef(GameObjectDef a_def, string a_tag = null)
         {
-            return FromDef<Object>(a_def, a_tag);
+            return FromDef<GameObject>(a_def, a_tag);
         }
-        public static T FromDef<T>(ObjectDef a_def, string a_tag = null) where T : Object
+        public static T FromDef<T>(GameObjectDef a_def, string a_tag = null) where T : GameObject
         {
             T obj = Activator.CreateInstance(a_def.ObjectType) as T;
 

@@ -45,7 +45,7 @@ private:
     int                                            m_sock;
 #endif
 
-    bool                                           m_unlockWindow;    
+    volatile bool                                  m_unlockWindow;    
     bool                                           m_close;
 
     std::mutex                                     m_fLock;

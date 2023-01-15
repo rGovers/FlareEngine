@@ -22,7 +22,7 @@ namespace FlareEngine
            
         uint            m_bufferAddr;
       
-        Object          m_object;
+        GameObject      m_object;
 
         Transform       m_parent;
         List<Transform> m_children;
@@ -84,7 +84,7 @@ namespace FlareEngine
             }
         }
 
-        public Object Object
+        public GameObject Object
         {
             get
             {
@@ -134,7 +134,7 @@ namespace FlareEngine
             }
         }
 
-        internal Transform(Object a_object)
+        internal Transform(GameObject a_object)
         {
             m_object = a_object;
 

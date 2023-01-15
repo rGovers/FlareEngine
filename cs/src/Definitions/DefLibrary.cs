@@ -8,14 +8,14 @@ using System.Xml;
 
 namespace FlareEngine.Definitions
 {
-    internal struct DefDataObject
+    public struct DefDataObject
     {
         public string Name;
         public string Text;
         public List<DefDataObject> Children;
     }
 
-    internal struct DefData
+    public struct DefData
     {
         public string Type;
         public string Path;
@@ -30,6 +30,11 @@ namespace FlareEngine.Definitions
         static List<Def>               m_defs;
 
         static Dictionary<string, Def> m_defLookup;
+
+        static void DefError(Type a_type, DefDataObject a_datObj, DefData a_data)
+        {
+            Logger.Error($"FlareCS: Cannot Parse Def {a_type.ToString()}: {a_datObj.Name}, {a_data.Name} : {a_data.Path}");
+        }
 
         static DefDataObject? GetData(XmlElement a_element)
         {
@@ -56,17 +61,12 @@ namespace FlareEngine.Definitions
 
             if (string.IsNullOrWhiteSpace(dataObj.Text) && dataObj.Children.Count <= 0)
             {
-                Logger.Error("FlareCS: Invalid Def DataObject: " + dataObj.Name);
+                Logger.Error($"FlareCS: Invalid Def DataObject: {dataObj.Name}");
 
                 return null;
             }
 
             return dataObj;
-        }
-
-        static void DefError(Type a_type, DefDataObject a_datObj, DefData a_data)
-        {
-            Logger.Error("FlareCS: Cannot Parse Def " + a_type.ToString() + ": " + a_datObj.Name + ", " + a_data.Name + " : " + a_data.Path);
         }
 
         static void LoadDefVariables(object a_obj, DefDataObject a_datObj, DefData a_data)
@@ -227,8 +227,72 @@ namespace FlareEngine.Definitions
             }
             else
             {
-                Logger.Error("FlareCS: Invalid Def Field: " + a_datObj.Name + ", " + a_data.Name + " : " + a_data.Path);
+                Logger.Error($"FlareCS: Invalid Def Field: {a_datObj.Name}, {a_data.Name} : {a_data.Parent}");
             }
+        }
+
+        static DefData GetDefData(string a_path, XmlElement root)
+        {
+            DefData data;
+            data.Type = root.Name;
+            data.Path = a_path;
+            data.Name = string.Empty;
+            data.Parent = string.Empty;
+            data.Abstract = false;
+            data.DefDataObjects = new List<DefDataObject>();
+
+            foreach (XmlAttribute att in root.Attributes)
+            {
+                switch (att.Name)
+                {
+                case "Name":
+                {
+                    data.Name = att.Value;
+
+                    break;
+                }
+                case "Parent":
+                {
+                    data.Parent = att.Value;
+
+                    break;
+                }
+                case "Abstract":
+                {
+                    bool val;
+                    if (bool.TryParse(att.Value, out val))
+                    {
+                        data.Abstract = val;
+                    }
+                    else
+                    {
+                        Logger.Error($"FlareCS: Error parsing Abstract value: {att.Value} : {a_path}");
+                    }
+
+                    break;
+                }
+                default:
+                {
+                    Logger.Error($"FlareCS: Invalid Def Attribute: {att.Name} : {a_path}");
+
+                    break;
+                }
+                }
+            }
+
+            foreach (XmlNode node in root.ChildNodes)
+            {
+                if (node is XmlElement element)
+                {
+                    DefDataObject? dataObject = GetData(element);
+                    if (dataObject != null)
+                    {
+                        data.DefDataObjects.Add(dataObject.Value);
+                    }
+                }
+            }
+
+            return data;
         }
 
         static void LoadDefData(string a_path, ref List<DefData> a_data)
@@ -246,64 +310,7 @@ namespace FlareEngine.Definitions
 
                     if (doc.DocumentElement is XmlElement root)
                     {
-                        DefData data;
-                        data.Type = root.Name;
-                        data.Path = file;
-                        data.Name = string.Empty;
-                        data.Parent = string.Empty;
-                        data.Abstract = false;
-                        data.DefDataObjects = new List<DefDataObject>();
-
-                        foreach (XmlAttribute att in root.Attributes)
-                        {
-                            switch (att.Name)
-                            {
-                            case "Name":
-                            {
-                                data.Name = att.Value;
-
-                                break;
-                            }
-                            case "Parent":
-                            {
-                                data.Parent = att.Value;
-
-                                break;
-                            }
-                            case "Abstract":
-                            {
-                                bool val;
-                                if (bool.TryParse(att.Value, out val))
-                                {
-                                    data.Abstract = val;
-                                }
-                                else
-                                {
-                                    Logger.Error("FlareCS: Error parsing Abstract value: " + att.Value + " : " + file);
-                                }
-
-                                break;
-                            }
-                            default:
-                            {
-                                Logger.Error("FlareCS: Invalid Def Attribute: " + att.Name + " : " + file);
-
-                                break;
-                            }
-                            }
-                        }
-
-                        foreach (XmlNode node in root.ChildNodes)
-                        {
-                            if (node is XmlElement element)
-                            {
-                                DefDataObject? dataObject = GetData(element);
-                                if (dataObject != null)
-                                {
-                                    data.DefDataObjects.Add(dataObject.Value);
-                                }
-                            }
-                        }
+                        DefData data = GetDefData(file, root);
 
                         if (!string.IsNullOrWhiteSpace(data.Name))
                         {
@@ -311,7 +318,7 @@ namespace FlareEngine.Definitions
                         }
                         else
                         {
-                            Logger.Error("FlareCS: Error parsing unamed Def: " + file);
+                            Logger.Error($"FlareCS: Error parsing unamed Def: {a_path}");
                         }
                     }
                 }
@@ -346,7 +353,7 @@ namespace FlareEngine.Definitions
 
                 if (!found)
                 {
-                    Logger.Error("FlareCS: Cannot find def parent: " + a_data.Parent + ", " + a_data.Name + " : " + a_data.Path);
+                    Logger.Error($"FlareCS: Cannot find def parent: {a_data.Parent}, {a_data.Name} : {a_data.Path}");
 
                     return false;
                 }
@@ -367,7 +374,7 @@ namespace FlareEngine.Definitions
             Type type = Type.GetType(a_data.Type, false, false);
             if (type == null)
             {
-                type = Type.GetType("FlareEngine.Definitions." + a_data.Type, false, false);
+                type = Type.GetType($"FlareEngine.Definitions.{a_data.Type}", false, false);
             }
 
             if (type != null)
@@ -389,16 +396,18 @@ namespace FlareEngine.Definitions
                         return null;
                     }
 
+                    defObj.DefPath = a_data.Path;
+
                     return defObj;
                 }
                 else
                 {   
-                    Logger.Error("FlareCS: Error creating Def: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
+                    Logger.Error($"FlareCS: Error creating Def: {a_data.Type}, {a_data.Name} : {a_data.Path}");
                 }
             }
             else
             {
-                Logger.Error("FlareCS: Invalid Def Type: " + a_data.Type + ", " + a_data.Name + " : " + a_data.Path);
+                Logger.Error($"FlareCS: Invalid Def Type: {a_data.Type}, {a_data.Name} : {a_data.Path}");
             }
 
             return null;
@@ -444,6 +453,50 @@ namespace FlareEngine.Definitions
             }
         }
 
+        static void LoadDefs(string[] a_data, string[] a_paths)
+        {
+            uint defCount = (uint)a_data.LongLength;
+
+            List<DefData> defData = new List<DefData>();
+
+            for (int i = 0; i < defCount; ++i)
+            {
+                string path = a_paths[i];
+
+                XmlDocument doc = new XmlDocument();
+                doc.LoadXml(a_data[i]);
+
+                if (doc.DocumentElement is XmlElement root)
+                {
+                    DefData data = GetDefData(path, root);
+
+                    if (!string.IsNullOrWhiteSpace(data.Name))
+                    {
+                        defData.Add(data);
+                    }
+                    else
+                    {
+                        Logger.Error($"FlareCS: Error parsing unamed Def: {path}");
+                    }
+                }
+            }   
+
+            foreach(DefData dat in defData)
+            {
+                if (dat.Abstract)
+                {
+                    continue;
+                }
+
+                Def def = CreateDef(dat, defData);
+                if (def != null)
+                {
+                    m_defs.Add(def);
+                    m_defLookup.Add(def.DefName, def);
+                }
+            }
+        }   
+
         static void ResolveDefs(object a_obj)
         {
             Type type = a_obj.GetType();
@@ -470,7 +523,7 @@ namespace FlareEngine.Definitions
                         }
                         else
                         {
-                            Logger.Error("FlareCS: Error resolving Def: " + stub.DefName);
+                            Logger.Error($"FlareCS: Error resolving Def: {stub.DefName}");
                         }
                     }
                 }
@@ -540,6 +593,11 @@ namespace FlareEngine.Definitions
 
             return defs;
         }
+        public static List<Def> GetDefs()
+        {
+            return m_defs;
+        }
+
         public static Def GetDef(string a_name)
         {
             if (m_defLookup.ContainsKey(a_name))

@@ -18,7 +18,7 @@ namespace FlareEngine.Rendering
         public float Far;
     };
 
-    public class Camera : Object
+    public class Camera : GameObject
     {
         static Dictionary<uint, Camera> BufferLookup = new Dictionary<uint, Camera>();
 

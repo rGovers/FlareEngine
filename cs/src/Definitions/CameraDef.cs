@@ -4,7 +4,7 @@ using System;
 
 namespace FlareEngine.Definitions
 {
-    public class CameraDef : ObjectDef
+    public class CameraDef : GameObjectDef
     {
         public Viewport Viewport = new Viewport()
         {
@@ -17,5 +17,10 @@ namespace FlareEngine.Definitions
         public float Near = 0.1f;
         public float Far = 100.0f;
         public uint RenderLayer = 0b1;
+
+        public CameraDef()
+        {
+            ObjectType = typeof(Camera);
+        }
     }
 }

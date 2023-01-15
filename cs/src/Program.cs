@@ -1,18 +1,10 @@
-using System;
 using FlareEngine.Definitions;
-using FlareEngine.Maths;
 using FlareEngine.Mod;
-using FlareEngine.Rendering;
 
 namespace FlareEngine
 {
     class Program
     {
-        static Camera Cam;
-
-        static Object GameObj;
-        static Model Model;
-
         const string WorkingDirArg = "--wDir";
 
         static void Main(string[] a_args)
@@ -38,17 +30,7 @@ namespace FlareEngine
 
             DefLibrary.ResolveDefs();
 
-            MaterialDef def = DefLibrary.GetDef<MaterialDef>("TestMat");
-
-            Model = PrimitiveGenerator.CreateCube();
-
-            Cam = Object.Instantiate<Camera>();
-            Cam.Transform.Translation = new Maths.Vector3(0.0f, -1.0f, 10.0f);
-
-            GameObj = Object.Instantiate<Object>();
-            MeshRenderer renderer = GameObj.AddComponent<MeshRenderer>();
-            renderer.Material = AssetLibrary.GetMaterial(def);
-            renderer.Model = Model;
+            ModControl.InitAssemblies();
 
             Logger.Message("FlareCS: Initialized");
         }
@@ -56,10 +38,6 @@ namespace FlareEngine
         static void Shutdown()
         {
             ModControl.Close();
-
-            Cam.Dispose();
-            GameObj.Dispose();
-            Model.Dispose();
 
             DefLibrary.Clear();
             AssetLibrary.ClearAssets();
@@ -71,15 +49,10 @@ namespace FlareEngine
         {
             Time.DDeltaTime = a_delta;
             Time.DTimePassed = a_time;
-            
-            Profiler.StartFrame("Testing Code");
-            GameObj.Transform.Rotation = Quaternion.FromAxisAngle(Vector3.Up, Time.TimePassed);
-            GameObj.Transform.Translation = new Vector3(0.0f, (float)Math.Sin(Time.DTimePassed * 0.5), 0.0f);
-            Profiler.StopFrame();
 
             ModControl.Update();
 
-            Object.UpdateObjects();
+            GameObject.UpdateObjects();
         }
     }
 }

@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <string>
 
+#include "Profiler.h"
 #include "Trace.h"
 
 static std::string GetAddr(const std::string_view& a_addr)
@@ -350,6 +351,7 @@ bool HeadlessAppWindow::PollMessage()
 
 void HeadlessAppWindow::Update()
 {
+    Profiler::StartFrame("Polling");
 #if WIN32
     if (m_sock == INVALID_SOCKET)
     {
@@ -392,7 +394,9 @@ void HeadlessAppWindow::Update()
         }
     }
 #endif
+    Profiler::StopFrame();
 
+    Profiler::StartFrame("Timing");
     const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
 
     m_delta = std::chrono::duration<double>(time - m_prevTime).count();
@@ -403,7 +407,9 @@ void HeadlessAppWindow::Update()
     const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
 
     PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
+    Profiler::StopFrame();
 
+    Profiler::StartFrame("Frame Data");
     if (m_frameData != nullptr && m_unlockWindow)
     {
         m_unlockWindow = false;
@@ -412,8 +418,11 @@ void HeadlessAppWindow::Update()
         
         PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
     }
+    Profiler::StopFrame();
 
+    Profiler::StartFrame("Messages");
     PushMessageQueue();
+    Profiler::StopFrame();
 }
 
 glm::ivec2 HeadlessAppWindow::GetSize() const
@@ -423,6 +432,7 @@ glm::ivec2 HeadlessAppWindow::GetSize() const
 
 void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer, double a_delta, double a_time)
 {
+    PROFILESTACK("Frame Data");
     constexpr int Size = sizeof(glm::dvec2);
 
     PipeMessage msg;
@@ -432,7 +442,11 @@ void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const
     (*(glm::dvec2*)msg.Data).x = a_delta;
     (*(glm::dvec2*)msg.Data).y = a_time;
     m_queuedMessages.Push(msg);
-
+    
+    // TODO: Implement a better way of doing this 
+    // Can end up ~32MiB which cannot keep up with a copy
+    // Assuming I can do maths ~6GiB/s so yeah not upto par
+    // Probably end up with a syncronised direct push at some point
     const std::lock_guard g = std::lock_guard(m_fLock);
     if (m_width == a_width && m_height == a_height)
     {

@@ -21,7 +21,10 @@ namespace FlareEngine.Mod
             {
                 CoreAssembly = FlareAssembly.GetFlareAssembly("./Core/");       
             }
+        }
 
+        internal static void InitAssemblies()
+        {
             CoreAssembly.AssemblyControl.Init();
 
             foreach (FlareAssembly asm in Assemblies)

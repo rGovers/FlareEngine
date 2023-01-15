@@ -7,6 +7,8 @@ namespace FlareEngine
     {
         ComponentDef m_def = null;
 
+        GameObject   m_object;
+
         public ComponentDef Def
         {
             get
@@ -15,9 +17,7 @@ namespace FlareEngine
             }
         }
 
-        Object m_object;
-
-        public Object Object
+        public GameObject Object
         {
             get
             {
