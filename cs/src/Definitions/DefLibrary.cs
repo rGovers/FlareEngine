@@ -499,6 +499,13 @@ namespace FlareEngine.Definitions
 
         static void ResolveDefs(object a_obj)
         {
+            if (a_obj == null)
+            {
+                Logger.Warning("FlareCS: ResolveDefs: Null Object");
+
+                return;
+            }
+
             Type type = a_obj.GetType();
             FieldInfo[] fieldInfo = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
             foreach (FieldInfo info in fieldInfo)
@@ -509,7 +516,7 @@ namespace FlareEngine.Definitions
                 {
                     continue;
                 }
-                else if (fieldType.IsSubclassOf(typeof(Def)))
+                else if (fieldType == typeof(Def) || fieldType.IsSubclassOf(typeof(Def)))
                 {
                     Def stub = (Def)info.GetValue(a_obj);
 
@@ -561,7 +568,12 @@ namespace FlareEngine.Definitions
                 }
                 else
                 {
-                    ResolveDefs(info.GetValue(a_obj));
+                    object val = info.GetValue(a_obj);
+
+                    if (val != null)
+                    {
+                        ResolveDefs(val);
+                    }
                 }
             }
         }

@@ -865,7 +865,7 @@ namespace FlareEngine.Maths
         }
         public static bool operator !=(Vector4 a_lhs, Vector4 a_rhs)
         {
-            return a_lhs.X != a_rhs.X || a_lhs.Y != a_rhs.Y || a_lhs.Z != a_rhs.Z || a_lhs.W == a_rhs.W;
+            return a_lhs.X != a_rhs.X || a_lhs.Y != a_rhs.Y || a_lhs.Z != a_rhs.Z || a_lhs.W != a_rhs.W;
         }
 
         public override bool Equals(object a_obj)

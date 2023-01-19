@@ -7,6 +7,7 @@ namespace FlareEngine.Definitions
     {
         public Type ObjectType = typeof(GameObject);
 
+        [EditorTooltip("List of components the GameObject is composed of.")]
         public List<ComponentDef> Components = new List<ComponentDef>();
 
         public override void PostResolve()

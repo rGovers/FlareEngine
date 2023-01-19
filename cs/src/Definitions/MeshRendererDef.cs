@@ -1,12 +1,13 @@
 using FlareEngine.Rendering;
-using System;
 
 namespace FlareEngine.Definitions
 {
     public class MeshRendererDef : ComponentDef
     {
+        [EditorTooltip("Path relative to the project for the model file to be used.")]
         public string ModelPath = null;
 
+        [EditorTooltip("The material to use for rendering.")]
         public MaterialDef MaterialDef = null;
 
         public override void PostResolve()
