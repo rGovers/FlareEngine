@@ -137,7 +137,7 @@ namespace FlareEngine.Definitions
                 {
                     Type fieldType = field.FieldType;
 
-                    if (fieldType.IsSubclassOf(typeof(Def)))
+                    if (fieldType == typeof(Def) || fieldType.IsSubclassOf(typeof(Def)))
                     {
                         Def def = new Def()
                         {
@@ -176,6 +176,34 @@ namespace FlareEngine.Definitions
                                 DefError(fieldType, a_datObj, a_data);
                             }
                         }
+                    }
+                    else if (fieldType.IsArray)
+                    {
+                        Type elementType = fieldType.GetElementType();
+
+                        int count = a_datObj.Children.Count;
+                        Array a = Array.CreateInstance(elementType, a_datObj.Children.Count);
+
+                        for (int i = 0; i < count; ++i)
+                        {
+                            DefDataObject dataObj = a_datObj.Children[i];
+                            object arrayObj = Activator.CreateInstance(elementType);
+                            if (dataObj.Name == "lv")
+                            {
+                                foreach (DefDataObject objVal in dataObj.Children)
+                                {
+                                    LoadDefVariables(arrayObj, objVal, a_data);
+                                }
+                            }
+                            else
+                            {
+                                DefError(fieldType, a_datObj, a_data);
+                            }
+
+                            a.SetValue(arrayObj, i);
+                        }
+
+                        field.SetValue(a_obj, a);
                     }
                     else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
                     {
@@ -397,6 +425,7 @@ namespace FlareEngine.Definitions
                     }
 
                     defObj.DefPath = a_data.Path;
+                    defObj.DefParentName = a_data.Parent;
 
                     return defObj;
                 }
@@ -453,18 +482,20 @@ namespace FlareEngine.Definitions
             }
         }
 
-        static void LoadDefs(string[] a_data, string[] a_paths)
+        static void LoadDefs(byte[][] a_data, string[] a_paths)
         {
             uint defCount = (uint)a_data.LongLength;
 
             List<DefData> defData = new List<DefData>();
 
-            for (int i = 0; i < defCount; ++i)
+            for (uint i = 0; i < defCount; ++i)
             {
                 string path = a_paths[i];
 
+                MemoryStream stream = new MemoryStream(a_data[i]);
+
                 XmlDocument doc = new XmlDocument();
-                doc.LoadXml(a_data[i]);
+                doc.Load(stream);
 
                 if (doc.DocumentElement is XmlElement root)
                 {
