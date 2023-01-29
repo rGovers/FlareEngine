@@ -10,6 +10,7 @@ file(GLOB_RECURSE SOURCES "cs/src/*.cs")
 
 add_executable(FlareCS ${SOURCES})
 
+set_target_properties(FlareCS PROPERTIES ENABLE_EXPORTS 1)
 set_target_properties(FlareCS PROPERTIES VS_DOTNET_REFERENCES "System.Xml")
 set_target_properties(FlareCS PROPERTIES VS_DOTNET_TARGET_FRAMEWORK_VERSION "v4.6")
 set_target_properties(FlareCS PROPERTIES WIN32_EXECUTABLE FALSE)

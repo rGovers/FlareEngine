@@ -137,15 +137,19 @@ namespace FlareEngine
         internal Transform(GameObject a_object)
         {
             m_object = a_object;
+            m_children = new List<Transform>();
 
             m_bufferAddr = GenerateTransformBuffer();
 
-            Translation = Vector3.Zero;
-            Rotation = Quaternion.Identity;
-            Scale = Vector3.One;
+            TransformBuffer buffer = new TransformBuffer()
+            {
+                Translation = Vector3.Zero,
+                Rotation = Quaternion.Identity,
+                Scale = Vector3.One,
+                ParentIndex = uint.MaxValue
+            };
 
-            m_parent = null;
-            m_children = new List<Transform>();
+            SetTransformBuffer(m_bufferAddr, buffer);
         }
         public void Dispose()
         {

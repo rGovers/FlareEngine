@@ -1,5 +1,9 @@
 #include "AppWindow/HeadlessAppWindow.h"
 
+#ifdef min
+#undef min
+#endif // min
+
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
@@ -261,6 +265,7 @@ void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
     assert(a_message.Type != PipeMessageType_Null);
 
 #if WIN32
+    // TODO: CRITICAL: Find a better way of handling messages seems to be 2-3 orders of magnitude slower on Windows
     send(m_sock, (const char*)&a_message, PipeMessage::Size, 0);
     if (a_message.Data != nullptr)
     {
