@@ -12,7 +12,9 @@
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPipeline.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
+#include "Rendering/Vulkan/VulkanRenderCommand.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
+#include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeFunction.h"
@@ -42,11 +44,11 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
 
     m_runtimeBindings = new VulkanGraphicsEngineBindings(m_runtimeManager, this);
 
-    m_preShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreShadow(uint)");
-    m_postShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostShadow(uint)");
-    m_preRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreRender(uint)");
-    m_postRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostRender(uint)");
-    m_postProcessFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostProcess(uint)"); 
+    m_preShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreShadowS(uint)");
+    m_postShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostShadowS(uint)");
+    m_preRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreRenderS(uint)");
+    m_postRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostRenderS(uint)");
+    m_postProcessFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostProcessS(uint)"); 
 }
 VulkanGraphicsEngine::~VulkanGraphicsEngine()
 {
@@ -113,9 +115,52 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     {
         Logger::Warning("Shader buffers out of sync. Likely leaked");
     }
+
+    TRACE("Checking if render textures where deleted");
+    for (uint32_t i = 0; i < m_renderTextures.Size(); ++i)
+    {
+        if (m_renderTextures[i] != nullptr)
+        {
+            Logger::Warning("Render Texture was not destroyed");
+
+            delete m_renderTextures[i];
+            m_renderTextures[i] = nullptr;
+        }
+    }
 }
 
-vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const VulkanSwapchain* a_swapchain) 
+VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline)
+{
+    const uint64_t addr = (uint64_t)a_renderTexture | (uint64_t)a_pipeline << 32;
+
+    {
+        const std::lock_guard g = std::lock_guard(m_pipeLock);
+        auto iter = m_pipelines.find(addr);
+        if (iter != m_pipelines.end())
+        {
+            return iter->second;
+        }
+    }
+
+    TRACE("Creating Vulkan Pipeline");
+    const RenderProgram& program = m_shaderPrograms[a_pipeline];
+    vk::RenderPass pass = m_swapchain->GetRenderPass();
+    if (a_renderTexture != -1)
+    {
+        const VulkanRenderTexture* tex = m_renderTextures[a_renderTexture];
+        pass = tex->GetRenderPass();
+    }
+
+    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, program);
+    {
+        const std::lock_guard g = std::lock_guard(m_pipeLock);
+        m_pipelines.emplace(addr, pipeline);
+    }
+
+    return pipeline;
+}
+
+vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex) 
 {
     // While there is no code relating to mono in here for now.
     // This is used to fix a crash relating to locking a Thread after going from Mono -> Native 
@@ -126,9 +171,8 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
     const uint32_t curFrame = m_vulkanEngine->GetCurrentFrame();
     const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
     ObjectManager* objectManager = renderEngine->GetObjectManager();
-    const glm::ivec2 swapSize = a_swapchain->GetSize();
 
-    CameraBuffer& buffer = m_cameraBuffers[a_camIndex];
+    const CameraBuffer& buffer = m_cameraBuffers[a_camIndex];
 
     const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
     (
@@ -151,17 +195,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
     );
     commandBuffer.begin(BeginInfo);
 
-    constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(std::array{ 0.1f, 0.1f, 0.1f, 1.0f }));
-
-    const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
-    (
-        a_swapchain->GetRenderPass(),
-        a_swapchain->GetFramebuffer(m_vulkanEngine->GetImageIndex()),
-        vk::Rect2D({ 0, 0 }, { (uint32_t)swapSize.x, (uint32_t)swapSize.y }),
-        1,
-        &ClearColor
-    );
-    commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, m_swapchain, commandBuffer));
 
     void* args[] = 
     { 
@@ -178,8 +212,10 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
         const RenderProgram& program = m_shaderPrograms[matAddr];
         if (buffer.RenderLayer & program.RenderLayer)
         {
-            const glm::vec2 screenPos = buffer.View.Position * (glm::vec2)swapSize;
-            const glm::vec2 screenSize = buffer.View.Size * (glm::vec2)swapSize;
+            const glm::ivec2 renderSize = renderCommand.GetRenderSize();
+
+            const glm::vec2 screenPos = buffer.View.Position * (glm::vec2)renderSize;
+            const glm::vec2 screenSize = buffer.View.Size * (glm::vec2)renderSize;
 
             const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
             commandBuffer.setScissor(0, 1, &scissor);
@@ -195,8 +231,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
             );
             commandBuffer.setViewport(0, 1, &viewport);
 
-            // VulkanPipeline* pipeline = m_pipelines[a_camIndex | (uint64_t)matAddr << 32];
-            const VulkanPipeline* pipeline = m_pipelines.at(a_camIndex | (uint64_t)matAddr << 32);
+            const VulkanPipeline* pipeline = GetPipeline(renderCommand.GetRenderTexutreAddr(), matAddr);
 
             pipeline->UpdateCameraBuffer(curFrame, screenSize, buffer, objectManager);
             pipeline->Bind(curFrame, commandBuffer);
@@ -234,54 +269,22 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex, const Vu
     return commandBuffer;
 }
 
-std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(const VulkanSwapchain* a_swapchain)
+std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update()
 {
-    // To fix crash relating to thread locking and Mono
-    m_runtimeManager->AttachThread();
-
-    const vk::Device device = m_vulkanEngine->GetLogicalDevice();
+    m_renderCommands.Clear();
 
     const uint32_t camBufferSize = m_cameraBuffers.Size();
     std::vector<vk::CommandBuffer> cmdBuffers;
+    std::vector<std::future<vk::CommandBuffer>> futures;
+    for (uint32_t i = 0; i < camBufferSize; ++i)
     {
-        PROFILESTACK("Drawing Setup");
-        // TODO: Rewrite down the line
-        const uint32_t renderBufferSize = m_shaderPrograms.Size();
-        for (uint32_t i = 0; i < camBufferSize; ++i)
-        {
-            const CameraBuffer& camBuffer = m_cameraBuffers[i];
-
-            for (uint32_t j = 0; j < renderBufferSize; ++j)
-            {
-                const RenderProgram& program = m_shaderPrograms[j];
-
-                if (camBuffer.RenderLayer & program.RenderLayer)
-                {
-                    const uint64_t ind = i | (uint64_t)j << 32;
-                    const auto iter = m_pipelines.find(ind);
-                    if (iter == m_pipelines.end())
-                    {
-                        TRACE("Creating Vulkan Pipeline");
-                        m_pipelines.emplace(ind, new VulkanPipeline(m_vulkanEngine, this, a_swapchain->GetRenderPass(), i, program));
-                    }
-                }
-            }
-        }
+        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawCamera, this, i)));
     }
-    
-    {
-        PROFILESTACK("Drawing Pass");
-        std::vector<std::future<vk::CommandBuffer>> futures;
-        for (uint32_t i = 0; i < camBufferSize; ++i)
-        {
-            futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawCamera, this, i, a_swapchain)));
-        }
 
-        for (std::future<vk::CommandBuffer>& f : futures)
-        {
-            f.wait();
-            cmdBuffers.emplace_back(f.get());
-        }
+    for (std::future<vk::CommandBuffer>& f : futures)
+    {
+        f.wait();
+        cmdBuffers.emplace_back(f.get());
     }
 
     return cmdBuffers;

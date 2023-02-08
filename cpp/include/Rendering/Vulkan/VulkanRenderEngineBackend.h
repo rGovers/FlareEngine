@@ -17,6 +17,7 @@ class VulkanSwapchain;
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
+    RuntimeManager*                m_runtime;
     VulkanGraphicsEngine*          m_graphicsEngine;
     VulkanSwapchain*               m_swapchain = nullptr;
     

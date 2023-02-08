@@ -4,6 +4,8 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
+#include "Rendering/Vulkan/VulkanRenderCommand.h"
+#include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
@@ -147,6 +149,35 @@ FLARE_MONO_EXPORT(void, MeshRenderer_DestroyRenderStack, uint32_t a_addr)
     Engine->DestroyRenderStack(a_addr);
 }
 
+FLARE_MONO_EXPORT(uint32_t, RenderTexture_GenerateRenderTexture, uint32_t a_width, uint32_t a_height, uint32_t a_hdr)
+{
+    return Engine->GenerateRenderTexture(1, a_width, a_height, (bool)a_hdr);
+}
+FLARE_MONO_EXPORT(void, RenderTexture_DestroyRenderTexture, uint32_t a_addr)
+{
+    Engine->DestroyRenderTexture(a_addr);
+}
+FLARE_MONO_EXPORT(uint32_t, MultiRenderTexture_GenerateMultiRenderTexture, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_hdr)
+{
+    return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_hdr);
+}
+FLARE_MONO_EXPORT(void, MultiRenderTexture_DestroyMultiRenderTexture, uint32_t a_addr)
+{
+    Engine->DestroyRenderTexture(a_addr);
+}
+FLARE_MONO_EXPORT(uint32_t, RenderTextureCmd_GetWidth, uint32_t a_addr)
+{
+    return Engine->GetRenderTextureWidth(a_addr);
+}
+FLARE_MONO_EXPORT(uint32_t, RenderTextureCmd_GetHeight, uint32_t a_addr)
+{
+    return Engine->GetRenderTextureHeight(a_addr);
+}
+FLARE_MONO_EXPORT(void, RenderTextureCmd_Resize, uint32_t a_addr, uint32_t a_width, uint32_t a_height)
+{
+    Engine->ResizeRenderTexture(a_addr, a_width, a_height);
+}
+
 FLARE_MONO_EXPORT(uint32_t, Model_GenerateModel, MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
 {
     const uint32_t vertexCount = (uint32_t)mono_array_length(a_vertices);
@@ -178,6 +209,11 @@ FLARE_MONO_EXPORT(void, Model_DestroyModel, uint32_t a_addr)
     Engine->DestroyModel(a_addr);
 }
 
+FLARE_MONO_EXPORT(void, RenderCommand_BindRenderTexture, uint32_t a_addr)
+{
+    Engine->BindRenderTexture(a_addr);
+}
+
 VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_runtime, VulkanGraphicsEngine* a_graphicsEngine)
 {
     m_graphicsEngine = a_graphicsEngine;
@@ -207,6 +243,15 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
     a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::DestroyBuffer", (void*)MeshRenderer_DestroyBuffer);
     a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::GenerateRenderStack", (void*)MeshRenderer_GenerateRenderStack);
     a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::DestroyRenderStack", (void*)MeshRenderer_DestroyRenderStack);
+
+    a_runtime->BindFunction("FlareEngine.Rendering.RenderTexture::GenerateRenderTexture", (void*)RenderTexture_GenerateRenderTexture);
+    a_runtime->BindFunction("FlareEngine.Rendering.RenderTexture::DestroyRenderTexture", (void*)RenderTexture_DestroyRenderTexture);
+    a_runtime->BindFunction("FlareEngine.Rendering.MultiRenderTexture::GenerateMultiRenderTexture", (void*)MultiRenderTexture_GenerateMultiRenderTexture);
+    a_runtime->BindFunction("FlareEngine.Rendering.MultiRenderTexture::DestroyMultiRenderTexture", (void*)MultiRenderTexture_DestroyMultiRenderTexture);
+    a_runtime->BindFunction("FlareEngine.Rendering.RenderTextureCmd::GetWidth", (void*)RenderTextureCmd_GetWidth);
+    a_runtime->BindFunction("FlareEngine.Rendering.RenderTextureCmd::GetHeight", (void*)RenderTextureCmd_GetHeight);
+
+    a_runtime->BindFunction("FlareEngine.Rendering.RenderCommand::BindRenderTexture", (void*)RenderCommand_BindRenderTexture);
 }
 VulkanGraphicsEngineBindings::~VulkanGraphicsEngineBindings()
 {
@@ -482,4 +527,62 @@ void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr)
     }
 
     lock.unlock();
+}
+
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_hdr)
+{
+    VulkanRenderEngineBackend* engine = m_graphicsEngine->m_vulkanEngine;
+
+    VulkanRenderTexture* texture = new VulkanRenderTexture(engine, a_count, a_width, a_height, a_hdr);
+
+    const uint32_t size = m_graphicsEngine->m_renderTextures.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_renderTextures[i] == nullptr)
+        {
+            m_graphicsEngine->m_renderTextures[i] = texture;
+
+            return i;
+        }
+    }
+
+    TRACE("Allocating RenderTexture Buffer");
+    m_graphicsEngine->m_renderTextures.Push(texture);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::DestroyRenderTexture(uint32_t a_addr)
+{
+    delete m_graphicsEngine->m_renderTextures[a_addr];
+
+    m_graphicsEngine->m_renderTextures[a_addr] = nullptr;
+}
+uint32_t VulkanGraphicsEngineBindings::GetRenderTextureWidth(uint32_t a_addr) const
+{
+    const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
+
+    return texture->GetWidth();
+}
+uint32_t VulkanGraphicsEngineBindings::GetRenderTextureHeight(uint32_t a_addr) const
+{
+    const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
+
+    return texture->GetHeight();
+}
+void VulkanGraphicsEngineBindings::ResizeRenderTexture(uint32_t a_addr, uint32_t a_width, uint32_t a_height)
+{
+    VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
+
+    texture->Resize(a_width, a_height);
+}
+
+void VulkanGraphicsEngineBindings::BindRenderTexture(uint32_t a_addr) const
+{
+    VulkanRenderTexture* tex = nullptr;
+    if (a_addr != -1)
+    {
+        tex = m_graphicsEngine->m_renderTextures[a_addr];
+    }
+
+    m_graphicsEngine->m_renderCommands->Bind(tex, a_addr);
 }

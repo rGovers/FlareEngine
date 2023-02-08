@@ -11,6 +11,8 @@
 #include "Rendering/Vulkan/VulkanConstants.h"
 
 class AppWindow;
+class RuntimeFunction;
+class RuntimeManager;
 class VulkanRenderEngineBackend;
 class VulkanRenderPass;
 
@@ -26,6 +28,8 @@ class VulkanSwapchain
 private:
     AppWindow*                   m_window;
     VulkanRenderEngineBackend*   m_engine;
+
+    RuntimeFunction*             m_resizeFunc;
 
     unsigned char                m_init;
     vk::Image                    m_colorImage[VulkanMaxFlightFrames];
@@ -51,7 +55,7 @@ private:
 protected:
 
 public:
-    VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window);
+    VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window, RuntimeManager* a_runtime);
     ~VulkanSwapchain();
 
     static SwapChainSupportInfo QuerySwapChainSupport(const vk::PhysicalDevice& a_device, const vk::SurfaceKHR& a_surface);

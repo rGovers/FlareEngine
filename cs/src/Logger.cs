@@ -17,6 +17,19 @@ namespace FlareEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern static void PushError(string a_message);
 
+        internal static void FlareMessage(string a_message)
+        {
+            Message($"FlareCS: {a_message}");
+        }
+        internal static void FlareWarning(string a_message)
+        {
+            Warning($"FlareCS: {a_message}");
+        }
+        internal static void FlareError(string a_message)
+        {
+            Error($"FlareCS: {a_message}");
+        }
+
         public static void Message(string a_message)
         {
             PushMessage(a_message);

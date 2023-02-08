@@ -1,5 +1,6 @@
 using FlareEngine.Definitions;
 using FlareEngine.Mod;
+using FlareEngine.Rendering;
 
 namespace FlareEngine
 {
@@ -23,6 +24,8 @@ namespace FlareEngine
 
             Time.Init();
 
+            RenderPipeline.Init(new RenderPipeline());
+
             AssetLibrary.Init(workingDir);
             DefLibrary.Init();
 
@@ -41,6 +44,8 @@ namespace FlareEngine
 
             DefLibrary.Clear();
             AssetLibrary.ClearAssets();
+
+            RenderPipeline.Destroy();
 
             Logger.Message("FlareCS: Shutdown");
         }

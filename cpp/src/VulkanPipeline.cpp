@@ -212,12 +212,11 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
     return vk::Format::eUndefined;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, uint32_t a_camBufferAddr, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, const RenderProgram& a_program)
 {
     TRACE("Creating Vulkan Pipeline");
     m_engine = a_engine;
 
-    m_camBufferAddr = a_camBufferAddr;
     m_program = a_program;
 
     m_transformBufferInput.ShaderSlot = ShaderSlot_Null;

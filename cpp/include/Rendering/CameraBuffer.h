@@ -9,6 +9,7 @@
 struct CameraBuffer
 {
     uint32_t TransformAddr;
+    uint32_t RenderTextureAddr;
     Viewport View;
     uint32_t RenderLayer;
     float FOV;

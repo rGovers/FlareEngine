@@ -11,6 +11,7 @@ namespace FlareEngine.Rendering
     internal struct CameraBuffer
     {
         public uint TransformBuffer;
+        public uint RenderTexture;
         public Viewport Viewport;
         public uint RenderLayer;
         public float FOV;
@@ -112,6 +113,32 @@ namespace FlareEngine.Rendering
             }
         }
 
+        public IRenderTexture RenderTexture
+        {
+            get
+            {
+                uint textureAddr = GetBuffer(m_bufferAddr).RenderTexture;
+
+                return RenderTextureCmd.GetRenderTexture(textureAddr);
+            }
+            set
+            {
+                CameraBuffer buffer = GetBuffer(m_bufferAddr);
+                buffer.RenderTexture = uint.MaxValue;
+
+                if (value is RenderTexture rVal)
+                {
+                    buffer.RenderTexture = rVal.BufferAddr;
+                }
+                else if (value is MultiRenderTexture mVal)
+                {
+                    buffer.RenderTexture = mVal.BufferAddr;
+                }
+
+                SetBuffer(m_bufferAddr, buffer);
+            }
+        }
+
         public Camera() 
         {            
             m_bufferAddr = GenerateBuffer(Transform.InternalAddr);
@@ -142,13 +169,29 @@ namespace FlareEngine.Rendering
 
             if (Def is CameraDef def)
             {
+                uint textureAddr = uint.MaxValue;
+                if (def.RenderTexture.Width != uint.MaxValue && def.RenderTexture.Height != uint.MaxValue)
+                {
+                    if (def.RenderTexture.Count == 1)
+                    {
+                        RenderTexture texture = new RenderTexture(def.RenderTexture.Width, def.RenderTexture.Height, def.RenderTexture.HDR);
+                        textureAddr = texture.BufferAddr;
+                    }
+                    else
+                    {
+                        MultiRenderTexture texture = new MultiRenderTexture(def.RenderTexture.Count, def.RenderTexture.Width, def.RenderTexture.Height, def.RenderTexture.HDR);
+                        textureAddr = texture.BufferAddr;
+                    }
+                }
+
                 CameraBuffer val = new CameraBuffer()
                 {
                     Viewport = def.Viewport,
                     FOV = def.FOV,
                     Near = def.Near,
                     Far = def.Far,
-                    RenderLayer = def.RenderLayer
+                    RenderLayer = def.RenderLayer,
+                    RenderTexture = textureAddr
                 };
 
                 SetBuffer(m_bufferAddr, val);
@@ -173,6 +216,15 @@ namespace FlareEngine.Rendering
             {
                 if(a_disposing)
                 {
+                    if (Def is CameraDef def)
+                    {
+                        if (def.RenderTexture.Width != uint.MaxValue && def.RenderTexture.Height != uint.MaxValue)
+                        {
+                            RenderTexture.Dispose();
+                            RenderTexture = null;
+                        }
+                    }
+
                     DestroyBuffer(m_bufferAddr);
 
                     BufferLookup.Remove(m_bufferAddr);

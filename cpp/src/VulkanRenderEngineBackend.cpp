@@ -13,6 +13,7 @@
 #include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 const static std::vector<const char*> ValidationLayers = 
@@ -142,6 +143,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     {
         m_commandBuffers[i] = std::vector<vk::CommandBuffer>();
     }
+
+    m_runtime = a_runtime;
 
     const RenderEngine* renderEngine = GetRenderEngine();
     AppWindow* window = renderEngine->m_window;
@@ -462,10 +465,13 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 {
     Profiler::StartFrame("Render Setup");
 
+    m_runtime->AttachThread();
+
     AppWindow* window = GetRenderEngine()->m_window;
     if (m_swapchain == nullptr)
     {
-        m_swapchain = new VulkanSwapchain(this, window);
+        m_swapchain = new VulkanSwapchain(this, window, m_runtime);
+        m_graphicsEngine->SetSwapchain(m_swapchain);
     }
 
     if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex, a_delta, a_time))
@@ -488,7 +494,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StartFrame("Render Update");
 
-    buffers = m_graphicsEngine->Update(m_swapchain);
+    buffers = m_graphicsEngine->Update();
     buffersSize = (uint32_t)buffers.size();
     // If there is nothing to render no point doing anything
     if (buffersSize <= 0)

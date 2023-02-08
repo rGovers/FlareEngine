@@ -5,6 +5,8 @@
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
+#include "Runtime/RuntimeFunction.h"
+#include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 // Fixes error on Windows
@@ -279,10 +281,12 @@ void VulkanSwapchain::Destroy()
     }
 }
 
-VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window)
+VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow* a_window, RuntimeManager* a_runtime)
 {
     m_window = a_window;
     m_engine = a_engine;
+    
+    m_resizeFunc = a_runtime->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":ResizeS(uint,uint)");
 
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
@@ -452,6 +456,17 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
             
             Destroy();
             InitHeadless(size);
+
+            uint32_t width = (uint32_t)size.x;
+            uint32_t height = (uint32_t)size.y;
+
+            void* args[] =
+            {
+                &width,
+                &height
+            };
+
+            m_resizeFunc->Exec(args);   
         }
 
         *a_imageIndex = (*a_imageIndex + 1) % VulkanMaxFlightFrames;
@@ -497,6 +512,17 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
             {
                 Destroy();
                 Init(size);
+
+                uint32_t width = (uint32_t)size.x;
+                uint32_t height = (uint32_t)size.y;
+
+                void* args[] =
+                {
+                    &width,
+                    &height
+                };
+
+                m_resizeFunc->Exec(args);   
             }
 
             break;
