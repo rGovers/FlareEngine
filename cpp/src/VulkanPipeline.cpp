@@ -212,7 +212,7 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
     return vk::Format::eUndefined;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, const RenderProgram& a_program)
 {
     TRACE("Creating Vulkan Pipeline");
     m_engine = a_engine;
@@ -420,7 +420,17 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     
     const std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = GetStageInfo(a_program, a_gEngine);
 
-    const vk::GraphicsPipelineCreateInfo pipelineInfo = vk::GraphicsPipelineCreateInfo
+    constexpr vk::PipelineDepthStencilStateCreateInfo DepthStencil = vk::PipelineDepthStencilStateCreateInfo
+    (
+        { },
+        VK_TRUE,
+        VK_TRUE,
+        vk::CompareOp::eLess,
+        VK_FALSE,
+        VK_FALSE
+    );
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo = vk::GraphicsPipelineCreateInfo
     (
         vk::PipelineCreateFlags(),
         (uint32_t)shaderStages.size(),
@@ -437,6 +447,11 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         m_layout,
         a_renderPass
     );
+
+    if (a_depth)
+    {
+        pipelineInfo.pDepthStencilState = &DepthStencil;
+    }
 
     TRACE("Creating Pipeline");
     if (device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline) != vk::Result::eSuccess)

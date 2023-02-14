@@ -33,20 +33,25 @@ namespace FlareEngine.Rendering
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateRenderTexture(uint a_width, uint a_height, uint a_hdr);
+        extern static uint GenerateRenderTexture(uint a_width, uint a_height, uint a_depth, uint a_hdr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyRenderTexture(uint a_addr);
 
-        public RenderTexture(uint a_width, uint a_height, bool a_hdr = false)
+        public RenderTexture(uint a_width, uint a_height, bool a_depth = false, bool a_hdr = false)
         {
+            uint depthVal = 0;
+            if (a_depth)
+            {
+                depthVal = 1;
+            }
+            
+            uint hdrVal = 0;
             if (a_hdr)
             {
-                m_bufferAddr = GenerateRenderTexture(a_width, a_height, 1);
+                hdrVal = 1;
             }
-            else
-            {
-                m_bufferAddr = GenerateRenderTexture(a_width, a_height, 0);
-            }
+
+            m_bufferAddr = GenerateRenderTexture(a_width, a_height, depthVal, hdrVal);
 
             RenderTextureCmd.PushRenderTexture(m_bufferAddr, this);
         }

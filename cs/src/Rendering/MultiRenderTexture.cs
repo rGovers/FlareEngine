@@ -33,21 +33,36 @@ namespace FlareEngine.Rendering
             }
         }
 
+        public uint TextureCount
+        {
+            get
+            {
+                return GetTextureCount(m_bufferAddr);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateMultiRenderTexture(uint a_count, uint a_width, uint a_height, uint a_hdr);
+        extern static uint GenerateMultiRenderTexture(uint a_count, uint a_width, uint a_height, uint a_depth, uint a_hdr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyMultiRenderTexture(uint a_addr);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GetTextureCount(uint a_addr);
 
-        public MultiRenderTexture(uint a_count, uint a_width, uint a_height, bool a_hdr = false)
+        public MultiRenderTexture(uint a_count, uint a_width, uint a_height, bool a_depth = false, bool a_hdr = false)
         {
+            uint hdrVal = 0;
             if (a_hdr)
             {
-                m_bufferAddr = GenerateMultiRenderTexture(a_count, a_width, a_height, 1);
+                hdrVal = 1;
             }
-            else
+            
+            uint depthVal = 0;
+            if (a_depth)
             {
-                m_bufferAddr = GenerateMultiRenderTexture(a_count, a_width, a_height, 0);
+                depthVal = 1;
             }
+
+            m_bufferAddr = GenerateMultiRenderTexture(a_count, a_width, a_height, depthVal, hdrVal);
 
             RenderTextureCmd.PushRenderTexture(m_bufferAddr, this);
         }

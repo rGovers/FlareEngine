@@ -46,11 +46,13 @@ public:
     void GenerateRenderStack(uint32_t a_meshAddr);
     void DestroyRenderStack(uint32_t a_meshAddr);
 
-    uint32_t GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_hdr);
+    uint32_t GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr);
     void DestroyRenderTexture(uint32_t a_addr);
+    uint32_t GetRenderTextureTextureCount(uint32_t a_addr) const;
     uint32_t GetRenderTextureWidth(uint32_t a_addr) const;
     uint32_t GetRenderTextureHeight(uint32_t a_addr) const;
     void ResizeRenderTexture(uint32_t a_addr, uint32_t a_width, uint32_t a_height);
 
     void BindRenderTexture(uint32_t a_addr) const;
+    void BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAddr);
 };

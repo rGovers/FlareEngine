@@ -145,13 +145,15 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
     TRACE("Creating Vulkan Pipeline");
     const RenderProgram& program = m_shaderPrograms[a_pipeline];
     vk::RenderPass pass = m_swapchain->GetRenderPass();
+    bool hasDepth = false;
     if (a_renderTexture != -1)
     {
         const VulkanRenderTexture* tex = m_renderTextures[a_renderTexture];
         pass = tex->GetRenderPass();
+        hasDepth = tex->HasDepthTexture();
     }
 
-    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, program);
+    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, program);
     {
         const std::lock_guard g = std::lock_guard(m_pipeLock);
         m_pipelines.emplace(addr, pipeline);
@@ -212,7 +214,12 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
         const RenderProgram& program = m_shaderPrograms[matAddr];
         if (buffer.RenderLayer & program.RenderLayer)
         {
-            const glm::ivec2 renderSize = renderCommand.GetRenderSize();
+            glm::ivec2 renderSize = m_swapchain->GetSize();
+            const VulkanRenderTexture* renderTexture = renderCommand.GetRenderTexture();
+            if (renderTexture != nullptr)
+            {
+                renderSize = glm::ivec2((int)renderTexture->GetWidth(), (int)renderTexture->GetHeight());
+            }
 
             const glm::vec2 screenPos = buffer.View.Position * (glm::vec2)renderSize;
             const glm::vec2 screenSize = buffer.View.Size * (glm::vec2)renderSize;
@@ -261,9 +268,12 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
         }
     }
 
+    renderCommand.Flush();
+    
     m_postRenderFunc->Exec(args);
 
-    commandBuffer.endRenderPass();
+    renderCommand.Flush();
+    
     commandBuffer.end();
 
     return commandBuffer;

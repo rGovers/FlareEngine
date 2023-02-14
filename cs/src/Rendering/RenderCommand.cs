@@ -6,21 +6,33 @@ namespace FlareEngine.Rendering
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void BindRenderTexture(uint a_addr);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static void RTRTBlit(uint a_srcAddr, uint a_dstAddr);
+
+        public static uint TextureAddr(IRenderTexture a_renderTexture)
+        {
+            if (a_renderTexture != null)
+            {
+                if (a_renderTexture is RenderTexture rVal)
+                {
+                    return rVal.BufferAddr;
+                }
+                else if (a_renderTexture is MultiRenderTexture mVal)
+                {
+                    return mVal.BufferAddr;
+                }
+            }
+
+            return uint.MaxValue;
+        }
 
         public static void BindRenderTexture(IRenderTexture a_renderTexture)
         {
-            if (a_renderTexture == null)
-            {
-                BindRenderTexture(uint.MaxValue);
-            }
-            else if (a_renderTexture is RenderTexture rVal)
-            {
-                BindRenderTexture(rVal.BufferAddr);
-            }
-            else if (a_renderTexture is MultiRenderTexture mVal)
-            {
-                BindRenderTexture(mVal.BufferAddr);
-            }
+            BindRenderTexture(TextureAddr(a_renderTexture));
+        }
+        public static void Blit(IRenderTexture a_srcTexture, IRenderTexture a_dstTexture)
+        {
+            RTRTBlit(TextureAddr(a_srcTexture), TextureAddr(a_dstTexture));
         }
     }
 }

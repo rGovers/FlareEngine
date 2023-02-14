@@ -16,12 +16,9 @@ private:
     VulkanSwapchain*           m_swapchain;
 
     uint32_t                   m_renderTexAddr;
+    VulkanRenderTexture*       m_renderTexture;
 
     vk::CommandBuffer          m_commandBuffer;
-
-    vk::Semaphore              m_lastSemaphore;
-
-    glm::ivec2                 m_renderSize;
 
 protected:
 
@@ -29,15 +26,23 @@ public:
     VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer);
     ~VulkanRenderCommand();
 
+    inline bool IsTextureBound() const
+    {
+        return m_renderTexture != nullptr || (m_renderTexture == nullptr && m_renderTexAddr == -1);
+    }
+
+    void Flush();
+
     void Bind(VulkanRenderTexture* a_renderTexture, uint32_t a_index);
+    
+    void Blit(VulkanRenderTexture* a_src, VulkanRenderTexture* a_dst);
 
     inline uint32_t GetRenderTexutreAddr() const
     {
         return m_renderTexAddr;
     }
-
-    inline glm::ivec2 GetRenderSize() const
+    inline VulkanRenderTexture* GetRenderTexture() const
     {
-        return m_renderSize;
+        return m_renderTexture;
     }
 };

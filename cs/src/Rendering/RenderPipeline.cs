@@ -13,11 +13,11 @@ namespace FlareEngine.Rendering
 
         public virtual void PreRender(Camera a_camera) 
         { 
-            RenderCommand.BindRenderTexture(null);
+            RenderCommand.BindRenderTexture(m_renderTexture);
         }
         public virtual void PostRender(Camera a_camera) 
         { 
-
+            RenderCommand.Blit(m_renderTexture, null);
         } 
 
         public virtual void Resize(uint a_width, uint a_height)
@@ -29,8 +29,8 @@ namespace FlareEngine.Rendering
         
         public RenderPipeline()
         {
-            // m_renderTexture = new MultiRenderTexture(5, 1920, 1080, true);
-            m_renderTexture = new RenderTexture(1920, 1080, true);
+            // m_renderTexture = new MultiRenderTexture(4, 1920, 1080, true, true);
+            m_renderTexture = new RenderTexture(1920, 1080, true, true);
         }
 
         public virtual void Dispose()

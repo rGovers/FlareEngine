@@ -10,6 +10,12 @@
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
+// Compiler why 
+static void PlzNoReorder(RuntimeManager* a_runtime)
+{
+    delete a_runtime;
+}
+
 Application::Application(Config* a_config)
 {
     m_config = a_config;
@@ -35,7 +41,13 @@ Application::Application(Config* a_config)
 Application::~Application()
 {
     TRACE("Disposing App");
-    delete m_runtime;
+
+    // This may seem odd but it seem that with the more recent changes GCC has decided to reorder the calls for some reason
+    // Had to move the delete to a seperate computation unit to prevent reordering
+    // Gonna guess a side effect of having execution outside of the scope of what GCC can predict at compile time
+    // Do not know why C++ does not have a standard way to disable reordering
+    // TLDR: Do not inline otherwise crash
+    PlzNoReorder(m_runtime);
     delete m_renderEngine;
     delete m_objectManager;
     delete m_config;

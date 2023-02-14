@@ -83,6 +83,9 @@ public:
         return m_swapchain;
     }
 
+    vk::Image GetTexture() const;
+    vk::ImageLayout GetImageLayout() const;
+
     inline bool IsInitialized(uint32_t a_index) const
     {
         return m_init & 0b1 << a_index;

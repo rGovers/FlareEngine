@@ -4,6 +4,13 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
+const static std::vector<vk::Format> DepthFormats = 
+{
+    vk::Format::eD32Sfloat,
+    vk::Format::eD32SfloatS8Uint,
+    vk::Format::eD24UnormS8Uint
+};
+
 static constexpr vk::Format GetFormat(bool a_hdr)
 {
     if (a_hdr)
@@ -14,7 +21,40 @@ static constexpr vk::Format GetFormat(bool a_hdr)
     return vk::Format::eR8G8B8A8Unorm;
 }
 
-VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, uint32_t a_textureCount, uint32_t a_width, uint32_t a_height, bool a_hdr)
+static vk::Format GetValidDepthFormat(vk::PhysicalDevice a_device)
+{
+    for (const vk::Format format : DepthFormats)
+    {
+        vk::FormatProperties properties;
+        a_device.getFormatProperties(format, &properties);
+
+        if (properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+        {
+            return format;
+        }
+    }
+
+    Logger::Error("FlareEngine: No valid depth format");
+
+    assert(0);
+
+    return vk::Format::eD16Unorm;
+}
+
+static constexpr vk::ImageLayout GetDepthLayout(vk::Format a_format)
+{
+    // TODO: Solve why not matter what configuration why depth stencil is the only valid value.
+    // Have tried samples and got the same validation error.
+    // Not a major issue however. Probably just missed a flag somewhere in setup.
+    // if (a_format >= vk::Format::eD16UnormS8Uint)
+    {
+        return vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    }
+
+    return vk::ImageLayout::eDepthAttachmentOptimal;
+}
+
+VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, uint32_t a_textureCount, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr)
 {
     TRACE("Creating Render Texture");
     m_engine = a_engine;
@@ -24,25 +64,49 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
     m_width = a_width;
     m_height = a_height;
 
-    m_hdr = a_hdr;
+    m_flags = 0;
+    if (a_hdr)
+    {
+        m_flags |= 0b1 << HDRFlag;
+    }
+    if (a_depthTexture)
+    {
+        m_flags |= 0b1 << DepthTextureFlag;
+    }
+
+    const uint32_t totalTextureCount = GetTotalTextureCount();
 
     const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
+    const vk::PhysicalDevice physicalDevice = m_engine->GetPhysicalDevice();
 
-    const vk::Format format = GetFormat(m_hdr);
+    const vk::Format format = GetFormat(a_hdr);
+    const vk::Format depthFormat = GetValidDepthFormat(physicalDevice);
 
     TRACE("Creating Attachments");
-    std::vector<vk::AttachmentDescription> colorAttachments = std::vector<vk::AttachmentDescription>(m_textureCount);
+    std::vector<vk::AttachmentDescription> attachments = std::vector<vk::AttachmentDescription>(totalTextureCount);
     for (uint32_t i = 0; i < m_textureCount; ++i)
     {
-        colorAttachments[i].format = format;
-        colorAttachments[i].samples = vk::SampleCountFlagBits::e1;
-        colorAttachments[i].loadOp = vk::AttachmentLoadOp::eClear;
-        colorAttachments[i].storeOp = vk::AttachmentStoreOp::eStore;
-        colorAttachments[i].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        colorAttachments[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        colorAttachments[i].initialLayout = vk::ImageLayout::eUndefined;
-        colorAttachments[i].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        attachments[i].format = format;
+        attachments[i].samples = vk::SampleCountFlagBits::e1;
+        attachments[i].loadOp = vk::AttachmentLoadOp::eClear;
+        attachments[i].storeOp = vk::AttachmentStoreOp::eStore;
+        attachments[i].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachments[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachments[i].initialLayout = vk::ImageLayout::eUndefined;
+        attachments[i].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    }
+    if (a_depthTexture)
+    {
+        attachments[m_textureCount].format = depthFormat;
+        attachments[m_textureCount].samples = vk::SampleCountFlagBits::e1;
+        attachments[m_textureCount].loadOp = vk::AttachmentLoadOp::eClear;
+        attachments[m_textureCount].storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachments[m_textureCount].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachments[m_textureCount].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachments[m_textureCount].initialLayout = vk::ImageLayout::eUndefined;
+        // attachments[m_textureCount].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        attachments[m_textureCount].finalLayout = GetDepthLayout(depthFormat);
     }
 
     std::vector<vk::AttachmentReference> colorAttachmentRef = std::vector<vk::AttachmentReference>(m_textureCount);
@@ -51,8 +115,13 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
         colorAttachmentRef[i].attachment = i;
         colorAttachmentRef[i].layout = vk::ImageLayout::eColorAttachmentOptimal;
     }
+    const vk::AttachmentReference depthAttachmentRef = vk::AttachmentReference
+    (
+        m_textureCount,
+        GetDepthLayout(depthFormat)
+    );
 
-    const vk::SubpassDescription subpass = vk::SubpassDescription
+    vk::SubpassDescription subpass = vk::SubpassDescription
     (
         { },
         vk::PipelineBindPoint::eGraphics,
@@ -61,6 +130,10 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
         m_textureCount,
         colorAttachmentRef.data()
     );
+    if (a_depthTexture)
+    {
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+    }
 
     vk::SubpassDependency dependencies[2];
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -77,12 +150,19 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
     dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
     dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
     dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+    if (a_depthTexture)
+    {
+        dependencies[0].dstStageMask |= vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        dependencies[0].dstAccessMask |= vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        dependencies[1].srcStageMask |= vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        dependencies[1].srcAccessMask |= vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    }
 
     const vk::RenderPassCreateInfo renderPassInfo = vk::RenderPassCreateInfo
     (
         { },
-        (uint32_t)colorAttachments.size(),
-        colorAttachments.data(),
+        totalTextureCount,
+        attachments.data(),
         1,
         &subpass,
         2,
@@ -96,13 +176,17 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
         assert(0);
     }    
 
-    m_textures = new vk::Image[m_textureCount];
-    m_textureViews = new vk::ImageView[m_textureCount];
-    m_textureAllocations = new VmaAllocation[m_textureCount];
-    m_clearValues = new vk::ClearValue[m_textureCount];
+    m_textures = new vk::Image[totalTextureCount];
+    m_textureViews = new vk::ImageView[totalTextureCount];
+    m_textureAllocations = new VmaAllocation[totalTextureCount];
+    m_clearValues = new vk::ClearValue[totalTextureCount];
     for (uint32_t i = 0; i < m_textureCount; ++i)
     {
         m_clearValues[i] = vk::ClearValue({ 0.0f, 0.0f, 0.0f, 0.0f });
+    }
+    if (a_depthTexture)
+    {
+        m_clearValues[m_textureCount] = vk::ClearValue(vk::ClearDepthStencilValue(1.0f, 0));
     }
 
     Init(m_width, m_height);
@@ -126,9 +210,16 @@ VulkanRenderTexture::~VulkanRenderTexture()
 void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
 {
     const vk::Device device = m_engine->GetLogicalDevice();
+    const vk::PhysicalDevice physicalDevice = m_engine->GetPhysicalDevice();
     const VmaAllocator allocator = m_engine->GetAllocator();
 
-    const vk::Format format = GetFormat(m_hdr);
+    const bool hasDepth = HasDepthTexture();
+    const bool isHDR = IsHDR();
+
+    const vk::Format format = GetFormat(isHDR);
+    const vk::Format depthFormat = GetValidDepthFormat(physicalDevice);
+
+    const uint32_t totalTextureCount = GetTotalTextureCount();
 
     m_width = a_width;
     m_height = a_height;
@@ -143,10 +234,10 @@ void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
     textureCreateInfo.extent.depth = 1;
     textureCreateInfo.mipLevels = 1;
     textureCreateInfo.arrayLayers = 1;
-    // textureCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    textureCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     textureCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     textureCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    textureCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    textureCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     VmaAllocationCreateInfo allocInfo = { 0 };
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -190,13 +281,64 @@ void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
             assert(0);
         }
     }
+    if (hasDepth)
+    {
+        constexpr vk::ImageSubresourceRange DepthSubresouceRange = vk::ImageSubresourceRange
+        (
+            vk::ImageAspectFlagBits::eDepth,
+            0,
+            1,
+            0,
+            1
+        );
+
+        VkImageCreateInfo depthCreateInfo = { };
+        depthCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        depthCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        depthCreateInfo.format = (VkFormat)depthFormat;
+        depthCreateInfo.extent.width = m_width;
+        depthCreateInfo.extent.height = m_height;
+        depthCreateInfo.extent.depth = 1;
+        depthCreateInfo.mipLevels = 1;
+        depthCreateInfo.arrayLayers = 1;
+        depthCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        depthCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        VkImage image;
+        if (vmaCreateImage(allocator, &depthCreateInfo, &allocInfo, &image, &m_textureAllocations[m_textureCount], nullptr) != VK_SUCCESS)
+        {
+            Logger::Error("Failed to create RenderTexture Depth Image");
+
+            assert(0);
+        }
+        m_textures[m_textureCount] = image;
+
+        const vk::ImageViewCreateInfo depthImageView = vk::ImageViewCreateInfo
+        (
+            { },
+            m_textures[m_textureCount],
+            vk::ImageViewType::e2D,
+            depthFormat,
+            vk::ComponentMapping(),
+            DepthSubresouceRange
+        );
+
+        if (device.createImageView(&depthImageView, nullptr, &m_textureViews[m_textureCount]) != vk::Result::eSuccess)
+        {
+            Logger::Error("Failed to create RenderTexture depth Image View");
+
+            assert(0);
+        }
+    }
 
     TRACE("Creating Frame Buffer");
     const vk::FramebufferCreateInfo fbCreateInfo = vk::FramebufferCreateInfo
     (
         { },
         m_renderPass,
-        m_textureCount,
+        totalTextureCount,
         m_textureViews,
         m_width, 
         m_height,
@@ -212,8 +354,10 @@ void VulkanRenderTexture::Destroy()
 
     device.waitIdle();
 
+    const uint32_t totalTextureCount = GetTotalTextureCount();
+
     TRACE("Destroying Render Texture Textures");
-    for (uint i = 0; i < m_textureCount; ++i)
+    for (uint i = 0; i < totalTextureCount; ++i)
     {
         vmaDestroyImage(allocator, m_textures[i], m_textureAllocations[i]);
         device.destroyImageView(m_textureViews[i]);

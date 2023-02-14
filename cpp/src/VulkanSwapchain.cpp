@@ -162,7 +162,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     VmaAllocationCreateInfo allocInfo = { 0 };
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -298,6 +298,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
     const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
     const vk::SurfaceKHR surface = m_window->GetSurface(instance);
 
+    const glm::ivec2 winSize = m_window->GetSize();
+
     const bool headless = a_window->IsHeadless();
 
     if (!headless)
@@ -317,11 +319,10 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
         vk::AttachmentLoadOp::eDontCare,
         vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
-        vk::ImageLayout::ePresentSrcKHR
+        GetImageLayout()
     );
     if (headless)
     {
-        colorAttachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
         colorAttachment.format = vk::Format::eR8G8B8A8Unorm;
     }
 
@@ -398,12 +399,23 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
 
     if (headless)
     {
-        InitHeadless(m_window->GetSize());
+        InitHeadless(winSize);
     }
     else
     {
-        Init(m_window->GetSize());
+        Init(winSize);
     }
+
+    uint32_t width = (uint32_t)winSize.x;
+    uint32_t height = (uint32_t)winSize.y;
+
+    void* args[] =
+    {
+        &width,
+        &height
+    };
+
+    m_resizeFunc->Exec(args);
 }
 VulkanSwapchain::~VulkanSwapchain()
 {
@@ -411,6 +423,8 @@ VulkanSwapchain::~VulkanSwapchain()
 
     TRACE("Destroying RenderPass");
     device.destroyRenderPass(m_renderPass);
+
+    delete m_resizeFunc;
 
     Destroy();
 }
@@ -438,6 +452,20 @@ SwapChainSupportInfo VulkanSwapchain::QuerySwapChainSupport(const vk::PhysicalDe
     }
 
     return info;
+}
+
+vk::Image VulkanSwapchain::GetTexture() const
+{
+    return m_colorImage[m_engine->GetImageIndex()];
+}
+vk::ImageLayout VulkanSwapchain::GetImageLayout() const
+{
+    if (m_window->IsHeadless())
+    {
+        return vk::ImageLayout::eTransferSrcOptimal;
+    }
+
+    return vk::ImageLayout::ePresentSrcKHR;
 }
 
 bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fence& a_fence, uint32_t* a_imageIndex, double a_delta, double a_time)
