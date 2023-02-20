@@ -20,6 +20,7 @@ class VulkanVertexShader;
 #include "DataTypes/TArray.h"
 #include "DataTypes/TStatic.h"
 #include "Rendering/CameraBuffer.h"
+#include "Rendering/Light.h"
 #include "Rendering/MaterialRenderStack.h"
 #include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
@@ -38,6 +39,8 @@ private:
     RuntimeFunction*                              m_postShadowFunc;
     RuntimeFunction*                              m_preRenderFunc;
     RuntimeFunction*                              m_postRenderFunc;
+    RuntimeFunction*                              m_preLightFunc;
+    RuntimeFunction*                              m_postLightFunc;
     RuntimeFunction*                              m_postProcessFunc;
 
     VulkanRenderEngineBackend*                    m_vulkanEngine;
@@ -59,11 +62,11 @@ private:
     TArray<MeshRenderBuffer>                      m_renderBuffers;
     TArray<MaterialRenderStack>                   m_renderStacks;
 
+    TArray<DirectionalLightBuffer>                m_directionalLights;
+
     TArray<CameraBuffer>                          m_cameraBuffers;
 
     vk::CommandPool                               m_commandPool;
-
-    VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
     
     vk::CommandBuffer DrawCamera(uint32_t a_camIndex);
     
@@ -82,6 +85,10 @@ public:
 
     VulkanVertexShader* GetVertexShader(uint32_t a_addr);
     VulkanPixelShader* GetPixelShader(uint32_t a_addr);
+
+    VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
+    
+    VulkanRenderTexture* GetRenderTexture(uint32_t a_addr);
 
     inline vk::CommandPool GetCommandPool() const
     {

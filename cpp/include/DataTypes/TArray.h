@@ -196,21 +196,25 @@ public:
     }
     void Erase(uint32_t a_index)
     {
+        constexpr uint32_t Stride = sizeof(T);
+        
         const std::lock_guard g = std::lock_guard(m_mutex);
 
-        const uint32_t aSize = (m_size - 1) * sizeof(T);
+        const uint32_t aSize = (m_size - 1) * Stride;
 
         if constexpr (std::is_destructible<T>())
         {
             (&(m_data[a_index]))->~T();
         }
 
+        const uint32_t offset = a_index * Stride;
+
         T* dat = (T*)malloc(aSize);
         memset(dat, 0, aSize);
         if (m_data != nullptr)
         {
-            memcpy(dat, m_data, a_index * sizeof(T));
-            memcpy(dat + (a_index * sizeof(T)), m_data + ((a_index + 1) * sizeof(T)), (m_size - a_index - 1) * sizeof(T));
+            memcpy(dat, m_data, offset);
+            memcpy(((char*)dat) + offset, ((char*)m_data) + ((a_index + 1) * Stride), (m_size - a_index - 1) * Stride);
 
             free(m_data);
         }
@@ -220,11 +224,13 @@ public:
     }
     void Erase(uint32_t a_start, uint32_t a_end)
     {
+        constexpr uint32_t Stride = sizeof(T);
+
         const std::lock_guard g = std::lock_guard(m_mutex);
 
         const uint32_t diff = a_end - a_start;
 
-        const uint32_t aSize = (m_size - diff) * sizeof(T);
+        const uint32_t aSize = (m_size - diff) * Stride;
 
         if constexpr (std::is_destructible<T>())
         {
@@ -234,12 +240,14 @@ public:
             }
         }
 
+        const uint32_t offset = a_start * Stride;
+
         T* dat = (T*)malloc(aSize);
         memset(dat, 0, aSize);
         if (m_data != nullptr)
         {
-            memcpy(dat, m_data, a_start * sizeof(T));
-            memcpy(dat + (a_start * sizeof(T)), m_data + ((a_end + 1) * sizeof(T)), (m_size - a_start - diff) * sizeof(T));
+            memcpy(dat, m_data, offset);
+            memcpy(((char*)dat) + offset, ((char*)m_data) + ((a_end + 1) * Stride), (m_size - a_start - diff) * Stride);
 
             free(m_data);
         }

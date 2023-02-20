@@ -42,10 +42,6 @@ namespace FlareEngine.Rendering
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateMultiRenderTexture(uint a_count, uint a_width, uint a_height, uint a_depth, uint a_hdr);
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static void DestroyMultiRenderTexture(uint a_addr);
-        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GetTextureCount(uint a_addr);
 
         public MultiRenderTexture(uint a_count, uint a_width, uint a_height, bool a_depth = false, bool a_hdr = false)
@@ -62,7 +58,7 @@ namespace FlareEngine.Rendering
                 depthVal = 1;
             }
 
-            m_bufferAddr = GenerateMultiRenderTexture(a_count, a_width, a_height, depthVal, hdrVal);
+            m_bufferAddr = RenderTextureCmd.GenerateRenderTexture(a_count, a_width, a_height, depthVal, hdrVal);
 
             RenderTextureCmd.PushRenderTexture(m_bufferAddr, this);
         }
@@ -79,9 +75,9 @@ namespace FlareEngine.Rendering
             {
                 if (a_disposing)
                 {
-                    RenderTextureCmd.DestroyRenderTexture(m_bufferAddr);
+                    RenderTextureCmd.RemoveRenderTexture(m_bufferAddr);
 
-                    DestroyMultiRenderTexture(m_bufferAddr);
+                    RenderTextureCmd.DestroyRenderTexture(m_bufferAddr);
                 }
                 else
                 {
@@ -103,7 +99,7 @@ namespace FlareEngine.Rendering
 
         public void Resize(uint a_width, uint a_height)
         {
-            Logger.Error("FlareCS: Resize not implemented");
+            RenderTextureCmd.Resize(m_bufferAddr, a_width, a_height);
         }
     }
 }

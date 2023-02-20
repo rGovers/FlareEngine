@@ -9,6 +9,8 @@
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
+#include <vulkan/vk_enum_string_helper.h>
+
 // Fixes error on Windows
 #undef min
 
@@ -474,7 +476,13 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
     const vk::Device device = m_engine->GetLogicalDevice();
     const glm::ivec2 size = m_window->GetSize();
 
-    std::ignore = device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+    vk::Result r = device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+    if (r != vk::Result::eSuccess)
+    {
+        Logger::Warning(std::string("FlareEngine: Could not wait for fence: ") + string_VkResult((VkResult)r));
+
+        return false;
+    }
 
     if (m_window->IsHeadless())
     {

@@ -5,8 +5,29 @@
 #include "Rendering/ShaderBufferInput.h"
 #include "Rendering/VertexInputAttrib.h"
 
+enum e_InternalRenderProgram : uint16_t
+{
+    InternalRenderProgram_DirectionalLight = 0
+};
+
+enum e_CullMode : uint16_t
+{
+    CullMode_None = 0,
+    CullMode_Front = 1,
+    CullMode_Back = 2,
+    CullMode_Both = 3
+};
+
+enum e_PrimitiveMode : uint16_t
+{
+    PrimitiveMode_Triangles = 0,
+    PrimitiveMode_TriangleStrip = 1
+};
+
 struct RenderProgram
 {
+    static constexpr unsigned int DestroyFlag = 0;
+
     uint32_t VertexShader = -1;
     uint32_t PixelShader = -1;
     uint32_t RenderLayer;
@@ -15,6 +36,9 @@ struct RenderProgram
     VertexInputAttrib* VertexAttribs;
     uint16_t ShaderBufferInputCount;
     ShaderBufferInput* ShaderBufferInputs;
+    e_CullMode CullingMode;
+    e_PrimitiveMode PrimitiveMode;
+    unsigned char Flags = 0;
 
     bool operator ==(const RenderProgram& a_other) const
     {

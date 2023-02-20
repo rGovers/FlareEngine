@@ -131,6 +131,40 @@ constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<
     }
 }
 
+constexpr static vk::CullModeFlags GetCullingMode(e_CullMode a_mode)
+{
+    switch (a_mode)
+    {
+    case CullMode_Front:
+    {
+        return vk::CullModeFlagBits::eFront;
+    }
+    case CullMode_Back:
+    {
+        return vk::CullModeFlagBits::eBack;
+    }
+    case CullMode_Both:
+    {
+        return vk::CullModeFlagBits::eFrontAndBack;
+    }
+    }
+
+    return vk::CullModeFlagBits::eNone;
+}
+
+constexpr static vk::PrimitiveTopology GetPrimitiveMode(e_PrimitiveMode a_mode)
+{
+    switch (a_mode)
+    {
+    case PrimitiveMode_TriangleStrip:
+    {
+        return vk::PrimitiveTopology::eTriangleStrip;
+    }
+    }
+
+    return vk::PrimitiveTopology::eTriangleList;
+}
+
 constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib) 
 {
     switch (a_attrib.Type)
@@ -212,7 +246,7 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
     return vk::Format::eUndefined;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, uint32_t a_textureCount, const RenderProgram& a_program)
 {
     TRACE("Creating Vulkan Pipeline");
     m_engine = a_engine;
@@ -276,19 +310,25 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         attributeDescription[i].format = GetFormat(attrib);
     }
 
-    const vk::PipelineVertexInputStateCreateInfo vertexInputInfo = vk::PipelineVertexInputStateCreateInfo
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo = vk::PipelineVertexInputStateCreateInfo
     (
-        vk::PipelineVertexInputStateCreateFlags(),
-        1,
-        &bindingDescription,
+        { },
+        0,
+        nullptr,
         (uint32_t)attributeDescription.size(),
         attributeDescription.data()
     );
 
-    constexpr vk::PipelineInputAssemblyStateCreateInfo InputAssembly = vk::PipelineInputAssemblyStateCreateInfo
+    if (a_program.VertexInputCount > 0)
+    {
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    }
+
+    const vk::PipelineInputAssemblyStateCreateInfo inputAssembly = vk::PipelineInputAssemblyStateCreateInfo
     (
-        vk::PipelineInputAssemblyStateCreateFlags(),
-        vk::PrimitiveTopology::eTriangleList,
+        { },
+        GetPrimitiveMode(a_program.PrimitiveMode),
         VK_FALSE
     );
 
@@ -304,13 +344,13 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         &Scissor
     );
 
-    constexpr vk::PipelineRasterizationStateCreateInfo Rasterizer = vk::PipelineRasterizationStateCreateInfo
+    const vk::PipelineRasterizationStateCreateInfo rasterizer = vk::PipelineRasterizationStateCreateInfo
     (
-        vk::PipelineRasterizationStateCreateFlags(),
+        { },
         VK_FALSE,
         VK_FALSE,
         vk::PolygonMode::eFill,
-        vk::CullModeFlagBits::eBack,
+        GetCullingMode(a_program.CullingMode),
         vk::FrontFace::eClockwise,
         VK_FALSE,
         0.0f,
@@ -337,13 +377,15 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
     );
 
+    const std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments = std::vector<vk::PipelineColorBlendAttachmentState>(a_textureCount, ColorBlendAttachment);
+
     const vk::PipelineColorBlendStateCreateInfo colorBlending = vk::PipelineColorBlendStateCreateInfo
     (
-        vk::PipelineColorBlendStateCreateFlags(),
+        { },
         VK_FALSE,
         vk::LogicOp::eCopy,
-        1,
-        &ColorBlendAttachment
+        a_textureCount,
+        colorBlendAttachments.data()
     );
 
     std::vector<vk::PushConstantRange> pushConstants;
@@ -432,14 +474,14 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
 
     vk::GraphicsPipelineCreateInfo pipelineInfo = vk::GraphicsPipelineCreateInfo
     (
-        vk::PipelineCreateFlags(),
+        { },
         (uint32_t)shaderStages.size(),
         shaderStages.data(),
         &vertexInputInfo,
-        &InputAssembly,
+        &inputAssembly,
         nullptr,
         &viewportState,
-        &Rasterizer,
+        &rasterizer,
         &Multisampling,
         nullptr,
         &colorBlending,
@@ -530,7 +572,10 @@ void VulkanPipeline::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, ui
 }
 void VulkanPipeline::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const
 {
-    a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, 0, 1, &m_descriptorSets[a_index], 0, nullptr);
+    if (m_program.ShaderBufferInputCount > 0)
+    {
+        a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, 0, 1, &m_descriptorSets[a_index], 0, nullptr);
+    }
 
     a_commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
 }

@@ -13,6 +13,7 @@
         <Compile Include="src/Maths/*.cs"/>
         <Compile Include="src/Mod/*.cs"/>
         <Compile Include="src/Rendering/*.cs"/>
+        <Compile Include="src/Rendering/Lighting/*.cs"/>
     </ItemGroup>
     <ItemGroup>
         <Reference Include="System" />

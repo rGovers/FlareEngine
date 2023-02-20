@@ -155,7 +155,8 @@ namespace FlareEngine.Rendering
                 FOV = (float)(Math.PI * 0.45),
                 Near = 0.1f,
                 Far = 100.0f,
-                RenderLayer = 0b1
+                RenderLayer = 0b1,
+                RenderTexture = uint.MaxValue
             };
 
             SetBuffer(m_bufferAddr, val);

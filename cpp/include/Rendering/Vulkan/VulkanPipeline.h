@@ -37,7 +37,7 @@ private:
 protected:
 
 public:
-    VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, const RenderProgram& a_program);
+    VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, uint32_t a_textureCount, const RenderProgram& a_program);
     ~VulkanPipeline();
 
     inline vk::Pipeline GetPipeline() const

@@ -1,6 +1,8 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
-#include "Logger.h"
+#include "FlareAssert.h"
+#include "Shaders/DirectionalLightPixel.h"
+#include "Shaders/QuadVertex.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
@@ -12,42 +14,60 @@
 
 static VulkanGraphicsEngineBindings* Engine = nullptr;
 
-FLARE_MONO_EXPORT(uint32_t, VertexShader_GenerateShader, MonoString* a_string)
+#define VULKANGRAPHICS_RUNTIME_ATTACH(ret, namespace, klass, name, code, ...) a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(namespace, klass, name), (void*)RUNTIME_FUNCTION_NAME(klass, name));
+
+// The lazy part of me won against the part that wants to write clean code
+// My apologies to the poor soul that has to decipher this definition
+#define VULKANGRAPHICS_BINDING_FUNCTION_TABLE(F) \
+    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(void, FlareEngine.Rendering, VertexShader, DestroyShader, { Engine->DestroyVertexShader(a_addr); }, uint32_t a_addr) \
+    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GeneratePixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(void, FlareEngine.Rendering, PixelShader, DestroyShader, { Engine->DestroyPixelShader(a_addr); }, uint32_t a_addr) \
+    \
+    F(RenderProgram, FlareEngine.Rendering, Material, GetProgramBuffer, { return Engine->GetRenderProgram(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, Material, SetProgramBuffer, { Engine->SetRenderProgram(a_addr, a_program); }, uint32_t a_addr, RenderProgram a_program) \
+    \
+    F(uint32_t, FlareEngine.Rendering, Camera, GenerateBuffer, { return Engine->GenerateCameraBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
+    F(void, FlareEngine.Rendering, Camera, DestroyBuffer, { Engine->DestroyCameraBuffer(a_addr); }, uint32_t a_addr) \
+    F(CameraBuffer, FlareEngine.Rendering, Camera, GetBuffer, { return Engine->GetCameraBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, Camera, SetBuffer, { Engine->SetCameraBuffer(a_addr, a_buffer); }, uint32_t a_addr, CameraBuffer a_buffer) \
+    \
+    F(uint32_t, FlareEngine.Rendering, MeshRenderer, GenerateBuffer, { return Engine->GenerateMeshRenderBuffer(a_materialAddr, a_modelAddr, a_transformAddr); }, uint32_t a_transformAddr, uint32_t a_materialAddr, uint32_t a_modelAddr) \
+    F(void, FlareEngine.Rendering, MeshRenderer, DestroyBuffer, { Engine->DestroyMeshRenderBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, MeshRenderer, GenerateRenderStack, { Engine->GenerateRenderStack(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, MeshRenderer, DestroyRenderStack, { Engine->DestroyRenderStack(a_addr); }, uint32_t a_addr) \
+    \
+    F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GenerateRenderTexture, { return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr); }, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr) \
+    F(void, FlareEngine.Rendering, RenderTextureCmd, DestroyRenderTexture, { return Engine->DestroyRenderTexture(a_addr); }, uint32_t a_addr) \
+    F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GetWidth, { return Engine->GetRenderTextureWidth(a_addr); }, uint32_t a_addr) \
+    F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GetHeight, { return Engine->GetRenderTextureHeight(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, RenderTextureCmd, Resize, { return Engine->ResizeRenderTexture(a_addr, a_width, a_height); }, uint32_t a_addr, uint32_t a_width, uint32_t a_height) \
+    F(uint32_t, FlareEngine.Renddering, MultiRenderTexture, GetTextureCount, { return Engine->GetRenderTextureTextureCount(a_addr); }, uint32_t a_addr) \
+    \
+    F(uint32_t, FlareEngine.Rendering.Lighting, DirectionalLight, GenerateBuffer, { return Engine->GenerateDirectionalLightBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
+    F(void, FlareEngine.Rendering.Lighting, DirectionalLight, DestroyBuffer, { Engine->DestroyDirectionalLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(DirectionalLightBuffer, FlareEngine.Rendering.Lighting, DirectionalLight, GetBuffer, { return Engine->GetDirectionalLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering.Lighting, DirectionalLight, SetBuffer, { Engine->SetDirectionalLightBuffer(a_addr, a_buffer); }, uint32_t a_addr, DirectionalLightBuffer a_buffer) \
+    \
+    F(void, FlareEngine.Rendering, RenderCommand, BindMaterial, { Engine->BindMaterial(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, RenderCommand, BindRenderTexture, { Engine->BindRenderTexture(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, RenderCommand, RTRTBlit, { Engine->BlitRTRT(a_srcAddr, a_dstAddr); }, uint32_t a_srcAddr, uint32_t a_dstAddr)
+
+VULKANGRAPHICS_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION)
+
+// Gonna leave theses functions seperate as there is a bit to it
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateInternalProgram), e_InternalRenderProgram a_renderProgram)
 {
-    char* str = mono_string_to_utf8(a_string);
-
-    const uint32_t ret = Engine->GenerateVertexShaderAddr(str);
-
-    mono_free(str);
-
-    return ret;
+    return Engine->GenerateInternalShaderProgram(a_renderProgram);
 }
-FLARE_MONO_EXPORT(void, VertexShader_DestroyShader, uint32_t a_addr)
-{
-    Engine->DestroyVertexShader(a_addr);
-}
-
-FLARE_MONO_EXPORT(uint32_t, PixelShader_GenerateShader, MonoString* a_string)
-{
-    char* str = mono_string_to_utf8(a_string);
-
-    const uint32_t ret = Engine->GeneratePixelShaderAddr(str);
-
-    mono_free(str);
-
-    return ret;
-}
-FLARE_MONO_EXPORT(void, PixelShader_DestroyShader, uint32_t a_addr)
-{
-    Engine->DestroyPixelShader(a_addr);
-}
-
-FLARE_MONO_EXPORT(uint32_t, Material_GenerateProgram, uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs)
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode)
 {
     RenderProgram program;
     program.VertexShader = a_vertexShader;
     program.PixelShader = a_pixelShader;
     program.VertexStride = a_vertexStride;
+    program.CullingMode = (e_CullMode)a_cullingMode;
+    program.PrimitiveMode = (e_PrimitiveMode)a_primitiveMode;
 
     // Need to recreate the array
     // Because it is a managed array may not be contiguous and is controlled by the GC 
@@ -86,7 +106,7 @@ FLARE_MONO_EXPORT(uint32_t, Material_GenerateProgram, uint32_t a_vertexShader, u
 
     return Engine->GenerateShaderProgram(program);
 }
-FLARE_MONO_EXPORT(void, Material_DestroyProgram, uint32_t a_addr)
+FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Material, DestroyProgram), uint32_t a_addr)
 {
     const RenderProgram program = Engine->GetRenderProgram(a_addr);
 
@@ -101,88 +121,8 @@ FLARE_MONO_EXPORT(void, Material_DestroyProgram, uint32_t a_addr)
 
     Engine->DestroyShaderProgram(a_addr);
 }
-FLARE_MONO_EXPORT(RenderProgram, Material_GetProgramBuffer, uint32_t a_addr)
-{
-    return Engine->GetRenderProgram(a_addr);
-}
-FLARE_MONO_EXPORT(void, Material_SetProgramBuffer, uint32_t a_addr, RenderProgram a_program)
-{
-    Engine->SetRenderProgram(a_addr, a_program);
-}
 
-FLARE_MONO_EXPORT(uint32_t, Camera_GenerateBuffer, uint32_t a_transformAddr)
-{
-    return Engine->GenerateCameraBuffer(a_transformAddr);
-}
-FLARE_MONO_EXPORT(void, Camera_DestroyBuffer, uint32_t a_addr)
-{
-    Engine->DestroyCameraBuffer(a_addr);
-}
-FLARE_MONO_EXPORT(CameraBuffer, Camera_GetBuffer, uint32_t a_addr)
-{
-    return Engine->GetCameraBuffer(a_addr);
-}
-FLARE_MONO_EXPORT(void, Camera_SetBuffer, uint32_t a_addr, CameraBuffer a_buffer)
-{
-    Engine->SetCameraBuffer(a_addr, a_buffer);
-}
-
-FLARE_MONO_EXPORT(uint32_t, MeshRenderer_GenerateBuffer, uint32_t a_transformAddr, uint32_t a_materialAddr, uint32_t a_modelAddr)
-{
-    MeshRenderBuffer buffer;
-    buffer.MaterialAddr = a_materialAddr;
-    buffer.ModelAddr = a_modelAddr;
-    buffer.TransformAddr = a_transformAddr;
-
-    return Engine->GenerateMeshRenderBuffer(buffer);
-}
-FLARE_MONO_EXPORT(void, MeshRenderer_DestroyBuffer, uint32_t a_addr)
-{
-    Engine->DestroyMeshRenderBuffer(a_addr);
-}
-FLARE_MONO_EXPORT(void, MeshRenderer_GenerateRenderStack, uint32_t a_addr)
-{
-    Engine->GenerateRenderStack(a_addr);
-}
-FLARE_MONO_EXPORT(void, MeshRenderer_DestroyRenderStack, uint32_t a_addr)
-{
-    Engine->DestroyRenderStack(a_addr);
-}
-
-FLARE_MONO_EXPORT(uint32_t, RenderTexture_GenerateRenderTexture, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr)
-{
-    return Engine->GenerateRenderTexture(1, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr);
-}
-FLARE_MONO_EXPORT(void, RenderTexture_DestroyRenderTexture, uint32_t a_addr)
-{
-    Engine->DestroyRenderTexture(a_addr);
-}
-FLARE_MONO_EXPORT(uint32_t, MultiRenderTexture_GenerateMultiRenderTexture, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr)
-{
-    return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr);
-}
-FLARE_MONO_EXPORT(uint32_t, MultiRenderTexture_GetTextureCount, uint32_t a_addr)
-{
-    return Engine->GetRenderTextureTextureCount(a_addr);
-}
-FLARE_MONO_EXPORT(void, MultiRenderTexture_DestroyMultiRenderTexture, uint32_t a_addr)
-{
-    Engine->DestroyRenderTexture(a_addr);
-}
-FLARE_MONO_EXPORT(uint32_t, RenderTextureCmd_GetWidth, uint32_t a_addr)
-{
-    return Engine->GetRenderTextureWidth(a_addr);
-}
-FLARE_MONO_EXPORT(uint32_t, RenderTextureCmd_GetHeight, uint32_t a_addr)
-{
-    return Engine->GetRenderTextureHeight(a_addr);
-}
-FLARE_MONO_EXPORT(void, RenderTextureCmd_Resize, uint32_t a_addr, uint32_t a_width, uint32_t a_height)
-{
-    Engine->ResizeRenderTexture(a_addr, a_width, a_height);
-}
-
-FLARE_MONO_EXPORT(uint32_t, Model_GenerateModel, MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Model, GenerateModel), MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
 {
     const uint32_t vertexCount = (uint32_t)mono_array_length(a_vertices);
     const uint32_t indexCount = (uint32_t)mono_array_length(a_indices);
@@ -208,18 +148,9 @@ FLARE_MONO_EXPORT(uint32_t, Model_GenerateModel, MonoArray* a_vertices, MonoArra
 
     return addr;
 }
-FLARE_MONO_EXPORT(void, Model_DestroyModel, uint32_t a_addr)
+FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Model, DestroyModel), uint32_t a_addr)
 {
     Engine->DestroyModel(a_addr);
-}
-
-FLARE_MONO_EXPORT(void, RenderCommand_BindRenderTexture, uint32_t a_addr)
-{
-    Engine->BindRenderTexture(a_addr);
-}
-FLARE_MONO_EXPORT(void, RenderCommand_RTRTBlit, uint32_t a_srcAddr, uint32_t a_dstAddr)
-{
-    Engine->BlitRTRT(a_srcAddr, a_dstAddr);
 }
 
 VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_runtime, VulkanGraphicsEngine* a_graphicsEngine)
@@ -229,48 +160,24 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
     Engine = this;
 
     TRACE("Binding Vulkan functions to C#");
-    a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::GenerateShader", (void*)VertexShader_GenerateShader);
-    a_runtime->BindFunction("FlareEngine.Rendering.VertexShader::DestroyShader", (void*)VertexShader_DestroyShader);
-    a_runtime->BindFunction("FlareEngine.Rendering.PixelShader::GenerateShader", (void*)PixelShader_GenerateShader);
-    a_runtime->BindFunction("FlareEngine.Rendering.PixelShader::DestroyShader", (void*)PixelShader_DestroyShader);    
+    VULKANGRAPHICS_BINDING_FUNCTION_TABLE(VULKANGRAPHICS_RUNTIME_ATTACH)
 
-    a_runtime->BindFunction("FlareEngine.Rendering.Material::GenerateProgram", (void*)Material_GenerateProgram);
-    a_runtime->BindFunction("FlareEngine.Rendering.Material::DestroyProgram", (void*)Material_DestroyProgram);
-    a_runtime->BindFunction("FlareEngine.Rendering.Material::GetProgramBuffer", (void*)Material_GetProgramBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.Material::SetProgramBuffer", (void*)Material_SetProgramBuffer);
+    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, GenerateInternalProgram), (void*)RUNTIME_FUNCTION_NAME(Material, GenerateInternalProgram));
+    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, GenerateProgram), (void*)RUNTIME_FUNCTION_NAME(Material, GenerateProgram));
+    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, DestroyProgram), (void*)RUNTIME_FUNCTION_NAME(Material, DestroyProgram));
 
-    a_runtime->BindFunction("FlareEngine.Rendering.Camera::GenerateBuffer", (void*)Camera_GenerateBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.Camera::DestroyBuffer", (void*)Camera_DestroyBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.Camera::GetBuffer", (void*)Camera_GetBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.Camera::SetBuffer", (void*)Camera_SetBuffer);
-
-    a_runtime->BindFunction("FlareEngine.Rendering.Model::GenerateModel", (void*)Model_GenerateModel);
-    a_runtime->BindFunction("FlareEngine.Rendering.Model::DestroyModel", (void*)Model_DestroyModel);
-
-    a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::GenerateBuffer", (void*)MeshRenderer_GenerateBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::DestroyBuffer", (void*)MeshRenderer_DestroyBuffer);
-    a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::GenerateRenderStack", (void*)MeshRenderer_GenerateRenderStack);
-    a_runtime->BindFunction("FlareEngine.Rendering.MeshRenderer::DestroyRenderStack", (void*)MeshRenderer_DestroyRenderStack);
-
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderTexture::GenerateRenderTexture", (void*)RenderTexture_GenerateRenderTexture);
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderTexture::DestroyRenderTexture", (void*)RenderTexture_DestroyRenderTexture);
-    a_runtime->BindFunction("FlareEngine.Rendering.MultiRenderTexture::GenerateMultiRenderTexture", (void*)MultiRenderTexture_GenerateMultiRenderTexture);
-    a_runtime->BindFunction("FlareEngine.Rendering.MultiRenderTexture::GetTextureCount", (void*)MultiRenderTexture_GetTextureCount);
-    a_runtime->BindFunction("FlareEngine.Rendering.MultiRenderTexture::DestroyMultiRenderTexture", (void*)MultiRenderTexture_DestroyMultiRenderTexture);
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderTextureCmd::GetWidth", (void*)RenderTextureCmd_GetWidth);
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderTextureCmd::GetHeight", (void*)RenderTextureCmd_GetHeight);
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderTextureCmd::Resize", (void*)RenderTextureCmd_Resize);
-
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderCommand::BindRenderTexture", (void*)RenderCommand_BindRenderTexture);
-    a_runtime->BindFunction("FlareEngine.Rendering.RenderCommand::RTRTBlit", (void*)RenderCommand_RTRTBlit);
+    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Model, GenerateModel), (void*)RUNTIME_FUNCTION_NAME(Model, GenerateModel));
+    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Model, DestroyModel), (void*)RUNTIME_FUNCTION_NAME(Model, DestroyModel));
 }
 VulkanGraphicsEngineBindings::~VulkanGraphicsEngineBindings()
 {
 
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::string_view& a_str)
+uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::string_view& a_str) const
 {
+    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateVertexShaderAddr empty string")
+
     VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
     const uint32_t size = m_graphicsEngine->m_vertexShaders.Size();
@@ -288,23 +195,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::strin
 
     return size;
 }
-void VulkanGraphicsEngineBindings::DestroyVertexShader(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyVertexShader(uint32_t a_addr) const
 {
-    if (m_graphicsEngine->m_vertexShaders[a_addr] != nullptr)
-    {
-        delete m_graphicsEngine->m_vertexShaders[a_addr];
-        m_graphicsEngine->m_vertexShaders[a_addr] = nullptr;
-    }
-    else
-    {
-        Logger::Error("VertexShader already destroyed");
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_vertexShaders.Size(), "DestroyVertexShader out of bounds")
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_vertexShaders[a_addr] != nullptr, "DestroyVertexShader already destroyed")
 
-        assert(0);
-    }
+    delete m_graphicsEngine->m_vertexShaders[a_addr];
+    m_graphicsEngine->m_vertexShaders[a_addr] = nullptr;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string_view& a_str)
+uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string_view& a_str) const
 {
+    FLARE_ASSERT_MSG(!a_str.empty(), "GeneratePixelShaderAddr empty string")
+
     VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
     const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.Size();
@@ -323,31 +226,50 @@ uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string
     return size;
 }
 
-void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr) const
 {
-    if (m_graphicsEngine->m_pixelShaders[a_addr] != nullptr)
-    {
-        delete m_graphicsEngine->m_pixelShaders[a_addr];
-        m_graphicsEngine->m_pixelShaders[a_addr] = nullptr;
-    }
-    else
-    {
-        Logger::Error("PixelShader already destroyed");
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pixelShaders.Size(), "DestroyPixelShader out of bounds")
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_pixelShaders[a_addr] != nullptr, "DestroyPixelShader already destroyed")
 
-        assert(0);
-    }
+    delete m_graphicsEngine->m_pixelShaders[a_addr];
+    m_graphicsEngine->m_pixelShaders[a_addr] = nullptr;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram& a_program)
+uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const
 {
-    TRACE("Creating Shader Program");
-    if (a_program.PixelShader > m_graphicsEngine->m_pixelShaders.Size() || a_program.VertexShader > m_graphicsEngine->m_vertexShaders.Size())
-    {
-        Logger::Error("Invalid ShaderProgram");
+    RenderProgram program;
+    program.VertexStride = 0;
+    program.VertexInputCount = 0;
+    program.VertexAttribs = nullptr;
+    program.Flags |= 0b1 << RenderProgram::DestroyFlag;
 
-        assert(0);
+    switch (a_program)
+    {
+    case InternalRenderProgram_DirectionalLight:
+    {
+        program.VertexShader = GenerateVertexShaderAddr(QUADVERTEX);
+        program.PixelShader = GeneratePixelShaderAddr(DIRECTIONALLIGHTPIXEL);
+        program.ShaderBufferInputCount = 0;
+        program.ShaderBufferInputs = nullptr;
+        program.CullingMode = CullMode_None;
+        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+
+        break;
+    }
+    default:
+    {
+        FLARE_ASSERT_MSG(0, "Invalid Internal Render Program");
+    }
     }
 
+    return GenerateShaderProgram(program);
+}
+uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram& a_program) const
+{
+    FLARE_ASSERT_MSG(a_program.PixelShader < m_graphicsEngine->m_pixelShaders.Size(), "GenerateShaderProgram PixelShader out of bounds")
+    FLARE_ASSERT_MSG(a_program.VertexShader < m_graphicsEngine->m_vertexShaders.Size(), "GenerateShaderProgram VertexShader out of bounds")
+
+    TRACE("Creating Shader Program");
     if (m_graphicsEngine->m_freeShaderSlots.size() > 0)
     {
         const uint32_t addr = m_graphicsEngine->m_freeShaderSlots.front();
@@ -362,21 +284,36 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram
 
     return (uint32_t)m_graphicsEngine->m_shaderPrograms.Size() - 1;
 }
-void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "DestroyShaderProgram out of bounds");
+
+    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+    if (program.Flags & 0b1 << RenderProgram::DestroyFlag)
+    {
+        DestroyVertexShader(program.VertexShader);
+        DestroyPixelShader(program.PixelShader);
+    }
+
     m_graphicsEngine->m_freeShaderSlots.emplace(a_addr);
 }
 RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "GetRenderProgram out of bounds")
+
     return m_graphicsEngine->m_shaderPrograms[a_addr];
 }
-void VulkanGraphicsEngineBindings::SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program)
+void VulkanGraphicsEngineBindings::SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "SetRenderProgram out of bounds")
+
     m_graphicsEngine->m_shaderPrograms[a_addr] = a_program;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transformAddr)
+uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transformAddr) const
 {
+    FLARE_ASSERT_MSG(a_transformAddr != -1, "GenerateCameraBuffer invalid transform address")
+
     CameraBuffer buff;
     buff.TransformAddr = a_transformAddr;
 
@@ -397,8 +334,9 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
 
     return size;
 }
-void VulkanGraphicsEngineBindings::DestroyCameraBuffer(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyCameraBuffer(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "DestroyCameraBuffer out of bounds")
     m_graphicsEngine->m_cameraBuffers[a_addr].TransformAddr = -1;
 
     uint32_t val = m_graphicsEngine->m_cameraBuffers[m_graphicsEngine->m_cameraBuffers.Size() - 1].TransformAddr;
@@ -417,15 +355,25 @@ void VulkanGraphicsEngineBindings::DestroyCameraBuffer(uint32_t a_addr)
 }
 CameraBuffer VulkanGraphicsEngineBindings::GetCameraBuffer(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "GetCameraBuffer out of bounds")
+
     return m_graphicsEngine->m_cameraBuffers[a_addr];
 }
-void VulkanGraphicsEngineBindings::SetCameraBuffer(uint32_t a_addr, const CameraBuffer& a_buffer)
+void VulkanGraphicsEngineBindings::SetCameraBuffer(uint32_t a_addr, const CameraBuffer& a_buffer) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "SetCameraBuffer out of bounds")
+
     m_graphicsEngine->m_cameraBuffers[a_addr] = a_buffer;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uint32_t a_vertexCount, const uint32_t* a_indices, uint32_t a_indexCount, uint16_t a_vertexStride)
+uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uint32_t a_vertexCount, const uint32_t* a_indices, uint32_t a_indexCount, uint16_t a_vertexStride) const
 {
+    FLARE_ASSERT_MSG(a_vertices != nullptr, "GenerateModel vertices null")
+    FLARE_ASSERT_MSG(a_vertexCount > 0, "GenerateModel no vertices")
+    FLARE_ASSERT_MSG(a_indices != nullptr, "GenerateModel indices null")
+    FLARE_ASSERT_MSG(a_indexCount > 0, "GenerateModel no indices")
+    FLARE_ASSERT_MSG(a_vertexStride > 0, "GenerateModel vertex stride 0")
+
     VulkanModel* model = new VulkanModel(m_graphicsEngine->m_vulkanEngine, a_vertexCount, a_vertices, a_vertexStride, a_indexCount, a_indices);
 
     const uint32_t size = m_graphicsEngine->m_models.Size();
@@ -444,47 +392,50 @@ uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uin
 
     return size;
 }
-void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr) const
 {
-    if (m_graphicsEngine->m_models[a_addr] != nullptr)
-    {
-        delete m_graphicsEngine->m_models[a_addr];
-        m_graphicsEngine->m_models[a_addr] = nullptr;
-    }
-    else
-    {
-        Logger::Error("Model already destroyed");
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_models.Size(), "DestroyModel out of bounds")
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_models[a_addr] != nullptr, "DestroyModel already destroyed")
 
-        assert(0);
-    }
+    delete m_graphicsEngine->m_models[a_addr];
+    m_graphicsEngine->m_models[a_addr] = nullptr;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(const MeshRenderBuffer& a_renderBuffer)
+uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(uint32_t a_materialAddr, uint32_t a_modelAddr, uint32_t a_transformAddr) const
 {
+    MeshRenderBuffer buffer;
+    buffer.MaterialAddr = a_materialAddr;
+    buffer.ModelAddr = a_modelAddr;
+    buffer.TransformAddr = a_transformAddr;
+
     TRACE("Creating Render Buffer");
     const uint32_t size = (uint32_t)m_graphicsEngine->m_renderBuffers.Size();
     for (uint32_t i = 0; i < size; ++i)
     {
         if (m_graphicsEngine->m_renderBuffers[i].MaterialAddr == -1)
         {
-            m_graphicsEngine->m_renderBuffers[i] = a_renderBuffer;
+            m_graphicsEngine->m_renderBuffers[i] = buffer;
 
             return i;
         }
     }
 
     TRACE("Allocating Render Buffer");
-    m_graphicsEngine->m_renderBuffers.Push(a_renderBuffer);
+    m_graphicsEngine->m_renderBuffers.Push(buffer);
 
     return size;
 }
-void VulkanGraphicsEngineBindings::DestroyMeshRenderBuffer(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyMeshRenderBuffer(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderBuffers.Size(), "DestroyMeshRenderBuffer out of bounds");
+
     TRACE("Destroying Render Buffer");
     m_graphicsEngine->m_renderBuffers[a_addr].MaterialAddr = -1;
 }
-void VulkanGraphicsEngineBindings::GenerateRenderStack(uint32_t a_meshAddr)
+void VulkanGraphicsEngineBindings::GenerateRenderStack(uint32_t a_meshAddr) const
 {
+    FLARE_ASSERT_MSG(a_meshAddr < m_graphicsEngine->m_renderBuffers.Size(), "GenerateRenderStack out of bounds");
+
     TRACE("Pushing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
@@ -509,39 +460,45 @@ void VulkanGraphicsEngineBindings::GenerateRenderStack(uint32_t a_meshAddr)
     TRACE("Allocating RenderStack");
     m_graphicsEngine->m_renderStacks.Push(buffer);
 }
-void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr)
+void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr) const
 {
+    FLARE_ASSERT_MSG(a_meshAddr < m_graphicsEngine->m_renderBuffers.Size(), "DestroyRenderStack out of bounds");
+
     TRACE("Removing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
-    // std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
-    // lock.lock();
+    std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
+    lock.lock();
 
-    // const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
-    // MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
+    const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
+    MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
 
-    // for (uint32_t i = 0; i < size; ++i)
-    // {
-    //     MaterialRenderStack& stack = renderStacks[i];
-    //     if (stack.Remove(buffer))
-    //     {
-    //         lock.unlock();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        MaterialRenderStack& stack = renderStacks[i];
+        if (stack.Remove(buffer))
+        {
+            lock.unlock();
 
-    //         if (stack.Empty())
-    //         {
-    //             TRACE("Destroying RenderStack");
-    //             m_graphicsEngine->m_renderStacks.Erase(i);
-    //         }
+            if (stack.Empty())
+            {
+                TRACE("Destroying RenderStack");
+                m_graphicsEngine->m_renderStacks.Erase(i);
+            }
 
-    //         return;
-    //     }
-    // }
+            return;
+        }
+    }
 
-    // lock.unlock();
+    lock.unlock();
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr)
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr) const
 {
+    FLARE_ASSERT_MSG(a_count > 0, "GenerateRenderTexture no textures");
+    FLARE_ASSERT_MSG(a_width > 0, "GenerateRenderTexture width 0");
+    FLARE_ASSERT_MSG(a_height > 0, "GenerateRenderTexture height 0");
+
     VulkanRenderEngineBackend* engine = m_graphicsEngine->m_vulkanEngine;
 
     VulkanRenderTexture* texture = new VulkanRenderTexture(engine, a_count, a_width, a_height, a_depthTexture, a_hdr);
@@ -562,57 +519,131 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, u
 
     return size;
 }
-void VulkanGraphicsEngineBindings::DestroyRenderTexture(uint32_t a_addr)
+void VulkanGraphicsEngineBindings::DestroyRenderTexture(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "DestroyRenderTexture out of bounds");
+
     delete m_graphicsEngine->m_renderTextures[a_addr];
 
     m_graphicsEngine->m_renderTextures[a_addr] = nullptr;
 }
 uint32_t VulkanGraphicsEngineBindings::GetRenderTextureTextureCount(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "GetRenderTextureCount out of bounds");
+
     const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
 
     return texture->GetTextureCount();
 }
 uint32_t VulkanGraphicsEngineBindings::GetRenderTextureWidth(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "GetRenderTextureWidth out of bounds");
+
     const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
 
     return texture->GetWidth();
 }
 uint32_t VulkanGraphicsEngineBindings::GetRenderTextureHeight(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "GetRenderTextureHeight out of bounds");
+
     const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
 
     return texture->GetHeight();
 }
-void VulkanGraphicsEngineBindings::ResizeRenderTexture(uint32_t a_addr, uint32_t a_width, uint32_t a_height)
+void VulkanGraphicsEngineBindings::ResizeRenderTexture(uint32_t a_addr, uint32_t a_width, uint32_t a_height) const
 {
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "ResizeRenderTexture out of bounds");
+    FLARE_ASSERT_MSG(a_width > 0, "ResizeRenderTexture width 0")
+    FLARE_ASSERT_MSG(a_height > 0, "ResizeRenderTexture height 0")
+
     VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
 
     texture->Resize(a_width, a_height);
 }
 
+uint32_t VulkanGraphicsEngineBindings::GenerateDirectionalLightBuffer(uint32_t a_transformAddr) const
+{
+    DirectionalLightBuffer buffer;
+    buffer.TransformAddr = a_transformAddr;
+
+    FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GenerateDirectionalLightBuffer no transform");
+
+    const uint32_t size = m_graphicsEngine->m_directionalLights.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_directionalLights[i].TransformAddr != -1)
+        {
+            m_graphicsEngine->m_directionalLights[i] = buffer;
+
+            return i;
+        }
+    }
+
+    TRACE("Allocating DirectionalLight Buffer");
+    m_graphicsEngine->m_directionalLights.Push(buffer);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::SetDirectionalLightBuffer(uint32_t a_addr, const DirectionalLightBuffer& a_buffer) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_directionalLights.Size(), "SetDirectionalLightBuffer out of bounds");
+
+    m_graphicsEngine->m_directionalLights[a_addr] = a_buffer;
+}
+DirectionalLightBuffer VulkanGraphicsEngineBindings::GetDirectionalLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_directionalLights.Size(), "GetDirectionalLightBuffer out of bounds");
+
+    return m_graphicsEngine->m_directionalLights[a_addr];
+}
+void VulkanGraphicsEngineBindings::DestroyDirectionalLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_directionalLights.Size(), "DestroyDirectionalLightBuffer out of bounds");
+
+    m_graphicsEngine->m_directionalLights[a_addr].TransformAddr = -1;
+}
+
+void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "BindMaterial RenderCommand does not exist");
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "BindMaterial out of bounds");
+
+    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+
+    m_graphicsEngine->m_renderCommands->BindMaterial(a_addr);
+}
 void VulkanGraphicsEngineBindings::BindRenderTexture(uint32_t a_addr) const
 {
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "BindRenderTexture RenderCommand does not exist");
+
     VulkanRenderTexture* tex = nullptr;
     if (a_addr != -1)
     {
+        FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "BindRenderTexture out of bounds");
+
         tex = m_graphicsEngine->m_renderTextures[a_addr];
     }
 
-    m_graphicsEngine->m_renderCommands->Bind(tex, a_addr);
+    m_graphicsEngine->m_renderCommands->BindRenderTexture(a_addr);
 }
-void VulkanGraphicsEngineBindings::BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAddr)
+void VulkanGraphicsEngineBindings::BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAddr) const
 {
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "BlitRTRT RenderCommand does not exist");
+    
     VulkanRenderTexture* srcTex = nullptr;
     VulkanRenderTexture* dstTex = nullptr;
+
     if (a_srcAddr != -1)
     {
+        FLARE_ASSERT_MSG(a_srcAddr < m_graphicsEngine->m_renderTextures.Size(), "BlitRTRT source out of bounds");
+
         srcTex = m_graphicsEngine->m_renderTextures[a_srcAddr];
     }
     if (a_dstAddr != -1)
     {
+        FLARE_ASSERT_MSG(a_dstAddr < m_graphicsEngine->m_renderTextures.Size(), "BlitRTRT destination out of bounds");
+
         dstTex = m_graphicsEngine->m_renderTextures[a_dstAddr];
     }
 

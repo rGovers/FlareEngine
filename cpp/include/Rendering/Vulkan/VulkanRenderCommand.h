@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+class VulkanGraphicsEngine;
+class VulkanPipeline;
 class VulkanRenderEngineBackend;
 class VulkanRenderTexture;
 class VulkanSwapchain;
@@ -13,36 +15,39 @@ class VulkanRenderCommand
 {
 private:
     VulkanRenderEngineBackend* m_engine;
+    VulkanGraphicsEngine*      m_gEngine;
     VulkanSwapchain*           m_swapchain;
 
+    bool                       m_flushed;
+
     uint32_t                   m_renderTexAddr;
-    VulkanRenderTexture*       m_renderTexture;
+    uint32_t                   m_materialAddr;
 
     vk::CommandBuffer          m_commandBuffer;
 
 protected:
 
 public:
-    VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer);
+    VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer);
     ~VulkanRenderCommand();
 
-    inline bool IsTextureBound() const
-    {
-        return m_renderTexture != nullptr || (m_renderTexture == nullptr && m_renderTexAddr == -1);
-    }
-
     void Flush();
-
-    void Bind(VulkanRenderTexture* a_renderTexture, uint32_t a_index);
-    
-    void Blit(VulkanRenderTexture* a_src, VulkanRenderTexture* a_dst);
 
     inline uint32_t GetRenderTexutreAddr() const
     {
         return m_renderTexAddr;
     }
-    inline VulkanRenderTexture* GetRenderTexture() const
+    VulkanRenderTexture* GetRenderTexture() const;
+
+    inline uint32_t GetMaterialAddr() const
     {
-        return m_renderTexture;
+        return m_materialAddr;
     }
+    VulkanPipeline* GetPipeline() const;
+
+    VulkanPipeline* BindMaterial(uint32_t a_materialAddr);
+
+    void BindRenderTexture(uint32_t a_renderTexAddr);
+    
+    void Blit(const VulkanRenderTexture* a_src, const VulkanRenderTexture* a_dst);
 };

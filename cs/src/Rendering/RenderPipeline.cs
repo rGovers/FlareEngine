@@ -1,57 +1,38 @@
+using FlareEngine.Rendering.Lighting;
 using System;
 
 namespace FlareEngine.Rendering
 {
-    public class RenderPipeline : IDisposable
+    public abstract class RenderPipeline
     {
         static RenderPipeline Instance = null;
 
-        IRenderTexture m_renderTexture;
+        public abstract void PreShadow(Camera a_camera);
+        public abstract void PostShadow(Camera a_camera);
 
-        public virtual void PreShadow(Camera a_camera) { }
-        public virtual void PostShadow(Camera a_camera) { }
+        public abstract void PreRender(Camera a_camera);
+        public abstract void PostRender(Camera a_camera);
 
-        public virtual void PreRender(Camera a_camera) 
-        { 
-            RenderCommand.BindRenderTexture(m_renderTexture);
-        }
-        public virtual void PostRender(Camera a_camera) 
-        { 
-            RenderCommand.Blit(m_renderTexture, null);
-        } 
+        public abstract Material PreLight(LightType a_lightType, Camera a_camera);
+        public abstract void PostLight(LightType a_lightType, Camera a_camera);
 
-        public virtual void Resize(uint a_width, uint a_height)
-        {
-            m_renderTexture.Resize(a_width, a_height);
-        }
-
-        public virtual void PostProcess(Camera a_camera) { } 
-        
-        public RenderPipeline()
-        {
-            // m_renderTexture = new MultiRenderTexture(4, 1920, 1080, true, true);
-            m_renderTexture = new RenderTexture(1920, 1080, true, true);
-        }
-
-        public virtual void Dispose()
-        {
-            m_renderTexture.Dispose();
-        }
+        public abstract void Resize(uint a_width, uint a_height);
+        public abstract void PostProcess(Camera a_camera);
 
         public static void Init(RenderPipeline a_pipeline)
         {
-            if (Instance != null)
+            if (Instance is IDisposable disp)
             {
-                Instance.Dispose();
+                disp.Dispose();
             }
 
             Instance = a_pipeline;
         }
         internal static void Destroy()
         {
-            if (Instance != null)
+            if (Instance is IDisposable disp)
             {
-                Instance.Dispose();
+                disp.Dispose();
                 Instance = null;
             }
         }
@@ -119,6 +100,44 @@ namespace FlareEngine.Rendering
             else
             {
                 Logger.FlareError("RenderPipeline not initialized");
+            }
+        }
+
+        static void PreLightS(uint a_lightType, uint a_camBuffer)
+        {
+            if (Instance != null)
+            {
+                Camera cam = Camera.GetCamera(a_camBuffer);
+
+                if (cam != null)
+                {
+                    Material mat = Instance.PreLight((LightType)a_lightType, cam);
+
+                    if (mat != null)
+                    {
+                        RenderCommand.BindMaterial(mat);
+                    }
+                }
+            }
+            else
+            {
+                Logger.FlareError("RenderPipeline not initialized");
+            }
+        }
+        static void PostLightS(uint a_lightType, uint a_camBuffer)
+        {
+            if (Instance != null)
+            {
+                Camera cam = Camera.GetCamera(a_camBuffer);
+
+                if (cam != null)
+                {
+                    Instance.PostLight((LightType)a_lightType, cam);
+                }
+            }
+            else
+            {
+                Logger.FlareError("RenderPipelien not initialized");
             }
         }
 

@@ -5,6 +5,7 @@ project (FlareNative VERSION 0.1 LANGUAGES C CXX)
 option(GENERATE_CONFIG "Generates engine configuration file" OFF)
 option(ENABLE_TRACE "Enables tracing" OFF)
 option(ENABLE_PROFILER "Enables inbuilt profiler" OFF)
+option(ENABLE_ASSERT "Enables flare asserts" OFF)
 option(OUTPUT_BIN "Outputs application to bin/" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -15,6 +16,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/")
+
+include("FileToHeader")
 
 find_package(Vulkan REQUIRED)
 
@@ -32,6 +35,9 @@ endif()
 if (ENABLE_PROFILER)
     add_compile_definitions(FLARENATIVE_ENABLE_PROFILER)
 endif()
+if (ENABLE_ASSERT)
+    add_compile_definitions(FLARENATIVE_ENABLE_ASSERT)
+endif()
 
 if (GENERATE_CONFIG)
     configure_file(
@@ -39,6 +45,17 @@ if (GENERATE_CONFIG)
         "${PROJECT_SOURCE_DIR}/../bin/config.xml"
     )
 endif()
+
+FileToHeader(
+    SOURCE_FILE "shaders/quad.vert"
+    HEADER_FILE "include/Shaders/QuadVertex.h"
+    VARIABLE_NAME "QuadVertex"
+)
+FileToHeader(
+    SOURCE_FILE "shaders/directionalLight.frag"
+    HEADER_FILE "include/Shaders/DirectionalLightPixel.h"
+    VARIABLE_NAME "DirectionalLightPixel"
+)
 
 include_directories("${PROJECT_SOURCE_DIR}/Headless/"
                     "${PROJECT_SOURCE_DIR}/../deps/mono/build/include/mono-2.0/"

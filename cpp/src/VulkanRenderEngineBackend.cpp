@@ -484,10 +484,20 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
     std::vector<vk::CommandBuffer>& buffers = m_commandBuffers[m_currentFrame];
 
     uint32_t buffersSize = (uint32_t)buffers.size();
+    
+    // Terrible fix for release crash but it works
+    static int val = 0;
     if (buffersSize > 0)
     {
-        // TODO: Find fix for first lot of buffers causing validation error
-        m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
+        if (val < VulkanMaxFlightFrames)
+        {
+            ++val;
+        }
+        else
+        {
+            // TODO: Find fix for first lot of buffers causing validation error
+            m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
+        }
     }
 
     Profiler::StopFrame();

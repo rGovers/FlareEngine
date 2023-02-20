@@ -24,7 +24,9 @@ namespace FlareEngine
 
             Time.Init();
 
-            RenderPipeline.Init(new RenderPipeline());
+            Material.Init();
+
+            RenderPipeline.Init(new DefaultRenderPipeline());
 
             AssetLibrary.Init(workingDir);
             DefLibrary.Init();
@@ -46,6 +48,8 @@ namespace FlareEngine
             AssetLibrary.ClearAssets();
 
             RenderPipeline.Destroy();
+
+            Material.Destroy();
 
             Logger.Message("FlareCS: Shutdown");
         }

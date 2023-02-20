@@ -83,6 +83,11 @@ public:
         return *d;
     }
 
+    inline bool Exists()
+    {
+        return Get() != nullptr;
+    }
+
     T* Get()
     {
         const std::thread::id id = std::this_thread::get_id();

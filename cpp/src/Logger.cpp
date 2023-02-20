@@ -60,10 +60,8 @@ void Logger::Error(const std::string_view& a_msg)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Error);
     }
-    else
-    {
-        std::cout << a_msg << "\n";
-    }
+    
+    std::cout << a_msg << "\n";
 }
 void Logger::InitRuntime(RuntimeManager* a_runtime)
 {

@@ -22,6 +22,11 @@ namespace FlareEngine.Definitions
         [EditorTooltip("Used to determine input values for shaders.")]
         public List<ShaderBufferInput> ShaderBuffers = null;
 
+        [EditorTooltip("Which faces to show when rendering.")]
+        public CullMode CullingMode = CullMode.Back;
+
+        public PrimitiveMode PrimitiveMode = PrimitiveMode.Triangles;
+
         public override void PostResolve()
         {
             base.PostResolve();

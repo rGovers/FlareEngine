@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
 {
@@ -32,11 +31,6 @@ namespace FlareEngine.Rendering
             }
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateRenderTexture(uint a_width, uint a_height, uint a_depth, uint a_hdr);
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static void DestroyRenderTexture(uint a_addr);
-
         public RenderTexture(uint a_width, uint a_height, bool a_depth = false, bool a_hdr = false)
         {
             uint depthVal = 0;
@@ -51,7 +45,7 @@ namespace FlareEngine.Rendering
                 hdrVal = 1;
             }
 
-            m_bufferAddr = GenerateRenderTexture(a_width, a_height, depthVal, hdrVal);
+            m_bufferAddr = RenderTextureCmd.GenerateRenderTexture(1, a_width, a_height, depthVal, hdrVal);
 
             RenderTextureCmd.PushRenderTexture(m_bufferAddr, this);
         }
@@ -69,9 +63,9 @@ namespace FlareEngine.Rendering
             {
                 if (a_disposing)
                 {
-                    RenderTextureCmd.DestroyRenderTexture(m_bufferAddr);
+                    RenderTextureCmd.RemoveRenderTexture(m_bufferAddr);
 
-                    DestroyRenderTexture(m_bufferAddr);
+                    RenderTextureCmd.DestroyRenderTexture(m_bufferAddr);
                 }
                 else
                 {

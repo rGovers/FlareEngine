@@ -25,7 +25,7 @@ namespace FlareEngine.Rendering
                 RenderTextureTable[a_addr] = a_renderTexture;
             }
         } 
-        internal static void DestroyRenderTexture(uint a_addr)
+        internal static void RemoveRenderTexture(uint a_addr)
         {
             RenderTextureTable.Remove(a_addr);
         }
@@ -34,6 +34,11 @@ namespace FlareEngine.Rendering
         {
             return RenderTextureTable[a_addr];
         }
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint GenerateRenderTexture(uint a_count, uint a_width, uint a_height, uint a_depth, uint a_hdr);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void DestroyRenderTexture(uint a_addr);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetWidth(uint a_addr);

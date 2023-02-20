@@ -1,18 +1,22 @@
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
 
 #include "Logger.h"
+#include "Rendering/Vulkan/VulkanGraphicsEngine.h"
+#include "Rendering/Vulkan/VulkanPipeline.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 
-VulkanRenderCommand::VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer)
+VulkanRenderCommand::VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer)
 {
     m_engine = a_engine;
+    m_gEngine = a_gEngine;
     m_swapchain = a_swapchain;
     m_commandBuffer = a_buffer;
 
-    m_renderTexAddr = 0;
-    m_renderTexture = nullptr;
+    m_renderTexAddr = -1;
+    m_materialAddr = -1;
+    m_flushed = true;
 }
 VulkanRenderCommand::~VulkanRenderCommand()
 {
@@ -21,25 +25,45 @@ VulkanRenderCommand::~VulkanRenderCommand()
 
 void VulkanRenderCommand::Flush()
 {
-    if (IsTextureBound())
+    if (!m_flushed)
     {
         m_commandBuffer.endRenderPass();
     }
 
-    m_renderTexAddr = 0;
-    m_renderTexture = nullptr;
+    m_flushed = true;
+
+    m_renderTexAddr = -1;
 }
 
-void VulkanRenderCommand::Bind(VulkanRenderTexture* a_renderTexture, uint32_t a_renderTexAddr)
+VulkanRenderTexture* VulkanRenderCommand::GetRenderTexture() const
+{
+    return m_gEngine->GetRenderTexture(m_renderTexAddr);
+}
+VulkanPipeline* VulkanRenderCommand::GetPipeline() const
+{
+    return m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
+}
+
+VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
+{
+    m_materialAddr = a_materialAddr;
+
+    VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
+    pipeline->Bind(m_engine->GetCurrentFrame(), m_commandBuffer);
+
+    return pipeline;
+}
+
+void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
 {
     Flush();
 
-    m_renderTexture = a_renderTexture;
+    m_flushed = false;
 
-    if (m_renderTexture == nullptr)
+    m_renderTexAddr = a_renderTexAddr;
+
+    if (m_renderTexAddr == -1)
     {
-        m_renderTexAddr = -1;
-
         const glm::ivec2 renderSize = m_swapchain->GetSize();
 
         constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(std::array{ 0.0f, 0.0f, 0.0f, 1.0f }));
@@ -57,23 +81,27 @@ void VulkanRenderCommand::Bind(VulkanRenderTexture* a_renderTexture, uint32_t a_
     }
     else
     {
-        m_renderTexAddr = a_renderTexAddr;
+        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(m_renderTexAddr);
 
         const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
         (
-            a_renderTexture->GetRenderPass(),
-            a_renderTexture->GetFramebuffer(),
-            vk::Rect2D({ 0, 0 }, { m_renderTexture->GetWidth(), m_renderTexture->GetHeight() }),
-            a_renderTexture->GetTotalTextureCount(),
-            a_renderTexture->GetClearValues()
+            renderTexture->GetRenderPass(),
+            renderTexture->GetFramebuffer(),
+            vk::Rect2D({ 0, 0 }, { renderTexture->GetWidth(), renderTexture->GetHeight() }),
+            renderTexture->GetTotalTextureCount(),
+            renderTexture->GetClearValues()
         );
 
         m_commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     }
 }
 
-void VulkanRenderCommand::Blit(VulkanRenderTexture* a_src, VulkanRenderTexture* a_dst)
+void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRenderTexture* a_dst)
 {
+    // TODO: Fix this temp fix for bliting
+    // Probably better to copy or redraw when not flushed
+    Flush();
+
     if (a_src == nullptr)
     {
         Logger::Error("FlareEngine: Cannot Blit Swapchain as Source");

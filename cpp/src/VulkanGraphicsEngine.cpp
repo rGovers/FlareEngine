@@ -3,9 +3,11 @@
 #include <future>
 #include <mutex>
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "ObjectManager.h"
 #include "Profiler.h"
+#include "Rendering/Light.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
@@ -48,6 +50,8 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
     m_postShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostShadowS(uint)");
     m_preRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreRenderS(uint)");
     m_postRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostRenderS(uint)");
+    m_preLightFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreLightS(uint,uint)");
+    m_postLightFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostLightS(uint,uint)");
     m_postProcessFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostProcessS(uint)"); 
 }
 VulkanGraphicsEngine::~VulkanGraphicsEngine()
@@ -58,6 +62,8 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     delete m_postShadowFunc;
     delete m_preRenderFunc;
     delete m_postRenderFunc;
+    delete m_preLightFunc;
+    delete m_postLightFunc;
     delete m_postProcessFunc;
 
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
@@ -143,23 +149,58 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
     }
 
     TRACE("Creating Vulkan Pipeline");
+    const VulkanRenderTexture* tex = GetRenderTexture(a_renderTexture);
+
+    FLARE_ASSERT_MSG(a_pipeline < m_shaderPrograms.Size(), "GetPipeline pipeline out of bounds");
+
     const RenderProgram& program = m_shaderPrograms[a_pipeline];
     vk::RenderPass pass = m_swapchain->GetRenderPass();
     bool hasDepth = false;
-    if (a_renderTexture != -1)
+    uint32_t textureCount = 1;
+
+    if (tex != nullptr)
     {
-        const VulkanRenderTexture* tex = m_renderTextures[a_renderTexture];
         pass = tex->GetRenderPass();
         hasDepth = tex->HasDepthTexture();
+        textureCount = tex->GetTextureCount();
     }
 
-    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, program);
+    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, textureCount, program);
     {
         const std::lock_guard g = std::lock_guard(m_pipeLock);
         m_pipelines.emplace(addr, pipeline);
     }
 
     return pipeline;
+}
+
+static glm::ivec2 SetViewport(VulkanRenderCommand& a_renderCommand, const CameraBuffer& a_buffer, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_commandBuffer)
+{
+    glm::ivec2 renderSize = a_swapchain->GetSize();
+    const VulkanRenderTexture* renderTexture = a_renderCommand.GetRenderTexture();
+    if (renderTexture != nullptr)
+    {
+        renderSize = glm::ivec2((int)renderTexture->GetWidth(), (int)renderTexture->GetHeight());
+    }
+
+    const glm::vec2 screenPos = a_buffer.View.Position * (glm::vec2)renderSize;
+    const glm::vec2 screenSize = a_buffer.View.Size * (glm::vec2)renderSize;
+
+    const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
+    a_commandBuffer.setScissor(0, 1, &scissor);
+
+    const vk::Viewport viewport = vk::Viewport
+    (
+        screenPos.x,
+        screenPos.y,
+        screenSize.x,
+        screenSize.y,
+        a_buffer.View.MinDepth,
+        a_buffer.View.MaxDepth
+    );
+    a_commandBuffer.setViewport(0, 1, &viewport);
+
+    return renderSize;
 }
 
 vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex) 
@@ -174,7 +215,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
     ObjectManager* objectManager = renderEngine->GetObjectManager();
 
-    const CameraBuffer& buffer = m_cameraBuffers[a_camIndex];
+    const CameraBuffer& camBuffer = m_cameraBuffers[a_camIndex];
 
     const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
     (
@@ -197,14 +238,16 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     );
     commandBuffer.begin(BeginInfo);
 
-    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, m_swapchain, commandBuffer));
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
 
-    void* args[] = 
+    void* camArgs[] = 
     { 
         &a_camIndex 
     };
 
-    m_preRenderFunc->Exec(args);
+    m_preRenderFunc->Exec(camArgs);
+
+    glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);    
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
@@ -212,36 +255,10 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     {
         const uint32_t matAddr = renderStack.GetMaterialAddr();
         const RenderProgram& program = m_shaderPrograms[matAddr];
-        if (buffer.RenderLayer & program.RenderLayer)
+        if (camBuffer.RenderLayer & program.RenderLayer)
         {
-            glm::ivec2 renderSize = m_swapchain->GetSize();
-            const VulkanRenderTexture* renderTexture = renderCommand.GetRenderTexture();
-            if (renderTexture != nullptr)
-            {
-                renderSize = glm::ivec2((int)renderTexture->GetWidth(), (int)renderTexture->GetHeight());
-            }
-
-            const glm::vec2 screenPos = buffer.View.Position * (glm::vec2)renderSize;
-            const glm::vec2 screenSize = buffer.View.Size * (glm::vec2)renderSize;
-
-            const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
-            commandBuffer.setScissor(0, 1, &scissor);
-
-            const vk::Viewport viewport = vk::Viewport
-            (
-                screenPos.x,
-                screenPos.y,
-                screenSize.x,
-                screenSize.y,
-                buffer.View.MinDepth,
-                buffer.View.MaxDepth
-            );
-            commandBuffer.setViewport(0, 1, &viewport);
-
-            const VulkanPipeline* pipeline = GetPipeline(renderCommand.GetRenderTexutreAddr(), matAddr);
-
-            pipeline->UpdateCameraBuffer(curFrame, screenSize, buffer, objectManager);
-            pipeline->Bind(curFrame, commandBuffer);
+            const VulkanPipeline* pipeline = renderCommand.BindMaterial(matAddr);
+            pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
 
             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
             for (const ModelBuffer& modelBuff : modelBuffers)
@@ -249,9 +266,9 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
                 if (modelBuff.ModelAddr != -1)
                 {
                     VulkanModel* model = m_models[modelBuff.ModelAddr];
-                    const std::lock_guard mLock = std::lock_guard(model->GetLock());
                     if (model != nullptr)
                     {
+                        const std::lock_guard mLock = std::lock_guard(model->GetLock());
                         model->Bind(commandBuffer);
                         const uint32_t indexCount = model->GetIndexCount();
                         for (uint32_t tAddr : modelBuff.TransformAddr)
@@ -267,10 +284,66 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
             }
         }
     }
-
-    renderCommand.Flush();
     
-    m_postRenderFunc->Exec(args);
+    m_postRenderFunc->Exec(camArgs);
+
+    renderCommand.BindRenderTexture(camBuffer.RenderTextureAddr);
+    screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);
+
+    for (uint32_t i = 0; i < 1; ++i)
+    {
+        void* lightArgs[] = 
+        {
+            &i,
+            &a_camIndex
+        };
+
+        m_preLightFunc->Exec(lightArgs);
+
+        const VulkanPipeline* pipeline = renderCommand.GetPipeline();
+        if (pipeline == nullptr)
+        {
+            continue;
+        }
+
+        pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
+
+        switch ((e_LightType)i)
+        {
+        case LightType_Directional:
+        {
+            const std::vector<DirectionalLightBuffer> lights = m_directionalLights.ToVector();
+
+            for (const DirectionalLightBuffer& dirLight : lights)
+            {
+                if (dirLight.TransformAddr != -1 && camBuffer.RenderLayer & dirLight.RenderLayer)
+                {
+                    commandBuffer.draw(4, 1, 0, 0);
+                }
+            }
+
+            break;
+        }
+        case LightType_Point:
+        {
+            break;
+        }
+        case LightType_Spot:
+        {
+            break;
+        }
+        default:
+        {
+            Logger::Warning("FlareEngine: Invalid light type when drawing");
+
+            break;
+        }
+        }
+
+        m_postLightFunc->Exec(lightArgs);
+    }
+
+    m_postProcessFunc->Exec(camArgs);
 
     renderCommand.Flush();
     
@@ -302,9 +375,25 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update()
 
 VulkanVertexShader* VulkanGraphicsEngine::GetVertexShader(uint32_t a_addr)
 {
+    FLARE_ASSERT_MSG(a_addr < m_vertexShaders.Size(), "GetVertexShader out of bounds");
+
     return m_vertexShaders[a_addr];
 }
 VulkanPixelShader* VulkanGraphicsEngine::GetPixelShader(uint32_t a_addr)
 {
+    FLARE_ASSERT_MSG(a_addr < m_pixelShaders.Size(), "GetPixelShader out of bounds");
+
     return m_pixelShaders[a_addr];
+}
+
+VulkanRenderTexture* VulkanGraphicsEngine::GetRenderTexture(uint32_t a_addr)
+{
+    if (a_addr == -1)
+    {
+        return nullptr;
+    }
+
+    FLARE_ASSERT_MSG(a_addr < m_renderTextures.Size(), "GetRenderTexture out of bounds");
+
+    return m_renderTextures[a_addr];
 }
