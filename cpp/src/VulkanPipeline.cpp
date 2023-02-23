@@ -1,12 +1,11 @@
 #include "Rendering/Vulkan/VulkanPipeline.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
-#include "ObjectManager.h"
-#include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
-#include "Rendering/Vulkan/VulkanUniformBuffer.h"
+#include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Trace.h"
 
@@ -57,78 +56,6 @@ static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderP
     }
 
     return stages;
-}
-
-constexpr static vk::ShaderStageFlags GetShaderStage(e_ShaderSlot a_slot) 
-{
-    switch (a_slot)
-    {
-    case ShaderSlot_Vertex:
-    {
-        return vk::ShaderStageFlagBits::eVertex;
-    }
-    case ShaderSlot_Pixel:
-    {
-        return vk::ShaderStageFlagBits::eFragment;
-    }
-    case ShaderSlot_All:
-    {
-        return vk::ShaderStageFlagBits::eAllGraphics;
-    }
-    }
-
-    return vk::ShaderStageFlags();
-}
-constexpr static uint32_t GetBufferSize(e_ShaderBufferType a_type)
-{
-    switch (a_type)
-    {
-    case ShaderBufferType_Camera:
-    {
-        return sizeof(CameraShaderBuffer);
-    }
-    case ShaderBufferType_Model:
-    {
-        return sizeof(ModelShaderBuffer);
-    }
-    }
-    
-    return 0;
-}
-
-constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<vk::PushConstantRange>& a_pushConstants, std::vector<vk::DescriptorSetLayoutBinding>& a_ubos)
-{
-    for (uint16_t i = 0; i < a_program.ShaderBufferInputCount; ++i)
-    {
-        const ShaderBufferInput& input = a_program.ShaderBufferInputs[i];
-
-        switch (input.BufferType)
-        {
-        case ShaderBufferType_Model:
-        {
-            a_pushConstants.push_back(vk::PushConstantRange
-            (
-                GetShaderStage(input.ShaderSlot),
-                0,
-                GetBufferSize(input.BufferType)
-            ));
-
-            break;
-        }
-        default:
-        {
-            a_ubos.push_back(vk::DescriptorSetLayoutBinding
-            (
-                input.Slot,
-                vk::DescriptorType::eUniformBuffer,
-                1,
-                GetShaderStage(input.ShaderSlot)
-            ));
-
-            break;
-        }
-        }
-    }
 }
 
 constexpr static vk::CullModeFlags GetCullingMode(e_CullMode a_mode)
@@ -246,39 +173,18 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
     return vk::Format::eUndefined;
 }
 
-VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, uint32_t a_textureCount, const RenderProgram& a_program)
+VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, const vk::RenderPass& a_renderPass, bool a_depth, uint32_t a_textureCount, uint32_t a_programAddr)
 {
     TRACE("Creating Vulkan Pipeline");
     m_engine = a_engine;
+    m_gEngine = a_gEngine;
 
-    m_program = a_program;
-
-    m_transformBufferInput.ShaderSlot = ShaderSlot_Null;
+    m_programAddr = a_programAddr;
 
     const vk::Device device = m_engine->GetLogicalDevice();
-
-    for (uint16_t i = 0; i < m_program.ShaderBufferInputCount; ++i)
-    {
-        switch (m_program.ShaderBufferInputs[i].BufferType)
-        {
-        case ShaderBufferType_Camera:
-        {
-            if (m_cameraUniformBuffer == nullptr)
-            {
-                m_cameraUniformBuffer = new VulkanUniformBuffer(m_engine, sizeof(CameraShaderBuffer));
-                m_cameraBufferInput = m_program.ShaderBufferInputs[i];
-            }
-
-            break;
-        }
-        case ShaderBufferType_Model:
-        {
-            m_transformBufferInput = m_program.ShaderBufferInputs[i];
-
-            break;
-        }
-        }
-    }
+    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
+    FLARE_ASSERT(shaderData != nullptr);
 
     const std::vector<vk::DynamicState> dynamicStates = 
     {
@@ -296,14 +202,14 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     const vk::VertexInputBindingDescription bindingDescription = vk::VertexInputBindingDescription
     (
         0,
-        a_program.VertexStride,
+        program.VertexStride,
         vk::VertexInputRate::eVertex
     );
 
-    std::vector<vk::VertexInputAttributeDescription> attributeDescription = std::vector<vk::VertexInputAttributeDescription>(a_program.VertexInputCount);
-    for (uint16_t i = 0; i < a_program.VertexInputCount; ++i)
+    std::vector<vk::VertexInputAttributeDescription> attributeDescription = std::vector<vk::VertexInputAttributeDescription>(program.VertexInputCount);
+    for (uint16_t i = 0; i < program.VertexInputCount; ++i)
     {
-        const VertexInputAttrib& attrib = a_program.VertexAttribs[i];
+        const VertexInputAttrib& attrib = program.VertexAttribs[i];
         attributeDescription[i].binding = 0;
         attributeDescription[i].location = attrib.Location;
         attributeDescription[i].offset = attrib.Offset;
@@ -319,7 +225,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         attributeDescription.data()
     );
 
-    if (a_program.VertexInputCount > 0)
+    if (program.VertexInputCount > 0)
     {
         vertexInputInfo.vertexBindingDescriptionCount = 1;
         vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
@@ -328,7 +234,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     const vk::PipelineInputAssemblyStateCreateInfo inputAssembly = vk::PipelineInputAssemblyStateCreateInfo
     (
         { },
-        GetPrimitiveMode(a_program.PrimitiveMode),
+        GetPrimitiveMode(program.PrimitiveMode),
         VK_FALSE
     );
 
@@ -350,7 +256,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         VK_FALSE,
         VK_FALSE,
         vk::PolygonMode::eFill,
-        GetCullingMode(a_program.CullingMode),
+        GetCullingMode(program.CullingMode),
         vk::FrontFace::eClockwise,
         VK_FALSE,
         0.0f,
@@ -387,80 +293,8 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         a_textureCount,
         colorBlendAttachments.data()
     );
-
-    std::vector<vk::PushConstantRange> pushConstants;
-    std::vector<vk::DescriptorSetLayoutBinding> ubos;
-    GetLayoutInfo(m_program, pushConstants, ubos);
-
-    TRACE("Creating Pipeline Descriptor Layout");
-    const vk::DescriptorSetLayoutCreateInfo descriptorLayout = vk::DescriptorSetLayoutCreateInfo
-    (
-        vk::DescriptorSetLayoutCreateFlags(),
-        (uint32_t)ubos.size(),
-        ubos.data()
-    );
-    if (device.createDescriptorSetLayout(&descriptorLayout, nullptr, &m_desciptorLayout) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Descriptor Layout");
-
-        assert(0);
-    }
-
-    TRACE("Creating Pipeline Descriptor Pool");
-    constexpr vk::DescriptorPoolSize PoolSize = vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, VulkanMaxFlightFrames);
-    const vk::DescriptorPoolCreateInfo poolInfo = vk::DescriptorPoolCreateInfo
-    (
-        vk::DescriptorPoolCreateFlags(), 
-        VulkanMaxFlightFrames, 
-        1, 
-        &PoolSize
-    );
-    if (device.createDescriptorPool(&poolInfo, nullptr, &m_descriptorPool) != vk::Result::eSuccess) 
-    {
-        Logger::Error("Failed to create Vulkan Descriptor Pool");
-
-        assert(0);
-    }
-
-    TRACE("Creating Pipeline Descriptor Sets");
-    vk::DescriptorSetLayout layouts[VulkanMaxFlightFrames];
-    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
-    {
-        layouts[i] = m_desciptorLayout;
-    }
-
-    const vk::DescriptorSetAllocateInfo descriptorSetAllocInfo = vk::DescriptorSetAllocateInfo
-    (
-        m_descriptorPool,
-        VulkanMaxFlightFrames,
-        layouts
-    );
-
-    if (device.allocateDescriptorSets(&descriptorSetAllocInfo, m_descriptorSets) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Descriptor Sets");
-
-        assert(0);
-    } 
-
-    const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = vk::PipelineLayoutCreateInfo
-    (
-        vk::PipelineLayoutCreateFlags(),
-        1,
-        &m_desciptorLayout,
-        (uint32_t)pushConstants.size(),
-        pushConstants.data()
-    );
-
-    TRACE("Creating Pipeline Layout");
-    if (device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &m_layout) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Pipeline Layout");
-
-        assert(0);
-    }
     
-    const std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = GetStageInfo(a_program, a_gEngine);
+    const std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = GetStageInfo(program, a_gEngine);
 
     constexpr vk::PipelineDepthStencilStateCreateInfo DepthStencil = vk::PipelineDepthStencilStateCreateInfo
     (
@@ -486,7 +320,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         nullptr,
         &colorBlending,
         &dynamicState,
-        m_layout,
+        shaderData->GetLayout(),
         a_renderPass
     );
 
@@ -496,85 +330,33 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     }
 
     TRACE("Creating Pipeline");
-    if (device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Pipeline");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(device.createGraphicsPipelines(nullptr, 1, &pipelineInfo, nullptr, &m_pipeline) == vk::Result::eSuccess, "Failed to create Vulkan Pipeline");
 }
 VulkanPipeline::~VulkanPipeline()
 {
-    const vk::Device device = m_engine->GetLogicalDevice();
-    
     TRACE("Destroying Pipeline");
+    const vk::Device device = m_engine->GetLogicalDevice();
 
-    device.destroyDescriptorPool(m_descriptorPool);
-    device.destroyDescriptorSetLayout(m_desciptorLayout);
     device.destroyPipeline(m_pipeline);
-    device.destroyPipelineLayout(m_layout);
-
-    if (m_cameraUniformBuffer != nullptr)
-    {
-        delete m_cameraUniformBuffer;
-        m_cameraUniformBuffer = nullptr;
-    }
 }
 
-void VulkanPipeline::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const
+VulkanShaderData* VulkanPipeline::GetShaderData() const
 {
-    if (m_cameraUniformBuffer != nullptr)
-    {
-        const vk::Device device = m_engine->GetLogicalDevice();
-
-        TransformBuffer camTrans = a_objectManager->GetTransformBuffer(a_buffer.TransformAddr);
-
-        CameraShaderBuffer buffer;
-        buffer.InvView = camTrans.ToGlobalMat4(a_objectManager);
-        buffer.View = glm::inverse(buffer.InvView);
-        buffer.Proj = a_buffer.ToProjection(a_screenSize);
-        buffer.InvProj = glm::inverse(buffer.Proj);
-        buffer.ViewProj = buffer.Proj * buffer.View;
-
-        m_cameraUniformBuffer->SetData(a_index, (char*)&buffer);
-
-        const vk::DescriptorBufferInfo bufferInfo = vk::DescriptorBufferInfo
-        (
-            m_cameraUniformBuffer->GetBuffer(a_index),
-            0,
-            sizeof(CameraShaderBuffer)
-        );
-
-        const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
-        (
-            m_descriptorSets[a_index],
-            m_cameraBufferInput.Slot,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &bufferInfo
-        );
-
-        device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
-    }
-}
-void VulkanPipeline::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, TransformBuffer& a_buffer, ObjectManager* a_objectManager) const
-{
-    if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
-    {
-        ModelShaderBuffer buffer;
-        buffer.Model = a_buffer.ToGlobalMat4(a_objectManager);
-        buffer.InvModel = glm::inverse(buffer.Model);
-
-        a_commandBuffer.pushConstants(m_layout, GetShaderStage(m_transformBufferInput.ShaderSlot), 0, sizeof(ModelShaderBuffer), &buffer);
-    }
+    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    FLARE_ASSERT(program.Data != nullptr);
+    
+    return (VulkanShaderData*)program.Data;
 }
 void VulkanPipeline::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const
 {
-    if (m_program.ShaderBufferInputCount > 0)
+    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+
+    if (program.ShaderBufferInputCount > 0)
     {
-        a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, 0, 1, &m_descriptorSets[a_index], 0, nullptr);
+        const VulkanShaderData* data = (VulkanShaderData*)program.Data;
+        FLARE_ASSERT(data != nullptr);
+
+        data->Bind(a_index, a_commandBuffer);
     }
 
     a_commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);

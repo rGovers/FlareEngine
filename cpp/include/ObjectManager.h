@@ -35,6 +35,8 @@ public:
     TransformBuffer GetTransformBuffer(uint32_t a_addr);
     void SetTransformBuffer(uint32_t a_addr, const TransformBuffer& a_buffer);
     void DestroyTransformBuffer(uint32_t a_addr);
+
+    glm::mat4 GetGlobalMatrix(uint32_t a_addr);
 };
 
 struct TransformBuffer
@@ -56,11 +58,11 @@ struct TransformBuffer
         return translation * rotation * scale;
     }
 
-    glm::mat4 ToGlobalMat4(ObjectManager* a_objectManager)
+    glm::mat4 ToGlobalMat4(ObjectManager* a_objectManager) const
     {
         if (Parent != -1)
         {
-            TransformBuffer buffer = a_objectManager->GetTransformBuffer(Parent);
+            const TransformBuffer buffer = a_objectManager->GetTransformBuffer(Parent);
 
             return buffer.ToGlobalMat4(a_objectManager) * ToMat4();
         }

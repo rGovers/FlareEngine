@@ -35,6 +35,23 @@ namespace FlareEngine.Rendering
             return RenderTextureTable[a_addr];
         }
 
+        internal static uint GetTextureAddr(IRenderTexture a_renderTexture)
+        {
+            if (a_renderTexture != null)
+            {
+                if (a_renderTexture is RenderTexture rVal)
+                {
+                    return rVal.BufferAddr;
+                }
+                else if (a_renderTexture is MultiRenderTexture mVal)
+                {
+                    return mVal.BufferAddr;
+                }
+            }
+
+            return uint.MaxValue;
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GenerateRenderTexture(uint a_count, uint a_width, uint a_height, uint a_depth, uint a_hdr);
         [MethodImpl(MethodImplOptions.InternalCall)]

@@ -113,10 +113,7 @@ namespace FlareEngine.Rendering
                 {
                     Material mat = Instance.PreLight((LightType)a_lightType, cam);
 
-                    if (mat != null)
-                    {
-                        RenderCommand.BindMaterial(mat);
-                    }
+                    RenderCommand.BindMaterial(mat);
                 }
             }
             else

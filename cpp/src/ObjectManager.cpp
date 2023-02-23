@@ -1,36 +1,27 @@
 #include "ObjectManager.h"
 
+#include "FlareAssert.h"
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 
 static ObjectManager* OManager = nullptr;
 
-FLARE_MONO_EXPORT(uint32_t, Transform_GenerateTransformBuffer)
-{
-    return OManager->CreateTransformBuffer();
-}
-FLARE_MONO_EXPORT(TransformBuffer, Transform_GetTransformBuffer, uint32_t a_addr)
-{
-    return OManager->GetTransformBuffer(a_addr);
-}
-FLARE_MONO_EXPORT(void, Transform_SetTransformBuffer, uint32_t a_addr, TransformBuffer a_buffer)
-{
-    OManager->SetTransformBuffer(a_addr, a_buffer);
-}
-FLARE_MONO_EXPORT(void, Transform_DestroyTransformBuffer, uint32_t a_addr)
-{
-    OManager->DestroyTransformBuffer(a_addr);
-}
+#define OBJECTMANAGER_RUNTIME_ATTACH(ret, namespace, klass, name, code, ...) a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(namespace, klass, name), (void*)RUNTIME_FUNCTION_NAME(klass, name));
+
+#define OBJECTMANAGER_BINDING_FUNCTION_TABLE(F) \
+    F(uint32_t, FlareEngine, Transform, GenerateTransformBuffer, { return OManager->CreateTransformBuffer(); }) \
+    F(TransformBuffer, FlareEngine, Transform, GetTransformBuffer, { return OManager->GetTransformBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine, Transform, SetTransformBuffer, { OManager->SetTransformBuffer(a_addr, a_buffer); }, uint32_t a_addr, TransformBuffer a_buffer) \
+    F(void, FlareEngine, Transform, DestroyTransformBuffer, { OManager->DestroyTransformBuffer(a_addr); }, uint32_t a_addr)
+
+OBJECTMANAGER_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION);
 
 ObjectManager::ObjectManager(RuntimeManager* a_runtime)
 {
     OManager = this;
 
     TRACE("Binding Object functions to C#");
-    a_runtime->BindFunction("FlareEngine.Transform::GenerateTransformBuffer", (void*)Transform_GenerateTransformBuffer);
-    a_runtime->BindFunction("FlareEngine.Transform::GetTransformBuffer", (void*)Transform_GetTransformBuffer);
-    a_runtime->BindFunction("FlareEngine.Transform::SetTransformBuffer", (void*)Transform_SetTransformBuffer);
-    a_runtime->BindFunction("FlareEngine.Transform::DestroyTransformBuffer", (void*)Transform_DestroyTransformBuffer);
+    OBJECTMANAGER_BINDING_FUNCTION_TABLE(OBJECTMANAGER_RUNTIME_ATTACH);
 }
 ObjectManager::~ObjectManager()
 {
@@ -61,10 +52,14 @@ uint32_t ObjectManager::CreateTransformBuffer()
 }
 TransformBuffer ObjectManager::GetTransformBuffer(uint32_t a_addr)
 {
+    FLARE_ASSERT_MSG(a_addr < m_transformBuffer.Size(), "GetTransformBuffer out of bounds");
+
     return m_transformBuffer[a_addr];
 }
 void ObjectManager::SetTransformBuffer(uint32_t a_addr, const TransformBuffer& a_buffer)
 {
+    FLARE_ASSERT_MSG(a_addr < m_transformBuffer.Size(), "SetTransformBuffer out of bounds");
+
     m_transformBuffer[a_addr] = a_buffer;
 }
 void ObjectManager::DestroyTransformBuffer(uint32_t a_addr)
@@ -72,4 +67,11 @@ void ObjectManager::DestroyTransformBuffer(uint32_t a_addr)
     TRACE("Destroying Transform Buffer");
 
     m_freeTransforms.emplace(a_addr);
+}
+
+glm::mat4 ObjectManager::GetGlobalMatrix(uint32_t a_addr)
+{
+    FLARE_ASSERT_MSG(a_addr < m_transformBuffer.Size(), "GetGlobalMatrix out of bounds");
+
+    return m_transformBuffer[a_addr].ToGlobalMat4(this);
 }

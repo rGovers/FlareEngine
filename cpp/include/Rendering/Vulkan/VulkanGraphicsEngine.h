@@ -1,6 +1,5 @@
 #pragma once
 
-#include <queue>
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -24,13 +23,13 @@ class VulkanVertexShader;
 #include "Rendering/MaterialRenderStack.h"
 #include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
+#include "Rendering/TextureSampler.h"
 
 class VulkanGraphicsEngine
 {
 private:
     friend class VulkanGraphicsEngineBindings;
 
-    // This despite not being needed is used to fix a crash
     RuntimeManager*                               m_runtimeManager;
     VulkanGraphicsEngineBindings*                 m_runtimeBindings;
     VulkanSwapchain*                              m_swapchain;
@@ -50,12 +49,13 @@ private:
 
     TStatic<VulkanRenderCommand>                  m_renderCommands;
 
-    std::queue<uint32_t>                          m_freeShaderSlots;
     TArray<RenderProgram>                         m_shaderPrograms;
      
     TArray<VulkanVertexShader*>                   m_vertexShaders;
     TArray<VulkanPixelShader*>                    m_pixelShaders;
      
+    TArray<TextureSampler>                        m_textureSampler;
+
     TArray<VulkanModel*>                          m_models;
     TArray<VulkanRenderTexture*>                  m_renderTextures;
 
@@ -86,6 +86,7 @@ public:
     VulkanVertexShader* GetVertexShader(uint32_t a_addr);
     VulkanPixelShader* GetPixelShader(uint32_t a_addr);
 
+    RenderProgram GetRenderProgram(uint32_t a_addr);
     VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
     
     VulkanRenderTexture* GetRenderTexture(uint32_t a_addr);

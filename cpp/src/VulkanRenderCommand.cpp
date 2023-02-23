@@ -41,12 +41,21 @@ VulkanRenderTexture* VulkanRenderCommand::GetRenderTexture() const
 }
 VulkanPipeline* VulkanRenderCommand::GetPipeline() const
 {
+    if (m_materialAddr == -1)
+    {
+        return nullptr;
+    }
+
     return m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
 }
 
 VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
 {
     m_materialAddr = a_materialAddr;
+    if (m_materialAddr == -1)
+    {
+        return nullptr;
+    }
 
     VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
     pipeline->Bind(m_engine->GetCurrentFrame(), m_commandBuffer);

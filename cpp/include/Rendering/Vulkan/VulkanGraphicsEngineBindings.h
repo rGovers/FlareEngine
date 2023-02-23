@@ -11,6 +11,7 @@ class VulkanVertexShader;
 #include "Rendering/Light.h"
 #include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
+#include "Rendering/TextureSampler.h"
 
 class VulkanGraphicsEngineBindings
 {
@@ -20,7 +21,6 @@ private:
 protected:
 
 public:
-
     VulkanGraphicsEngineBindings(RuntimeManager* a_runtime, VulkanGraphicsEngine* a_graphicsEngine);
     ~VulkanGraphicsEngineBindings();
 
@@ -31,8 +31,9 @@ public:
     void DestroyPixelShader(uint32_t a_addr) const;
 
     uint32_t GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const;
-    uint32_t GenerateShaderProgram(const RenderProgram& a_program) const;
+    uint32_t GenerateShaderProgram(RenderProgram& a_program) const;
     void DestroyShaderProgram(uint32_t a_addr) const;
+    void RenderProgramSetTexture(uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr);
     RenderProgram GetRenderProgram(uint32_t a_addr) const;
     void SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program) const;
 
@@ -48,6 +49,9 @@ public:
     void DestroyMeshRenderBuffer(uint32_t a_addr) const;
     void GenerateRenderStack(uint32_t a_meshAddr) const;
     void DestroyRenderStack(uint32_t a_meshAddr) const;
+
+    uint32_t GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const;
+    void DestroyTextureSampler(uint32_t a_addr) const;
 
     uint32_t GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr) const;
     void DestroyRenderTexture(uint32_t a_addr) const;

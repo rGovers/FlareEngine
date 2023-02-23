@@ -27,6 +27,7 @@ enum e_PrimitiveMode : uint16_t
 struct RenderProgram
 {
     static constexpr unsigned int DestroyFlag = 0;
+    static constexpr unsigned int FreeFlag = 7;
 
     uint32_t VertexShader = -1;
     uint32_t PixelShader = -1;
@@ -38,6 +39,7 @@ struct RenderProgram
     ShaderBufferInput* ShaderBufferInputs;
     e_CullMode CullingMode;
     e_PrimitiveMode PrimitiveMode;
+    void* Data;
     unsigned char Flags = 0;
 
     bool operator ==(const RenderProgram& a_other) const

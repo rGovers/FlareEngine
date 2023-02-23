@@ -18,13 +18,15 @@ namespace FlareEngine.Rendering
         public IntPtr ShaderBufferInputs;
         CullMode CullingMode;
         PrimitiveMode PrimitiveMode;
+        IntPtr Data;
         public byte Flags;
     };
 
     public enum ShaderBufferType : ushort
     {
-        Camera = 0,
-        Model = 1
+        CameraBuffer = 0,
+        ModelBuffer = 1,
+        Texture = 2
     };
 
     public enum ShaderSlot : ushort
@@ -53,9 +55,10 @@ namespace FlareEngine.Rendering
         DirectionalLight = 0
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 0)]
     public struct ShaderBufferInput
     {   
-        public uint Slot;
+        public ushort Slot;
         public ShaderBufferType BufferType;
         public ShaderSlot ShaderSlot;
     };
@@ -81,6 +84,8 @@ namespace FlareEngine.Rendering
         extern static void SetProgramBuffer(uint a_addr, RenderProgram a_program);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyProgram(uint a_addr); 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static void SetTexture(uint a_addr, uint a_shaderSlot, uint a_samplerAddr);
 
         internal uint InternalAddr
         {
@@ -134,6 +139,18 @@ namespace FlareEngine.Rendering
             m_bufferAddr = GenerateProgram(a_vertexShader.InternalAddr, a_pixelShader.InternalAddr, a_vertexStride, a_attributes, a_shaderInputs, (uint)a_cullMode, (uint)a_primitiveMode);
 
             RenderLayer = 0b1;
+        }
+
+        public void SetTexture(uint a_shaderSlot, TextureSampler a_sampler)
+        {
+            if (a_sampler != null)
+            {
+                SetTexture(m_bufferAddr, a_shaderSlot, a_sampler.BufferAddr);
+            }
+            else
+            {
+                Logger.FlareError("Invalid Sampler");
+            }
         }
 
         public static Material FromDef(MaterialDef a_def)

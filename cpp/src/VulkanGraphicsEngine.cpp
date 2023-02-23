@@ -17,7 +17,9 @@
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
+#include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
+#include "Rendering/Vulkan/VulkanTextureSampler.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeFunction.h"
 #include "Runtime/RuntimeManager.h"
@@ -117,9 +119,20 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     }
 
     TRACE("Checking shader program buffer health");
-    if (m_freeShaderSlots.size() != m_shaderPrograms.Size())
+    for (uint32_t i = 0; i < m_shaderPrograms.Size(); ++i)
     {
-        Logger::Warning("Shader buffers out of sync. Likely leaked");
+        if (!(m_shaderPrograms[i].Flags & 0b1 << RenderProgram::FreeFlag))
+        {
+            Logger::Warning("Shader buffer was not destroyed");
+        }
+
+        if (m_shaderPrograms[i].Data != nullptr)
+        {
+            Logger::Warning("Shader data was not destroyed");
+
+            delete (VulkanShaderData*)m_shaderPrograms[i].Data;
+            m_shaderPrograms[i].Data = nullptr;
+        }
     }
 
     TRACE("Checking if render textures where deleted");
@@ -133,8 +146,31 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
             m_renderTextures[i] = nullptr;
         }
     }
+
+    TRACE("Checking if texture samplers where deleted");
+    for (uint32_t i = 0; i < m_textureSampler.Size(); ++i)
+    {
+        if (m_textureSampler[i].TextureMode != TextureMode_Null)
+        {
+            Logger::Warning("Texture sampler was not destroyed");
+        }
+
+        if (m_textureSampler[i].Data != nullptr)
+        {
+            Logger::Warning("Texture sampler data was not destroyed");
+
+            delete (VulkanTextureSampler*)m_textureSampler[i].Data;
+            m_textureSampler[i].Data = nullptr;
+        }
+    }
 }
 
+RenderProgram VulkanGraphicsEngine::GetRenderProgram(uint32_t a_addr)
+{
+    FLARE_ASSERT_MSG(a_addr < m_shaderPrograms.Size(), "GetRenderProgram out of bounds");
+
+    return m_shaderPrograms[a_addr];
+}
 VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline)
 {
     const uint64_t addr = (uint64_t)a_renderTexture | (uint64_t)a_pipeline << 32;
@@ -153,7 +189,6 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
 
     FLARE_ASSERT_MSG(a_pipeline < m_shaderPrograms.Size(), "GetPipeline pipeline out of bounds");
 
-    const RenderProgram& program = m_shaderPrograms[a_pipeline];
     vk::RenderPass pass = m_swapchain->GetRenderPass();
     bool hasDepth = false;
     uint32_t textureCount = 1;
@@ -165,7 +200,7 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
         textureCount = tex->GetTextureCount();
     }
 
-    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, textureCount, program);
+    VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, textureCount, a_pipeline);
     {
         const std::lock_guard g = std::lock_guard(m_pipeLock);
         m_pipelines.emplace(addr, pipeline);
@@ -208,6 +243,8 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     // While there is no code relating to mono in here for now.
     // This is used to fix a crash relating to locking a Thread after going from Mono -> Native 
     // When when another thread tries to aquire a lock after and it is not visible from Mono despite still being native will cause MemMap Crash 
+    // 
+    // ^ No longer applicable as actually using mono functions on this thread however leaving for future reference and reminder to attach all threads
     m_runtimeManager->AttachThread();
     
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
@@ -258,8 +295,11 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
         if (camBuffer.RenderLayer & program.RenderLayer)
         {
             const VulkanPipeline* pipeline = renderCommand.BindMaterial(matAddr);
-            pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
-
+            FLARE_ASSERT(pipeline != nullptr);
+            const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
+            FLARE_ASSERT(shaderData != nullptr);
+            shaderData->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
+            
             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
             for (const ModelBuffer& modelBuff : modelBuffers)
             {
@@ -273,9 +313,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
                         const uint32_t indexCount = model->GetIndexCount();
                         for (uint32_t tAddr : modelBuff.TransformAddr)
                         {
-                            TransformBuffer buffer = objectManager->GetTransformBuffer(tAddr);
-
-                            pipeline->UpdateTransformBuffer(commandBuffer, curFrame, buffer, objectManager);
+                            shaderData->UpdateTransformBuffer(commandBuffer, curFrame, tAddr, objectManager);
 
                             commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
                         }
@@ -306,7 +344,9 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
             continue;
         }
 
-        pipeline->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
+        const VulkanShaderData* data = pipeline->GetShaderData();
+        FLARE_ASSERT(data != nullptr);
+        data->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
 
         switch ((e_LightType)i)
         {

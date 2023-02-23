@@ -72,6 +72,15 @@ public:
         return m_textureCount;
     }
 
+    inline vk::ImageView GetImageView(uint32_t a_index) const
+    {
+        return m_textureViews[a_index];
+    }
+    inline vk::ImageView* GetImageViews() const
+    {
+        return m_textureViews;
+    }
+
     inline vk::Image GetTexture(uint32_t a_index) const
     {
         return m_textures[a_index];

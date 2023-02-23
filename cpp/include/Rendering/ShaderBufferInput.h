@@ -4,8 +4,9 @@
 
 enum e_ShaderBufferType : uint16_t
 {
-    ShaderBufferType_Camera = 0,
-    ShaderBufferType_Model = 1
+    ShaderBufferType_CameraBuffer = 0,
+    ShaderBufferType_ModelBuffer = 1,
+    ShaderBufferType_Texture = 2,
 };
 
 enum e_ShaderSlot : uint16_t
@@ -18,7 +19,7 @@ enum e_ShaderSlot : uint16_t
 
 struct ShaderBufferInput
 {   
-    uint32_t Slot;
+    uint16_t Slot;
     e_ShaderBufferType BufferType;
     e_ShaderSlot ShaderSlot;
 

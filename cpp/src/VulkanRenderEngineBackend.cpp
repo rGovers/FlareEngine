@@ -7,6 +7,7 @@
 
 #include "AppWindow/AppWindow.h"
 #include "Config.h"
+#include "FlareAssert.h"
 #include "FlareNativeConfig.h"
 #include "Logger.h"
 #include "Profiler.h"
@@ -56,10 +57,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
 static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
 {
     uint32_t extensionCount;
-    std::ignore = a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, nullptr);
+    FLARE_ASSERT_R(a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, nullptr) == vk::Result::eSuccess);
 
     std::vector<vk::ExtensionProperties> availableExtensions = std::vector<vk::ExtensionProperties>(extensionCount);
-    std::ignore = a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
+    FLARE_ASSERT_R(a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()) == vk::Result::eSuccess);
 
     uint32_t requiredCount = (uint32_t)DeviceExtensions.size();
 
@@ -95,17 +96,18 @@ static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalD
         }
     }
     
+    const vk::PhysicalDeviceFeatures features = a_device.getFeatures();
 
-    return a_device.getFeatures().geometryShader;
+    return features.geometryShader && features.samplerAnisotropy;
 }
 
 static bool CheckValidationLayerSupport()
 {
     uint32_t layerCount = 0;
-    std::ignore = vk::enumerateInstanceLayerProperties(&layerCount, nullptr);
+    FLARE_ASSERT_R(vk::enumerateInstanceLayerProperties(&layerCount, nullptr) == vk::Result::eSuccess);
 
     std::vector<vk::LayerProperties> availableLayers = std::vector<vk::LayerProperties>(layerCount);
-    std::ignore = vk::enumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    FLARE_ASSERT_R(vk::enumerateInstanceLayerProperties(&layerCount, availableLayers.data()) == vk::Result::eSuccess);
 
     for (const char* layerName : ValidationLayers)
     {
@@ -155,7 +157,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     if constexpr (VulkanEnableValidationLayers)
     {
-        assert(CheckValidationLayerSupport());
+        FLARE_ASSERT_R(CheckValidationLayerSupport());
 
         for (const auto& iter : ValidationLayers)
         {
@@ -199,34 +201,24 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         createInfo.pNext = &DebugCreateInfo;
     }
 
-    if (vk::createInstance(&createInfo, nullptr, &m_instance) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Instance");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(vk::createInstance(&createInfo, nullptr, &m_instance) == vk::Result::eSuccess, "Failed to create Vulkan Instance");
 
     TRACE("Created Vulkan Instance");
 
     if constexpr (VulkanEnableValidationLayers)
     {
-        if (m_instance.createDebugUtilsMessengerEXT(&DebugCreateInfo, nullptr, &m_messenger) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create Vulkan Debug Printing");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(m_instance.createDebugUtilsMessengerEXT(&DebugCreateInfo, nullptr, &m_messenger) == vk::Result::eSuccess, "Failed to create Vulkan Debug Printing");
 
         TRACE("Created Vulkan Debug Layer");
     }
 
     uint32_t deviceCount = 0;
-    std::ignore = m_instance.enumeratePhysicalDevices(&deviceCount, nullptr);
+    FLARE_ASSERT_R(m_instance.enumeratePhysicalDevices(&deviceCount, nullptr) == vk::Result::eSuccess);
 
-    assert(deviceCount > 0);
+    FLARE_ASSERT(deviceCount > 0);
 
     std::vector<vk::PhysicalDevice> devices = std::vector<vk::PhysicalDevice>(deviceCount);
-    std::ignore = m_instance.enumeratePhysicalDevices(&deviceCount, devices.data());
+    FLARE_ASSERT_R(m_instance.enumeratePhysicalDevices(&deviceCount, devices.data()) == vk::Result::eSuccess);
 
     bool foundDevice = false;
 
@@ -242,7 +234,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         }
     }
 
-    assert(foundDevice);
+    FLARE_ASSERT(foundDevice);
 
     TRACE("Found Vulkan Physical Device");
 
@@ -263,7 +255,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         {
             vk::Bool32 presentSupport = VK_FALSE;
 
-            std::ignore = m_pDevice.getSurfaceSupportKHR(i, window->GetSurface(m_instance), &presentSupport);
+            FLARE_ASSERT_R(m_pDevice.getSurfaceSupportKHR(i, window->GetSurface(m_instance), &presentSupport) == vk::Result::eSuccess);
 
             if (presentSupport)
             {
@@ -298,17 +290,19 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         queueCreateInfos.emplace_back(vk::DeviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), queueFamily, 1, &QueuePriority));
     }
 
-    constexpr vk::PhysicalDeviceFeatures deviceFeatures;
+    vk::PhysicalDeviceFeatures deviceFeatures;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
     vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo
     (
-        vk::DeviceCreateFlags(), 
+        { }, 
         (uint32_t)queueCreateInfos.size(), 
         queueCreateInfos.data(), 
         0, 
         nullptr, 
         0, 
-        nullptr
+        nullptr,
+        &deviceFeatures
     );
 
     if (!headless)
@@ -323,12 +317,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         deviceCreateInfo.ppEnabledLayerNames = ValidationLayers.data();
     }
 
-    if (m_pDevice.createDevice(&deviceCreateInfo, nullptr, &m_lDevice) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Logic Device");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(m_pDevice.createDevice(&deviceCreateInfo, nullptr, &m_lDevice) == vk::Result::eSuccess, "Failed to create Vulkan Logic Device");
 
     TRACE("Created Vulkan Device");
 
@@ -345,12 +334,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     allocatorCreateInfo.instance = m_instance;
     allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
 
-    if (vmaCreateAllocator(&allocatorCreateInfo, &m_allocator) != VK_SUCCESS)
-    {
-        Logger::Error("Failed to create Vulkan Allocator");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(vmaCreateAllocator(&allocatorCreateInfo, &m_allocator) == VK_SUCCESS, "Failed to create Vulkan Allocator");
 
     TRACE("Created Vulkan Allocator");
 
@@ -365,32 +349,17 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     TRACE("Got Vulkan Queues");
 
-    constexpr vk::SemaphoreCreateInfo semaphoreInfo;
-    constexpr vk::FenceCreateInfo fenceInfo = vk::FenceCreateInfo
+    constexpr vk::SemaphoreCreateInfo SemaphoreInfo;
+    constexpr vk::FenceCreateInfo FenceInfo = vk::FenceCreateInfo
     (
         vk::FenceCreateFlagBits::eSignaled
     );
 
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
-        if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_imageAvailable[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create image semaphore");
-
-            assert(0);
-        }
-        if (m_lDevice.createSemaphore(&semaphoreInfo, nullptr, &m_renderFinished[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create render semaphore");
-
-            assert(0);
-        }
-        if (m_lDevice.createFence(&fenceInfo, nullptr, &m_inFlight[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create fence");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(m_lDevice.createSemaphore(&SemaphoreInfo, nullptr, &m_imageAvailable[i]) == vk::Result::eSuccess, "Failed to create image semaphore");
+        FLARE_ASSERT_MSG_R(m_lDevice.createSemaphore(&SemaphoreInfo, nullptr, &m_renderFinished[i]) == vk::Result::eSuccess, "Failed to create render semaphore");
+        FLARE_ASSERT_MSG_R(m_lDevice.createFence(&FenceInfo, nullptr, &m_inFlight[i]) == vk::Result::eSuccess, "Failed to create fence");
     }
     
     TRACE("Created Vulkan sync objects");
@@ -401,12 +370,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         m_graphicsQueueIndex
     );  
 
-    if (m_lDevice.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create command pool");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(m_lDevice.createCommandPool(&poolInfo, nullptr, &m_commandPool) == vk::Result::eSuccess, "Failed to create command pool");
 
     m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
 }
@@ -504,6 +468,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StartFrame("Render Update");
 
+    // TODO: Rewrite to be a bit smarter
     buffers = m_graphicsEngine->Update();
     buffersSize = (uint32_t)buffers.size();
     // If there is nothing to render no point doing anything
@@ -532,12 +497,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
 
-        if (m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to submit command");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) == vk::Result::eSuccess, "Failed to submit command");
     }
     else
     {
@@ -547,12 +507,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
             submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
         }
 
-        if (m_graphicsQueue.submit(1, &submitInfo, nullptr) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to submit command");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, nullptr) == vk::Result::eSuccess, "Failed to submit command");
     }
 
     Profiler::StopFrame();
@@ -576,12 +531,7 @@ vk::CommandBuffer VulkanRenderEngineBackend::CreateCommandBuffer(vk::CommandBuff
     );
 
     vk::CommandBuffer cmdBuffer;
-    if (m_lDevice.allocateCommandBuffers(&allocInfo, &cmdBuffer) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to Allocate Command Buffer");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(m_lDevice.allocateCommandBuffers(&allocInfo, &cmdBuffer) == vk::Result::eSuccess, "Failed to Allocate Command Buffer");
 
     return cmdBuffer;
 }
@@ -599,7 +549,7 @@ vk::CommandBuffer VulkanRenderEngineBackend::BeginSingleCommand() const
         vk::CommandBufferUsageFlagBits::eOneTimeSubmit
     );
 
-    std::ignore = cmdBuffer.begin(&BufferBeginInfo);
+    FLARE_ASSERT_R(cmdBuffer.begin(&BufferBeginInfo) == vk::Result::eSuccess);
 
     return cmdBuffer;
 }
@@ -616,12 +566,8 @@ void VulkanRenderEngineBackend::EndSingleCommand(const vk::CommandBuffer& a_buff
         &a_buffer
     );
 
-    if (m_graphicsQueue.submit(1, &submitInfo, nullptr) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to Submit Command");
+    FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, nullptr) == vk::Result::eSuccess, "Failed to Submit Command");
 
-        assert(0);
-    }
     m_graphicsQueue.waitIdle();
 
     m_lDevice.freeCommandBuffers(m_commandPool, 1, &a_buffer);

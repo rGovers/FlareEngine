@@ -8,6 +8,8 @@
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
+#include "Rendering/Vulkan/VulkanShaderData.h"
+#include "Rendering/Vulkan/VulkanTextureSampler.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
@@ -24,8 +26,10 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GeneratePixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
     F(void, FlareEngine.Rendering, PixelShader, DestroyShader, { Engine->DestroyPixelShader(a_addr); }, uint32_t a_addr) \
     \
+    F(uint32_t, FlareEngine.Rendering, Material, GenerateInternalProgram, { return Engine->GenerateInternalShaderProgram(a_renderProgram); }, e_InternalRenderProgram a_renderProgram) \
     F(RenderProgram, FlareEngine.Rendering, Material, GetProgramBuffer, { return Engine->GetRenderProgram(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, Material, SetProgramBuffer, { Engine->SetRenderProgram(a_addr, a_program); }, uint32_t a_addr, RenderProgram a_program) \
+    F(void, FlareEngine.Rendering, Material, SetTexture, { Engine->RenderProgramSetTexture(a_addr, a_shaderSlot, a_samplerAddr); }, uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr) \
     \
     F(uint32_t, FlareEngine.Rendering, Camera, GenerateBuffer, { return Engine->GenerateCameraBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
     F(void, FlareEngine.Rendering, Camera, DestroyBuffer, { Engine->DestroyCameraBuffer(a_addr); }, uint32_t a_addr) \
@@ -36,6 +40,9 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, MeshRenderer, DestroyBuffer, { Engine->DestroyMeshRenderBuffer(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, MeshRenderer, GenerateRenderStack, { Engine->GenerateRenderStack(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, MeshRenderer, DestroyRenderStack, { Engine->DestroyRenderStack(a_addr); }, uint32_t a_addr) \
+    \
+    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureSampler, { return Engine->GenerateRenderTextureSampler(a_renderTexture, a_textureIndex, (e_TextureFilter)a_filter, (e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_textureIndex, uint32_t a_filter, uint32_t a_addressMode) \
+    F(void, FlareEngine.Rendering, TextureSampler, DestroySampler, { Engine->DestroyTextureSampler(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GenerateRenderTexture, { return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr); }, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr) \
     F(void, FlareEngine.Rendering, RenderTextureCmd, DestroyRenderTexture, { return Engine->DestroyRenderTexture(a_addr); }, uint32_t a_addr) \
@@ -56,10 +63,6 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
 VULKANGRAPHICS_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION)
 
 // Gonna leave theses functions seperate as there is a bit to it
-FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateInternalProgram), e_InternalRenderProgram a_renderProgram)
-{
-    return Engine->GenerateInternalShaderProgram(a_renderProgram);
-}
 FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode)
 {
     RenderProgram program;
@@ -68,6 +71,7 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), ui
     program.VertexStride = a_vertexStride;
     program.CullingMode = (e_CullMode)a_cullingMode;
     program.PrimitiveMode = (e_PrimitiveMode)a_primitiveMode;
+    program.Flags = 0;
 
     // Need to recreate the array
     // Because it is a managed array may not be contiguous and is controlled by the GC 
@@ -162,7 +166,6 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
     TRACE("Binding Vulkan functions to C#");
     VULKANGRAPHICS_BINDING_FUNCTION_TABLE(VULKANGRAPHICS_RUNTIME_ATTACH)
 
-    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, GenerateInternalProgram), (void*)RUNTIME_FUNCTION_NAME(Material, GenerateInternalProgram));
     a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, GenerateProgram), (void*)RUNTIME_FUNCTION_NAME(Material, GenerateProgram));
     a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, DestroyProgram), (void*)RUNTIME_FUNCTION_NAME(Material, DestroyProgram));
 
@@ -249,10 +252,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
     {
         program.VertexShader = GenerateVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GeneratePixelShaderAddr(DIRECTIONALLIGHTPIXEL);
-        program.ShaderBufferInputCount = 0;
-        program.ShaderBufferInputs = nullptr;
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+
+        constexpr uint32_t BufferCount = 2;
+
+        program.ShaderBufferInputCount = BufferCount;
+        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        for (uint32_t i = 0; i < BufferCount; ++i)
+        {
+            program.ShaderBufferInputs[i].Slot = i;
+            program.ShaderBufferInputs[i].BufferType = ShaderBufferType_Texture;
+            program.ShaderBufferInputs[i].ShaderSlot = ShaderSlot_Pixel;
+        }
 
         break;
     }
@@ -264,25 +276,33 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
 
     return GenerateShaderProgram(program);
 }
-uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const RenderProgram& a_program) const
+uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_program) const
 {
     FLARE_ASSERT_MSG(a_program.PixelShader < m_graphicsEngine->m_pixelShaders.Size(), "GenerateShaderProgram PixelShader out of bounds")
     FLARE_ASSERT_MSG(a_program.VertexShader < m_graphicsEngine->m_vertexShaders.Size(), "GenerateShaderProgram VertexShader out of bounds")
 
     TRACE("Creating Shader Program");
-    if (m_graphicsEngine->m_freeShaderSlots.size() > 0)
-    {
-        const uint32_t addr = m_graphicsEngine->m_freeShaderSlots.front();
-        m_graphicsEngine->m_freeShaderSlots.pop();
 
-        return addr;
+    const uint32_t size = (uint32_t)m_graphicsEngine->m_shaderPrograms.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_shaderPrograms[i].Flags & 0b1 << RenderProgram::FreeFlag)
+        {
+            FLARE_ASSERT_MSG(m_graphicsEngine->m_shaderPrograms[i].Data == nullptr, "GenerateShaderProgram data not deleted");
+
+            m_graphicsEngine->m_shaderPrograms[i] = a_program;
+            m_graphicsEngine->m_shaderPrograms[i].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, i);
+
+            return i;
+        }
     }
 
     TRACE("Allocating Shader Program");
 
     m_graphicsEngine->m_shaderPrograms.Push(a_program);
+    m_graphicsEngine->m_shaderPrograms[size].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, size);
 
-    return (uint32_t)m_graphicsEngine->m_shaderPrograms.Size() - 1;
+    return size;
 }
 void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 {
@@ -294,8 +314,25 @@ void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
         DestroyVertexShader(program.VertexShader);
         DestroyPixelShader(program.PixelShader);
     }
+    program.Flags = 0b1 << RenderProgram::FreeFlag;
 
-    m_graphicsEngine->m_freeShaderSlots.emplace(a_addr);
+    if (program.Data != nullptr)
+    {
+        delete (VulkanShaderData*)program.Data;
+        program.Data = nullptr;
+    }
+}
+void VulkanGraphicsEngineBindings::RenderProgramSetTexture(uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr)
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "RenderProgramSetTexture material out of bounds");
+    FLARE_ASSERT_MSG(a_samplerAddr < m_graphicsEngine->m_textureSampler.Size(), "RenderProgramSetTexture sampler out of bounds");
+
+    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+
+    FLARE_ASSERT_MSG(program.Data != nullptr, "RenderProgramSetTexture invalid program");
+
+    VulkanShaderData* data = (VulkanShaderData*)program.Data;
+    data->SetTexture(a_shaderSlot, m_graphicsEngine->m_textureSampler[a_samplerAddr]);
 }
 RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
 {
@@ -493,6 +530,49 @@ void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr) const
     lock.unlock();
 }
 
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const
+{ 
+    FLARE_ASSERT_MSG(a_renderTexture < m_graphicsEngine->m_renderTextures.Size(), "GenerateRenderTextureSampler RenderTexture out of bounds");
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderTextures[a_renderTexture] != nullptr, "GenerateRenderTextureSampler RenderTexture destroyed");
+    FLARE_ASSERT_MSG(a_textureIndex < m_graphicsEngine->m_renderTextures[a_renderTexture]->GetTextureCount(), "GenerateRenderTextureSampler texture index out of bounds");
+
+    TextureSampler sampler;
+    sampler.Addr = a_renderTexture;
+    sampler.TextureMode = TextureMode_RenderTexture;
+    sampler.TSlot = a_textureIndex;
+    sampler.FilterMode = a_filter;
+    sampler.AddressMode = a_addressMode;
+    sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
+
+    const uint32_t size = m_graphicsEngine->m_textureSampler.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_textureSampler[i].TextureMode == TextureMode_Null)
+        {
+            FLARE_ASSERT_MSG(m_graphicsEngine->m_textureSampler[i].Data == nullptr, "GenerateRenderTextureSampler null sampler with data")
+
+            m_graphicsEngine->m_textureSampler[i] = sampler;
+
+            return i;
+        }
+    }
+
+    m_graphicsEngine->m_textureSampler.Push(sampler);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::DestroyTextureSampler(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_textureSampler.Size(), "DestroyTextureSampler out of bounds");
+    
+    m_graphicsEngine->m_textureSampler[a_addr].TextureMode = TextureMode_Null;
+    if (m_graphicsEngine->m_textureSampler[a_addr].Data != nullptr)
+    {
+        delete (VulkanTextureSampler*)m_graphicsEngine->m_textureSampler[a_addr].Data;
+        m_graphicsEngine->m_textureSampler[a_addr].Data = nullptr;
+    }
+}
+
 uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr) const
 {
     FLARE_ASSERT_MSG(a_count > 0, "GenerateRenderTexture no textures");
@@ -607,9 +687,10 @@ void VulkanGraphicsEngineBindings::DestroyDirectionalLightBuffer(uint32_t a_addr
 void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "BindMaterial RenderCommand does not exist");
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "BindMaterial out of bounds");
-
-    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+    if (a_addr != -1)
+    {
+        FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "BindMaterial out of bounds");
+    }
 
     m_graphicsEngine->m_renderCommands->BindMaterial(a_addr);
 }
