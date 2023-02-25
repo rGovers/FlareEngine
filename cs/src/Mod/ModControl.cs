@@ -19,7 +19,7 @@ namespace FlareEngine.Mod
             }
             else
             {
-                CoreAssembly = FlareAssembly.GetFlareAssembly("./Core/");       
+                CoreAssembly = FlareAssembly.GetFlareAssembly(Path.Combine(Directory.GetCurrentDirectory(), "Core"));       
             }
         }
 

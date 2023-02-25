@@ -2,6 +2,7 @@
 
 #include "AppWindow/AppWindow.h"
 #include "AppWindow/HeadlessAppWindow.h"
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
@@ -46,7 +47,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
 
     const SwapChainSupportInfo info = QuerySwapChainSupport(pDevice, surface);
 
-    constexpr vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
+    constexpr vk::PresentModeKHR PresentMode = vk::PresentModeKHR::eFifo;
     const vk::Extent2D extents = GetSwapExtent(info.Capabilites, m_size);
 
     uint32_t imageCount = info.Capabilites.minImageCount + 1;
@@ -64,12 +65,12 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         m_surfaceFormat.colorSpace, 
         extents, 
         1, 
-        vk::ImageUsageFlagBits::eColorAttachment, 
+        vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst, 
         vk::SharingMode::eExclusive, 
         nullptr,
         info.Capabilites.currentTransform,
         vk::CompositeAlphaFlagBitsKHR::eOpaque,
-        presentMode,
+        PresentMode,
         VK_TRUE,
         m_swapchain
     );
@@ -83,17 +84,12 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
 
-    if (lDevice.createSwapchainKHR(&createInfo, nullptr, &m_swapchain) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create Vulkan Swapchain");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(lDevice.createSwapchainKHR(&createInfo, nullptr, &m_swapchain) == vk::Result::eSuccess, "Failed to create Vulkan Swapchain");
     TRACE("Created Vulkan Swapchain");
 
-    std::ignore = lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr);
-    std::vector<vk::Image> swapImages = std::vector<vk::Image>(imageCount);
-    std::ignore = lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, swapImages.data());
+    FLARE_ASSERT_R(lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, nullptr) == vk::Result::eSuccess);
+    m_colorImage.resize(imageCount);
+    FLARE_ASSERT_R(lDevice.getSwapchainImagesKHR(m_swapchain, &imageCount, m_colorImage.data()) == vk::Result::eSuccess);
 
     m_imageViews.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i)
@@ -101,19 +97,14 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
         const vk::ImageViewCreateInfo createInfo = vk::ImageViewCreateInfo
         (
             { }, 
-            swapImages[i], 
+            m_colorImage[i], 
             vk::ImageViewType::e2D, 
             m_surfaceFormat.format, 
             { vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity },
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
         );
 
-        if (lDevice.createImageView(&createInfo, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create Swapchain Image View");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(lDevice.createImageView(&createInfo, nullptr, &m_imageViews[i]) == vk::Result::eSuccess, "Failed to create Swapchain ImageView");
     }
     TRACE("Created Vulkan Swap Images");
 
@@ -136,12 +127,7 @@ void VulkanSwapchain::Init(const glm::ivec2& a_size)
             1
         );
 
-        if (lDevice.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create Swapchain Framebuffer");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(lDevice.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) == vk::Result::eSuccess, "Failed to create Swapchain Framebuffer");
     }
 }
 void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
@@ -171,6 +157,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     allocInfo.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     allocInfo.flags = 0;
 
+    m_colorImage.resize(VulkanMaxFlightFrames);
     m_imageViews.resize(VulkanMaxFlightFrames);
     m_framebuffers.resize(VulkanMaxFlightFrames);
 
@@ -179,12 +166,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     TRACE("Creating Swapchain Headless Images");
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
-        if (vmaCreateImage(allocator, &imageInfo, &allocInfo, &image, &m_colorAllocation[i], nullptr) != VK_SUCCESS)
-        {
-            Logger::Error("Failed to create Swapchain Image");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(vmaCreateImage(allocator, &imageInfo, &allocInfo, &image, &m_colorAllocation[i], nullptr) == VK_SUCCESS, "Failed to create Swapchain Image");
         m_colorImage[i] = image;
 
         constexpr vk::ImageSubresourceRange SubresourceRange = vk::ImageSubresourceRange
@@ -204,12 +186,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
             vk::ComponentMapping(),
             SubresourceRange
         );
-        if (device.createImageView(&colorImageView, nullptr, &m_imageViews[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create Swapchain Image View");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(device.createImageView(&colorImageView, nullptr, &m_imageViews[i]) == vk::Result::eSuccess, "Failed to create Swapchain ImageView");
 
         const vk::ImageView attachments[] = 
         {
@@ -226,12 +203,8 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
             (uint32_t)m_size.y,
             1
         );
-        if (device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) != vk::Result::eSuccess)
-        {
-            Logger::Error("Failed to create Swapchain Framebuffer");
 
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) == vk::Result::eSuccess, "Failed to create Swapchain Framebuffer");
     }
     TRACE("Created Swapchain Headless Images");
 

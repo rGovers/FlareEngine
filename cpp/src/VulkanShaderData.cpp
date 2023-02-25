@@ -118,7 +118,7 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
                 m_cameraUniformBuffer = new VulkanUniformBuffer(m_engine, sizeof(CameraShaderBuffer));
                 m_cameraBufferInput = program.ShaderBufferInputs[i];
             }
-
+            
             break;
         }
         case ShaderBufferType_ModelBuffer:
@@ -211,7 +211,6 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
     const vk::Device device = m_engine->GetLogicalDevice();
 
     const VulkanTextureSampler* vSampler = (VulkanTextureSampler*)a_sampler.Data;
-
     FLARE_ASSERT(vSampler != nullptr);
 
     vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(vSampler->GetSampler());
@@ -235,6 +234,7 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
     }
     }
 
+    TRACE("Setting material render texture");
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
@@ -249,35 +249,23 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
 
         device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
     }
-
-    // const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
-    // (
-    //     m_descriptorSets[m_engine->GetImageIndex()],
-    //     a_index,
-    //     0,
-    //     1,
-    //     vk::DescriptorType::eCombinedImageSampler,
-    //     &imageInfo
-    // );
-
-    // device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
 }
 
 void VulkanShaderData::UpdateCameraBuffer(uint32_t a_index, const glm::vec2& a_screenSize, const CameraBuffer& a_buffer, ObjectManager* a_objectManager) const
 {
+    // TODO: Rewrite 
     if (m_cameraUniformBuffer != nullptr)
     {
         const vk::Device device = m_engine->GetLogicalDevice();
 
         CameraShaderBuffer buffer;
-        buffer.InvView = a_objectManager->GetGlobalMatrix(a_index);
+        buffer.InvView = a_objectManager->GetGlobalMatrix(a_buffer.TransformAddr);
         buffer.View = glm::inverse(buffer.InvView);
         buffer.Proj = a_buffer.ToProjection(a_screenSize);
         buffer.InvProj = glm::inverse(buffer.Proj);
         buffer.ViewProj = buffer.Proj * buffer.View;
 
         m_cameraUniformBuffer->SetData(a_index, (char*)&buffer);
-
         const vk::DescriptorBufferInfo bufferInfo = vk::DescriptorBufferInfo
         (
             m_cameraUniformBuffer->GetBuffer(a_index),

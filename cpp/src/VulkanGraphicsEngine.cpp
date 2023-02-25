@@ -30,28 +30,13 @@ VulkanGraphicsEngine::VulkanGraphicsEngine(RuntimeManager* a_runtime, VulkanRend
     m_vulkanEngine = a_vulkanEngine;
     m_runtimeManager = a_runtime;
 
-    TRACE("Creating Vulkan Command Pool");
-    vk::Device device = m_vulkanEngine->GetLogicalDevice();
-
-    const vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo
-    (
-        vk::CommandPoolCreateFlagBits::eTransient,
-        m_vulkanEngine->GetGraphicsQueueIndex()
-    );  
-
-    if (device.createCommandPool(&poolInfo, nullptr, &m_commandPool) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create command pool");
-
-        assert(0);
-    }
-
     m_runtimeBindings = new VulkanGraphicsEngineBindings(m_runtimeManager, this);
 
     m_preShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreShadowS(uint)");
     m_postShadowFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostShadowS(uint)");
     m_preRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreRenderS(uint)");
     m_postRenderFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostRenderS(uint)");
+    m_lightSetupFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":LightSetupS(uint)");
     m_preLightFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PreLightS(uint,uint)");
     m_postLightFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostLightS(uint,uint)");
     m_postProcessFunc = m_runtimeManager->GetFunction("FlareEngine.Rendering", "RenderPipeline", ":PostProcessS(uint)"); 
@@ -64,6 +49,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     delete m_postShadowFunc;
     delete m_preRenderFunc;
     delete m_postRenderFunc;
+    delete m_lightSetupFunc;
     delete m_preLightFunc;
     delete m_postLightFunc;
     delete m_postProcessFunc;
@@ -71,7 +57,14 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
 
     TRACE("Deleting command pool");
-    device.destroyCommandPool(m_commandPool);
+    for (uint32_t i = 0; i < VulkanFlightPoolSize; ++i)
+    {
+        const uint32_t poolSize = (uint32_t)m_commandPool[i].size();
+        for (uint32_t j = 0; j < poolSize; ++j)
+        {
+            device.destroyCommandPool(m_commandPool[i][j]);
+        }
+    }
 
     TRACE("Deleting Pipelines");
     for (const auto& iter : m_pipelines)
@@ -238,7 +231,17 @@ static glm::ivec2 SetViewport(VulkanRenderCommand& a_renderCommand, const Camera
     return renderSize;
 }
 
-vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex) 
+vk::CommandBuffer VulkanGraphicsEngine::StartCommandBuffer(uint32_t a_bufferIndex, uint32_t a_index) const
+{
+    const vk::CommandBuffer commandBuffer = m_commandBuffers[a_index][a_bufferIndex];
+
+    constexpr vk::CommandBufferBeginInfo BeginInfo;
+    commandBuffer.begin(BeginInfo);
+
+    return commandBuffer;
+}
+
+vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index) 
 {
     // While there is no code relating to mono in here for now.
     // This is used to fix a crash relating to locking a Thread after going from Mono -> Native 
@@ -247,33 +250,13 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     // ^ No longer applicable as actually using mono functions on this thread however leaving for future reference and reminder to attach all threads
     m_runtimeManager->AttachThread();
     
-    const vk::Device device = m_vulkanEngine->GetLogicalDevice();
-    const uint32_t curFrame = m_vulkanEngine->GetCurrentFrame();
+    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
     const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
     ObjectManager* objectManager = renderEngine->GetObjectManager();
 
     const CameraBuffer& camBuffer = m_cameraBuffers[a_camIndex];
 
-    const vk::CommandBufferAllocateInfo allocInfo = vk::CommandBufferAllocateInfo
-    (
-        m_commandPool,
-        vk::CommandBufferLevel::ePrimary,
-        1
-    );
-
-    vk::CommandBuffer commandBuffer;
-    if (device.allocateCommandBuffers(&allocInfo, &commandBuffer) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to Allocate Command Buffers");
-
-        assert(0);
-    }
-
-    constexpr vk::CommandBufferBeginInfo BeginInfo = vk::CommandBufferBeginInfo
-    (
-        vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-    );
-    commandBuffer.begin(BeginInfo);
+    const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
 
     VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
 
@@ -284,7 +267,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
 
     m_preRenderFunc->Exec(camArgs);
 
-    glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);    
+    const glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);    
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
@@ -325,10 +308,36 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
     
     m_postRenderFunc->Exec(camArgs);
 
-    renderCommand.BindRenderTexture(camBuffer.RenderTextureAddr);
-    screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);
+    renderCommand.Flush();
+    
+    commandBuffer.end();
 
-    for (uint32_t i = 0; i < 1; ++i)
+    return commandBuffer;
+}
+vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index)
+{
+    m_runtimeManager->AttachThread();
+
+    const CameraBuffer& camBuffer = m_cameraBuffers[a_camIndex];
+    
+    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
+    const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
+    ObjectManager* objectManager = renderEngine->GetObjectManager();
+
+    const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
+
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
+
+    void* lightSetupArgs[] =
+    {
+        &a_camIndex
+    };
+
+    m_lightSetupFunc->Exec(lightSetupArgs);
+
+    const glm::ivec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);
+
+    for (uint32_t i = 0; i < LightType_End; ++i)
     {
         void* lightArgs[] = 
         {
@@ -383,31 +392,138 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawCamera(uint32_t a_camIndex)
         m_postLightFunc->Exec(lightArgs);
     }
 
+    renderCommand.Flush();
+
+    commandBuffer.end();
+
+    return commandBuffer;
+}
+vk::CommandBuffer VulkanGraphicsEngine::PostPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index)
+{
+    m_runtimeManager->AttachThread();
+
+    const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
+
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
+
+    void* camArgs[] = 
+    { 
+        &a_camIndex 
+    };
+
     m_postProcessFunc->Exec(camArgs);
 
     renderCommand.Flush();
-    
+
     commandBuffer.end();
 
     return commandBuffer;
 }
 
-std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update()
+std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
 {
+    Profiler::StartFrame("Drawing Setup");
     m_renderCommands.Clear();
 
+    const vk::Device device = m_vulkanEngine->GetLogicalDevice();
+
     const uint32_t camBufferSize = m_cameraBuffers.Size();
-    std::vector<vk::CommandBuffer> cmdBuffers;
-    std::vector<std::future<vk::CommandBuffer>> futures;
+
+    std::vector<uint32_t> camIndices;
     for (uint32_t i = 0; i < camBufferSize; ++i)
     {
-        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawCamera, this, i)));
+        if (m_cameraBuffers[i].TransformAddr != -1)
+        {
+            camIndices.emplace_back(i);
+        }
     }
+    
+    const uint32_t camIndexSize = (uint32_t)camIndices.size();
+    const uint32_t totalPoolSize = camIndexSize * DrawingPassCount + 1;
+    const uint32_t poolSize = (uint32_t)m_commandPool[a_index].size();
+
+    if (poolSize < totalPoolSize)
+    {
+        TRACE("Allocating graphics command pools");
+        const vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo
+        (
+            vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+            m_vulkanEngine->GetGraphicsQueueIndex()
+        );  
+
+        const uint32_t diff = totalPoolSize - poolSize;
+        for (uint32_t i = 0; i < diff; ++i)
+        {
+            vk::CommandPool pool;
+
+            FLARE_ASSERT_MSG_R(device.createCommandPool(&poolInfo, nullptr, &pool) == vk::Result::eSuccess, "Failed to create graphics command pool");
+            
+            m_commandPool[a_index].emplace_back(pool);
+
+            const vk::CommandBufferAllocateInfo commandBufferInfo = vk::CommandBufferAllocateInfo
+            (
+                pool,
+                vk::CommandBufferLevel::ePrimary,
+                1
+            );
+
+            vk::CommandBuffer buffer;
+            FLARE_ASSERT_MSG_R(device.allocateCommandBuffers(&commandBufferInfo, &buffer) == vk::Result::eSuccess, "Failed to allocate graphics command buffer");
+
+            m_commandBuffers[a_index].emplace_back(buffer);
+        }
+    }
+
+    for (uint32_t i = 0; i < glm::min(poolSize, totalPoolSize); ++i)
+    {
+        device.resetCommandPool(m_commandPool[a_index][i]);
+    }
+
+    Profiler::StopFrame();
+
+    PROFILESTACK("Drawing Cmd");
+    
+    std::vector<std::future<vk::CommandBuffer>> futures;
+    for (uint32_t i = 0; i < camIndexSize; ++i)
+    {
+        const uint32_t camIndex = camIndices[i];
+        const uint32_t poolIndex = i * DrawingPassCount;
+
+        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::DrawPass, this, camIndex, poolIndex + 0, a_index)));
+        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::LightPass, this, camIndex, poolIndex + 1, a_index)));
+        futures.emplace_back(std::async(std::bind(&VulkanGraphicsEngine::PostPass, this, camIndex, poolIndex + 2, a_index)));
+    }
+
+    constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
+    
+    vk::CommandBuffer buffer = StartCommandBuffer(camIndexSize * DrawingPassCount, a_index);
+    const glm::ivec2 renderSize = m_swapchain->GetSize();
+    const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
+    (
+        m_swapchain->GetRenderPass(),
+        m_swapchain->GetFramebuffer(m_vulkanEngine->GetImageIndex()),
+        vk::Rect2D({0, 0}, {(uint32_t)renderSize.x, (uint32_t)renderSize.y}),
+        1,
+        &ClearColor
+    );
+
+    buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+    buffer.endRenderPass();
+
+    buffer.end();
+
+    std::vector<vk::CommandBuffer> cmdBuffers;
+    cmdBuffers.emplace_back(buffer);
 
     for (std::future<vk::CommandBuffer>& f : futures)
     {
         f.wait();
-        cmdBuffers.emplace_back(f.get());
+        vk::CommandBuffer buffer = f.get();
+        if (buffer != vk::CommandBuffer(nullptr))
+        {
+            cmdBuffers.emplace_back(buffer);
+        }
     }
 
     return cmdBuffers;

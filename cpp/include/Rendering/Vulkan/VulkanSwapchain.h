@@ -32,7 +32,7 @@ private:
     RuntimeFunction*             m_resizeFunc;
 
     unsigned char                m_init;
-    vk::Image                    m_colorImage[VulkanMaxFlightFrames];
+    std::vector<vk::Image>       m_colorImage;
     VmaAllocation                m_colorAllocation[VulkanMaxFlightFrames];
 
     vk::Buffer                   m_buffer;
@@ -52,6 +52,7 @@ private:
     void Init(const glm::ivec2& a_size);
     void InitHeadless(const glm::ivec2& a_size);
     void Destroy();
+    
 protected:
 
 public:

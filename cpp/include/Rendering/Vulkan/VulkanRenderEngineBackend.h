@@ -31,17 +31,16 @@ private:
     vk::Queue                      m_graphicsQueue = nullptr;
     vk::Queue                      m_presentQueue = nullptr;
     
-    std::vector<vk::Semaphore>     m_imageAvailable = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
-    std::vector<vk::Semaphore>     m_renderFinished = std::vector<vk::Semaphore>(VulkanMaxFlightFrames);
-    std::vector<vk::Fence>         m_inFlight = std::vector<vk::Fence>(VulkanMaxFlightFrames);
-
-    std::vector<vk::CommandBuffer> m_commandBuffers[VulkanMaxFlightFrames];
+    std::vector<vk::Semaphore>     m_interSemaphore[VulkanMaxFlightFrames];
+    vk::Semaphore                  m_imageAvailable[VulkanMaxFlightFrames];
+    vk::Fence                      m_inFlight[VulkanMaxFlightFrames];
 
     vk::CommandPool                m_commandPool;
     
     uint32_t                       m_imageIndex = -1;
     uint32_t                       m_currentFrame = 0;
-    
+    uint32_t                       m_currentFlightFrame = 0;
+
     uint32_t                       m_graphicsQueueIndex = -1;
     uint32_t                       m_presentQueueIndex = -1;
 
@@ -102,5 +101,9 @@ public:
     inline uint32_t GetCurrentFrame() const
     {
         return m_currentFrame;
+    }
+    inline uint32_t GetCurrentFlightFrame() const
+    {
+        return m_currentFlightFrame;
     }
 };

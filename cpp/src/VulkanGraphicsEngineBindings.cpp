@@ -255,7 +255,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
 
-        constexpr uint32_t BufferCount = 2;
+        constexpr uint32_t BufferCount = 4;
 
         program.ShaderBufferInputCount = BufferCount;
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];

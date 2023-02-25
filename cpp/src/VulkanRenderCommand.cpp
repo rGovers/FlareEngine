@@ -28,6 +28,11 @@ void VulkanRenderCommand::Flush()
     if (!m_flushed)
     {
         m_commandBuffer.endRenderPass();
+        VulkanRenderTexture* renderTexture = GetRenderTexture();
+        if (renderTexture != nullptr)
+        {
+            renderTexture->SetShaderMode(true);
+        }
     }
 
     m_flushed = true;
@@ -58,7 +63,7 @@ VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
     }
 
     VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
-    pipeline->Bind(m_engine->GetCurrentFrame(), m_commandBuffer);
+    pipeline->Bind(m_engine->GetCurrentFlightFrame(), m_commandBuffer);
 
     return pipeline;
 }
@@ -90,7 +95,8 @@ void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
     }
     else
     {
-        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(m_renderTexAddr);
+        VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(m_renderTexAddr);
+        renderTexture->SetShaderMode(false);
 
         const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
         (
@@ -127,7 +133,7 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
     {
         dstImage = a_dst->GetTexture(0);
         dstOffset = vk::Offset3D((int32_t)a_dst->GetWidth(), (int32_t)a_dst->GetHeight(), 1);
-        dstLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        dstLayout = a_dst->GetImageLayout();
     }
 
     const vk::Image srcImage = a_src->GetTexture(0);
@@ -154,14 +160,16 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
 
     constexpr vk::ImageSubresourceRange SubResourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 
+    const vk::ImageLayout srcLayout = a_src->GetImageLayout();
+
     const vk::ImageMemoryBarrier srcMemoryBarrier = vk::ImageMemoryBarrier
     (
-        vk::AccessFlagBits::eMemoryRead,
+        vk::AccessFlags(),
         vk::AccessFlagBits::eTransferRead,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
+        srcLayout,
         vk::ImageLayout::eTransferSrcOptimal,
-        0,
-        0,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
         srcImage,
         SubResourceRange
     );
@@ -171,8 +179,8 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
         vk::AccessFlagBits::eTransferWrite,
         dstLayout,
         vk::ImageLayout::eTransferDstOptimal,
-        0,
-        0,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
         dstImage,
         SubResourceRange
     );
@@ -187,9 +195,9 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
         vk::AccessFlagBits::eTransferRead,
         vk::AccessFlagBits::eMemoryRead,
         vk::ImageLayout::eTransferSrcOptimal,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        0,
-        0,
+        srcLayout,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
         srcImage,
         SubResourceRange
     );
@@ -199,8 +207,8 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
         vk::AccessFlagBits::eMemoryRead,
         vk::ImageLayout::eTransferDstOptimal,
         dstLayout,
-        0,
-        0,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
         dstImage,
         SubResourceRange
     );

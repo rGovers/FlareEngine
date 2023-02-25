@@ -141,11 +141,6 @@ static std::vector<const char*> GetRequiredExtensions(const AppWindow* a_window)
 
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
-    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
-    {
-        m_commandBuffers[i] = std::vector<vk::CommandBuffer>();
-    }
-
     m_runtime = a_runtime;
 
     const RenderEngine* renderEngine = GetRenderEngine();
@@ -358,7 +353,6 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         FLARE_ASSERT_MSG_R(m_lDevice.createSemaphore(&SemaphoreInfo, nullptr, &m_imageAvailable[i]) == vk::Result::eSuccess, "Failed to create image semaphore");
-        FLARE_ASSERT_MSG_R(m_lDevice.createSemaphore(&SemaphoreInfo, nullptr, &m_renderFinished[i]) == vk::Result::eSuccess, "Failed to create render semaphore");
         FLARE_ASSERT_MSG_R(m_lDevice.createFence(&FenceInfo, nullptr, &m_inFlight[i]) == vk::Result::eSuccess, "Failed to create fence");
     }
     
@@ -395,10 +389,14 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
     for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         m_lDevice.destroySemaphore(m_imageAvailable[i]);
-        m_lDevice.destroySemaphore(m_renderFinished[i]);
         m_lDevice.destroyFence(m_inFlight[i]);
+
+        for (uint32_t j = 0; j < m_interSemaphore[i].size(); ++j)
+        {
+            m_lDevice.destroySemaphore(m_interSemaphore[i][j]);
+        }
     }
-    
+
     TRACE("Destroy Vulkan Allocator");
     vmaDestroyAllocator(m_allocator);
     
@@ -438,30 +436,11 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
         m_graphicsEngine->SetSwapchain(m_swapchain);
     }
 
-    if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFrame], m_inFlight[m_currentFrame], &m_imageIndex, a_delta, a_time))
+    if (!m_swapchain->StartFrame(m_imageAvailable[m_currentFlightFrame], m_inFlight[m_currentFlightFrame], &m_imageIndex, a_delta, a_time))
     {
         Profiler::StopFrame();
 
         return;
-    }
-
-    std::vector<vk::CommandBuffer>& buffers = m_commandBuffers[m_currentFrame];
-
-    uint32_t buffersSize = (uint32_t)buffers.size();
-    
-    // Terrible fix for release crash but it works
-    static int val = 0;
-    if (buffersSize > 0)
-    {
-        if (val < VulkanMaxFlightFrames)
-        {
-            ++val;
-        }
-        else
-        {
-            // TODO: Find fix for first lot of buffers causing validation error
-            m_lDevice.freeCommandBuffers(m_graphicsEngine->GetCommandPool(), buffersSize, buffers.data());
-        }
     }
 
     Profiler::StopFrame();
@@ -469,8 +448,11 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
     Profiler::StartFrame("Render Update");
 
     // TODO: Rewrite to be a bit smarter
-    buffers = m_graphicsEngine->Update();
-    buffersSize = (uint32_t)buffers.size();
+    const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_currentFrame);
+    
+    Profiler::StartFrame("Render Setup");
+
+    const uint32_t buffersSize = (uint32_t)buffers.size();
     // If there is nothing to render no point doing anything
     if (buffersSize <= 0)
     {
@@ -481,42 +463,77 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     constexpr vk::PipelineStageFlags WaitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
-    vk::SubmitInfo submitInfo = vk::SubmitInfo
-    (
-        0,
-        nullptr,
-        WaitStages,
-        buffersSize,
-        buffers.data()
-    );
+    const uint32_t semaphoreCount = (uint32_t)m_interSemaphore[m_currentFlightFrame].size();
+    const uint32_t endBuffer = buffersSize - 1;
+    if (buffersSize > semaphoreCount)
+    {
+        TRACE("Allocating inter semaphores");
+        const uint32_t diff = buffersSize - semaphoreCount;
 
+        constexpr vk::SemaphoreCreateInfo SemaphoreInfo;
+
+        for (uint32_t i = 0; i < diff; ++i)
+        {
+            vk::Semaphore semaphore;
+
+            FLARE_ASSERT_MSG_R(m_lDevice.createSemaphore(&SemaphoreInfo, nullptr, &semaphore) == vk::Result::eSuccess, "Failed to create inter semaphore");
+            m_interSemaphore[m_currentFlightFrame].emplace_back(semaphore);
+        }
+    }
+
+    Profiler::StopFrame();
+
+    Profiler::StartFrame("Render Submit");
+
+    vk::Semaphore lastSemaphore = nullptr;
+    vk::Fence fence = nullptr;
     if (!window->IsHeadless())
     {
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &m_imageAvailable[m_currentFrame];
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
-
-        FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, m_inFlight[m_currentFrame]) == vk::Result::eSuccess, "Failed to submit command");
+        lastSemaphore = m_imageAvailable[m_currentFlightFrame];
+        fence = m_inFlight[m_currentFlightFrame];
     }
-    else
+
+    for (uint32_t i = 0; i < buffersSize; ++i)
     {
-        if (m_swapchain->IsInitialized(m_currentFrame))
+        vk::SubmitInfo submitInfo = vk::SubmitInfo
+        (
+            0,
+            nullptr,
+            WaitStages,
+            1,
+            &buffers[i],
+            1,
+            &m_interSemaphore[m_currentFlightFrame][i]
+        );
+
+        if (lastSemaphore != vk::Semaphore(nullptr))
         {
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &m_renderFinished[m_currentFrame];
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &lastSemaphore;
         }
 
-        FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, nullptr) == vk::Result::eSuccess, "Failed to submit command");
-    }
+        if (i == endBuffer)
+        {
+            FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, fence) == vk::Result::eSuccess, "Failed to submit command");
+        }
+        else
+        {
+            FLARE_ASSERT_MSG_R(m_graphicsQueue.submit(1, &submitInfo, nullptr) == vk::Result::eSuccess, "Failed to submit command");
+        }
+
+        lastSemaphore = m_interSemaphore[m_currentFlightFrame][i];
+    }    
+
+    Profiler::StopFrame();
 
     Profiler::StopFrame();
 
     Profiler::StartFrame("Render Present");
 
-    m_swapchain->EndFrame(m_renderFinished[m_currentFrame], m_inFlight[m_currentFrame], m_imageIndex);
+    m_swapchain->EndFrame(m_interSemaphore[m_currentFlightFrame][endBuffer], m_inFlight[m_currentFlightFrame], m_imageIndex);
 
-    m_currentFrame = (m_currentFrame + 1) % VulkanMaxFlightFrames;
+    m_currentFrame = (m_currentFrame + 1) % VulkanFlightPoolSize;
+    m_currentFlightFrame = (m_currentFlightFrame + 1) % VulkanMaxFlightFrames;
 
     Profiler::StopFrame();
 }

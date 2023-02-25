@@ -32,6 +32,11 @@ namespace FlareEngine.Rendering
 
         internal static IRenderTexture GetRenderTexture(uint a_addr)
         {
+            if (a_addr == uint.MaxValue)
+            {
+                return null;
+            }
+
             return RenderTextureTable[a_addr];
         }
 

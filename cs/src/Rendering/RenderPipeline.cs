@@ -13,6 +13,7 @@ namespace FlareEngine.Rendering
         public abstract void PreRender(Camera a_camera);
         public abstract void PostRender(Camera a_camera);
 
+        public abstract void LightSetup(Camera a_camera);
         public abstract Material PreLight(LightType a_lightType, Camera a_camera);
         public abstract void PostLight(LightType a_lightType, Camera a_camera);
 
@@ -103,6 +104,22 @@ namespace FlareEngine.Rendering
             }
         }
 
+        static void LightSetupS(uint a_camBuffer)
+        {
+            if (Instance != null)
+            {
+                Camera cam = Camera.GetCamera(a_camBuffer);
+
+                if (cam != null)
+                {
+                    Instance.LightSetup(cam);
+                }
+            }
+            else
+            {
+                Logger.FlareError("RenderPipeline not initialized");
+            }
+        }
         static void PreLightS(uint a_lightType, uint a_camBuffer)
         {
             if (Instance != null)

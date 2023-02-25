@@ -24,11 +24,14 @@ class VulkanVertexShader;
 #include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
 #include "Rendering/TextureSampler.h"
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 class VulkanGraphicsEngine
 {
 private:
     friend class VulkanGraphicsEngineBindings;
+
+    static constexpr uint32_t DrawingPassCount = 3;
 
     RuntimeManager*                               m_runtimeManager;
     VulkanGraphicsEngineBindings*                 m_runtimeBindings;
@@ -38,6 +41,7 @@ private:
     RuntimeFunction*                              m_postShadowFunc;
     RuntimeFunction*                              m_preRenderFunc;
     RuntimeFunction*                              m_postRenderFunc;
+    RuntimeFunction*                              m_lightSetupFunc;
     RuntimeFunction*                              m_preLightFunc;
     RuntimeFunction*                              m_postLightFunc;
     RuntimeFunction*                              m_postProcessFunc;
@@ -66,10 +70,15 @@ private:
 
     TArray<CameraBuffer>                          m_cameraBuffers;
 
-    vk::CommandPool                               m_commandPool;
+    std::vector<vk::CommandPool>                  m_commandPool[VulkanFlightPoolSize];
+    std::vector<vk::CommandBuffer>                m_commandBuffers[VulkanFlightPoolSize];
     
-    vk::CommandBuffer DrawCamera(uint32_t a_camIndex);
-    
+    vk::CommandBuffer StartCommandBuffer(uint32_t a_bufferIndex, uint32_t a_index) const;
+
+    vk::CommandBuffer DrawPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index);
+    vk::CommandBuffer LightPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index);
+    vk::CommandBuffer PostPass(uint32_t a_camIndex, uint32_t a_bufferIndex, uint32_t a_index);
+
 protected:
 
 public:
@@ -81,7 +90,7 @@ public:
         m_swapchain = a_swapchaing;
     }
 
-    std::vector<vk::CommandBuffer> Update();
+    std::vector<vk::CommandBuffer> Update(uint32_t a_index);
 
     VulkanVertexShader* GetVertexShader(uint32_t a_addr);
     VulkanPixelShader* GetPixelShader(uint32_t a_addr);
@@ -90,9 +99,4 @@ public:
     VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
     
     VulkanRenderTexture* GetRenderTexture(uint32_t a_addr);
-
-    inline vk::CommandPool GetCommandPool() const
-    {
-        return m_commandPool;
-    }
 };
