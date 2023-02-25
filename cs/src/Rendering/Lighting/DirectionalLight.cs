@@ -9,8 +9,8 @@ namespace FlareEngine.Rendering.Lighting
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
     internal struct DirectionalLightBuffer
     {
-        public uint RenderLayer;
         public uint TransformAddr;
+        public uint RenderLayer;
         public Vector4 Color;
         public float Intensity;
     }

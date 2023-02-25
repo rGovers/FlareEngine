@@ -139,27 +139,9 @@ namespace FlareEngine.Rendering
             }
         }
 
-        public Camera() 
+        public Camera() : base()
         {            
             m_bufferAddr = GenerateBuffer(Transform.InternalAddr);
-            
-            CameraBuffer val = new CameraBuffer()
-            {
-                Viewport = new Viewport()
-                {
-                    Position = Vector2.Zero,
-                    Size = Vector2.One,
-                    MinDepth = 0.0f,
-                    MaxDepth = 1.0f
-                },
-                FOV = (float)(Math.PI * 0.45),
-                Near = 0.1f,
-                Far = 100.0f,
-                RenderLayer = 0b1,
-                RenderTexture = uint.MaxValue
-            };
-
-            SetBuffer(m_bufferAddr, val);
 
             BufferLookup.Add(m_bufferAddr, this);
         }
@@ -185,15 +167,13 @@ namespace FlareEngine.Rendering
                     }
                 }
 
-                CameraBuffer val = new CameraBuffer()
-                {
-                    Viewport = def.Viewport,
-                    FOV = def.FOV,
-                    Near = def.Near,
-                    Far = def.Far,
-                    RenderLayer = def.RenderLayer,
-                    RenderTexture = textureAddr
-                };
+                CameraBuffer val = GetBuffer(m_bufferAddr);
+                val.Viewport = def.Viewport;
+                val.FOV = def.FOV;
+                val.Near = def.Near;
+                val.Far = def.Far;
+                val.RenderLayer = def.RenderLayer;
+                val.RenderTexture = textureAddr;
 
                 SetBuffer(m_bufferAddr, val);
             }

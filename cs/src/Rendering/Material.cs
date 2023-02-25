@@ -24,6 +24,7 @@ namespace FlareEngine.Rendering
 
     public enum ShaderBufferType : ushort
     {
+        Null = ushort.MaxValue,
         CameraBuffer = 0,
         ModelBuffer = 1,
         Texture = 2

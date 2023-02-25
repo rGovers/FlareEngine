@@ -140,16 +140,6 @@ namespace FlareEngine
             m_children = new List<Transform>();
 
             m_bufferAddr = GenerateTransformBuffer();
-
-            TransformBuffer buffer = new TransformBuffer()
-            {
-                Translation = Vector3.Zero,
-                Rotation = Quaternion.Identity,
-                Scale = Vector3.One,
-                ParentIndex = uint.MaxValue
-            };
-
-            SetTransformBuffer(m_bufferAddr, buffer);
         }
         public void Dispose()
         {

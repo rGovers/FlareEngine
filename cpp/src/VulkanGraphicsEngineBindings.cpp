@@ -351,8 +351,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
 {
     FLARE_ASSERT_MSG(a_transformAddr != -1, "GenerateCameraBuffer invalid transform address")
 
-    CameraBuffer buff;
-    buff.TransformAddr = a_transformAddr;
+    const CameraBuffer buff = CameraBuffer(a_transformAddr);
 
     TRACE("Getting Camera Buffer");
     const uint32_t size = m_graphicsEngine->m_cameraBuffers.Size();
@@ -440,10 +439,7 @@ void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr) const
 
 uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(uint32_t a_materialAddr, uint32_t a_modelAddr, uint32_t a_transformAddr) const
 {
-    MeshRenderBuffer buffer;
-    buffer.MaterialAddr = a_materialAddr;
-    buffer.ModelAddr = a_modelAddr;
-    buffer.TransformAddr = a_transformAddr;
+    const MeshRenderBuffer buffer = MeshRenderBuffer(a_materialAddr, a_modelAddr, a_transformAddr);
 
     TRACE("Creating Render Buffer");
     const uint32_t size = (uint32_t)m_graphicsEngine->m_renderBuffers.Size();
@@ -644,8 +640,7 @@ void VulkanGraphicsEngineBindings::ResizeRenderTexture(uint32_t a_addr, uint32_t
 
 uint32_t VulkanGraphicsEngineBindings::GenerateDirectionalLightBuffer(uint32_t a_transformAddr) const
 {
-    DirectionalLightBuffer buffer;
-    buffer.TransformAddr = a_transformAddr;
+    const DirectionalLightBuffer buffer = DirectionalLightBuffer(a_transformAddr);
 
     FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GenerateDirectionalLightBuffer no transform");
 

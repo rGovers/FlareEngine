@@ -30,8 +30,7 @@ ObjectManager::~ObjectManager()
 
 uint32_t ObjectManager::CreateTransformBuffer()
 {
-    TransformBuffer buffer;
-    buffer.Parent = -1;
+    constexpr TransformBuffer Buffer;
 
     TRACE("Creating Transform Buffer");
     if (!m_freeTransforms.empty())
@@ -39,14 +38,14 @@ uint32_t ObjectManager::CreateTransformBuffer()
         const uint32_t add = m_freeTransforms.front();
         m_freeTransforms.pop();
 
-        m_transformBuffer[add] = buffer;
+        m_transformBuffer[add] = Buffer;
 
         return add;
     }
 
     TRACE("Allocating Transform Buffer");
 
-    m_transformBuffer.Push(buffer);
+    m_transformBuffer.Push(Buffer);
 
     return m_transformBuffer.Size() - 1;
 }

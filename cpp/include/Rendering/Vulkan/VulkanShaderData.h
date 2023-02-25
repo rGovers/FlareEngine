@@ -15,7 +15,6 @@ class VulkanUniformBuffer;
 
 struct CameraBuffer;
 struct TextureSampler;
-struct TransformBuffer;
 
 class VulkanShaderData
 {

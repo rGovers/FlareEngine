@@ -4,6 +4,7 @@
 
 enum e_ShaderBufferType : uint16_t
 {
+    ShaderBufferType_Null = UINT16_MAX,
     ShaderBufferType_CameraBuffer = 0,
     ShaderBufferType_ModelBuffer = 1,
     ShaderBufferType_Texture = 2,
@@ -23,11 +24,19 @@ struct ShaderBufferInput
     e_ShaderBufferType BufferType;
     e_ShaderSlot ShaderSlot;
 
-    inline bool operator ==(const ShaderBufferInput& a_other) const
+    constexpr ShaderBufferInput(uint16_t a_slot = -1, e_ShaderBufferType a_bufferType = ShaderBufferType_Null, e_ShaderSlot a_shaderSlot = ShaderSlot_Null) :
+        Slot(a_slot),
+        BufferType(a_bufferType),
+        ShaderSlot(a_shaderSlot)
+    {
+        
+    }
+
+    constexpr bool operator ==(const ShaderBufferInput& a_other) const
     {
         return Slot == a_other.Slot && BufferType == a_other.BufferType && ShaderSlot == a_other.ShaderSlot;
     }
-    inline bool operator !=(const ShaderBufferInput& a_other) const
+    constexpr bool operator !=(const ShaderBufferInput& a_other) const
     {
         return !(*this == a_other);
     }

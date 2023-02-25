@@ -19,22 +19,22 @@ namespace FlareEngine.Rendering
             attributes[0].Location = 0;
             attributes[0].Type = VertexType.Float;
             attributes[0].Count = 4;
-            attributes[0].Offset = (uint)Marshal.OffsetOf<Vertex>("Position");
+            attributes[0].Offset = (ushort)Marshal.OffsetOf<Vertex>("Position");
 
             attributes[1].Location = 1;
             attributes[1].Type = VertexType.Float;
             attributes[1].Count = 3;
-            attributes[1].Offset = (uint)Marshal.OffsetOf<Vertex>("Normal");
+            attributes[1].Offset = (ushort)Marshal.OffsetOf<Vertex>("Normal");
 
             attributes[2].Location = 2;
             attributes[2].Type = VertexType.Float;
             attributes[2].Count = 4;
-            attributes[2].Offset = (uint)Marshal.OffsetOf<Vertex>("Color");
+            attributes[2].Offset = (ushort)Marshal.OffsetOf<Vertex>("Color");
 
             attributes[3].Location = 3;
             attributes[3].Type = VertexType.Float;
             attributes[3].Count = 2;
-            attributes[3].Offset = (uint)Marshal.OffsetOf<Vertex>("TexCoords");
+            attributes[3].Offset = (ushort)Marshal.OffsetOf<Vertex>("TexCoords");
 
             return attributes;
         }
@@ -42,6 +42,7 @@ namespace FlareEngine.Rendering
 
     public enum VertexType : ushort
     {
+        Null = ushort.MaxValue,
         Float = 0,
         Int = 1,
         UInt = 2
@@ -50,10 +51,10 @@ namespace FlareEngine.Rendering
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
     public struct VertexInputAttribute
     {
-        public uint Location;
+        public ushort Location;
         public VertexType Type;
-        public uint Count;
-        public uint Offset;
+        public ushort Count;
+        public ushort Offset;
     };
 
     public class Model : IDisposable
@@ -105,14 +106,14 @@ namespace FlareEngine.Rendering
                 }
                 else
                 {
-                    Logger.Error("FlareCS: Model Failed to Dispose");
+                    Logger.FlareWarning("Model Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Logger.Error("FlareCS: Multiple Model Dispose");
+                Logger.FlareError("Multiple Model Dispose");
             }
         }
 

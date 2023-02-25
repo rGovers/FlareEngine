@@ -29,7 +29,7 @@ private:
 protected:
 
 public:
-    TArray() :
+    constexpr TArray() :
         m_size(0),
         m_data(nullptr) { }
     TArray(const TArray& a_other)
@@ -103,7 +103,7 @@ public:
         }
     }
 
-    TArray operator =(const TArray& a_other) 
+    TArray& operator =(const TArray& a_other) 
     {
         const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
         const std::lock_guard g = std::lock_guard(m_mutex);
@@ -143,15 +143,15 @@ public:
     {
         return m_mutex;
     }
-    inline uint32_t Size() const
+    constexpr uint32_t Size() const
     {
         return m_size;
     }
-    inline T* Data() const
+    constexpr T* Data() const
     {
         return m_data;
     }
-    inline bool Empty() const
+    constexpr bool Empty() const
     {
         return m_size <= 0;
     }

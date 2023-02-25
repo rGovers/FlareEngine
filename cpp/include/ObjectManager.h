@@ -41,11 +41,22 @@ public:
 
 struct TransformBuffer
 {
-    uint32_t  Parent = -1;
+    uint32_t  Parent;
 
     glm::vec3 Translation;
     glm::quat Rotation;
     glm::vec3 Scale;
+
+    // Cannot seem to be able to use copy constructors because of C#
+    // Gonna guess weird stuff with GC not sure as to exactly why however
+    constexpr TransformBuffer(uint32_t a_parent = -1, const glm::vec3& a_translation = glm::vec3(0.0f), const glm::quat& a_quat = glm::identity<glm::quat>(), const glm::vec3& a_scale = glm::vec3(1.0f)) :
+        Parent(a_parent),
+        Translation(a_translation),
+        Rotation(a_quat),
+        Scale(a_scale)
+    {
+
+    }
 
     glm::mat4 ToMat4() const
     {
