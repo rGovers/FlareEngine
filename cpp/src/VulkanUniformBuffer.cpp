@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
@@ -10,13 +11,9 @@ VulkanUniformBuffer::VulkanUniformBuffer(VulkanRenderEngineBackend* a_engine, ui
     TRACE("Creating Vulkan UBO");
     m_engine = a_engine;
 
-    m_bufferCount = VulkanMaxFlightFrames;
     m_uniformSize = a_uniformSize;
 
-    m_buffers = new vk::Buffer[m_bufferCount];
-    m_allocations = new VmaAllocation[m_bufferCount];
-
-    for (uint32_t i = 0; i < m_bufferCount; ++i)
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         const VmaAllocator allocator = m_engine->GetAllocator();
 
@@ -32,12 +29,7 @@ VulkanUniformBuffer::VulkanUniformBuffer(VulkanRenderEngineBackend* a_engine, ui
         bufferAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
         VkBuffer tBuffer;
-        if (vmaCreateBuffer(allocator, &bufferInfo, &bufferAllocInfo, &tBuffer, &m_allocations[i], nullptr) != VK_SUCCESS)
-        {
-            Logger::Error("Failed to create Uniform Buffer");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(vmaCreateBuffer(allocator, &bufferInfo, &bufferAllocInfo, &tBuffer, &m_allocations[i], nullptr) == VK_SUCCESS, "Failed to create Uniform Buffer");
         m_buffers[i] = tBuffer;
     }
 }
@@ -46,16 +38,13 @@ VulkanUniformBuffer::~VulkanUniformBuffer()
     TRACE("Destroying UBO");
     const VmaAllocator allocator = m_engine->GetAllocator();
     
-    for (uint32_t i = 0; i < m_bufferCount; ++i)
+    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
     {
         vmaDestroyBuffer(allocator, m_buffers[i], m_allocations[i]);
     }
-
-    delete[] m_buffers;
-    delete[] m_allocations;
 }
 
-void VulkanUniformBuffer::SetData(uint32_t a_index, const char* a_data)
+void VulkanUniformBuffer::SetData(uint32_t a_index, const void* a_data)
 {
     const VmaAllocator allocator = m_engine->GetAllocator();
 

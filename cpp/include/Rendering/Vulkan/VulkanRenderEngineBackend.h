@@ -17,32 +17,34 @@ class VulkanSwapchain;
 class VulkanRenderEngineBackend : public RenderEngineBackend
 {
 private:
-    RuntimeManager*                m_runtime;
-    VulkanGraphicsEngine*          m_graphicsEngine;
-    VulkanSwapchain*               m_swapchain = nullptr;
+    RuntimeManager*                               m_runtime;
+    VulkanGraphicsEngine*                         m_graphicsEngine;
+    VulkanSwapchain*                              m_swapchain = nullptr;
+                
+    VmaAllocator                                  m_allocator;
+                
+    vk::Instance                                  m_instance;
+    vk::DebugUtilsMessengerEXT                    m_messenger;
+    vk::PhysicalDevice                            m_pDevice;
+    vk::Device                                    m_lDevice;
+                        
+    vk::Queue                                     m_graphicsQueue = nullptr;
+    vk::Queue                                     m_presentQueue = nullptr;
     
-    VmaAllocator                   m_allocator;
-    
-    vk::Instance                   m_instance;
-    vk::DebugUtilsMessengerEXT     m_messenger;
-    vk::PhysicalDevice             m_pDevice;
-    vk::Device                     m_lDevice;
+    vk::PhysicalDevicePushDescriptorPropertiesKHR m_pushDescriptorProperties;
+
+    std::vector<vk::Semaphore>                    m_interSemaphore[VulkanMaxFlightFrames];
+    vk::Semaphore                                 m_imageAvailable[VulkanMaxFlightFrames];
+    vk::Fence                                     m_inFlight[VulkanMaxFlightFrames];
             
-    vk::Queue                      m_graphicsQueue = nullptr;
-    vk::Queue                      m_presentQueue = nullptr;
-    
-    std::vector<vk::Semaphore>     m_interSemaphore[VulkanMaxFlightFrames];
-    vk::Semaphore                  m_imageAvailable[VulkanMaxFlightFrames];
-    vk::Fence                      m_inFlight[VulkanMaxFlightFrames];
-
-    vk::CommandPool                m_commandPool;
-    
-    uint32_t                       m_imageIndex = -1;
-    uint32_t                       m_currentFrame = 0;
-    uint32_t                       m_currentFlightFrame = 0;
-
-    uint32_t                       m_graphicsQueueIndex = -1;
-    uint32_t                       m_presentQueueIndex = -1;
+    vk::CommandPool                               m_commandPool;
+                
+    uint32_t                                      m_imageIndex = -1;
+    uint32_t                                      m_currentFrame = 0;
+    uint32_t                                      m_currentFlightFrame = 0;
+            
+    uint32_t                                      m_graphicsQueueIndex = -1;
+    uint32_t                                      m_presentQueueIndex = -1;
 
 protected:
 

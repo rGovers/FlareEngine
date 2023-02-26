@@ -14,6 +14,7 @@ class VulkanRenderCommand;
 class VulkanRenderEngineBackend;
 class VulkanRenderTexture;
 class VulkanSwapchain;
+class VulkanUniformBuffer;
 class VulkanVertexShader;
 
 #include "DataTypes/TArray.h"
@@ -69,6 +70,7 @@ private:
     TArray<DirectionalLightBuffer>                m_directionalLights;
 
     TArray<CameraBuffer>                          m_cameraBuffers;
+    std::vector<VulkanUniformBuffer*>             m_cameraUniforms;
 
     std::vector<vk::CommandPool>                  m_commandPool[VulkanFlightPoolSize];
     std::vector<vk::CommandBuffer>                m_commandBuffers[VulkanFlightPoolSize];

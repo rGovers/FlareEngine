@@ -22,9 +22,17 @@ const static std::vector<const char*> ValidationLayers =
     "VK_LAYER_KHRONOS_validation"
 };
 
-const static std::vector<const char*> DeviceExtensions =
+const static std::vector<const char*> InstanceExtensions = 
+{
+    VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
+};
+const static std::vector<const char*> StandaloneDeviceExtensions =
 {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+const static std::vector<const char*> RequiredDeviceExtensions = 
+{
+    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT a_msgSeverity, VkDebugUtilsMessageTypeFlagsEXT a_msgType, const VkDebugUtilsMessengerCallbackDataEXT* a_callbackData, void* a_userData)
@@ -54,7 +62,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
+static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device, const std::vector<const char*>& a_extensions)
 {
     uint32_t extensionCount;
     FLARE_ASSERT_R(a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, nullptr) == vk::Result::eSuccess);
@@ -62,9 +70,9 @@ static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
     std::vector<vk::ExtensionProperties> availableExtensions = std::vector<vk::ExtensionProperties>(extensionCount);
     FLARE_ASSERT_R(a_device.enumerateDeviceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()) == vk::Result::eSuccess);
 
-    uint32_t requiredCount = (uint32_t)DeviceExtensions.size();
+    uint32_t requiredCount = (uint32_t)a_extensions.size();
 
-    for (const char* requiredExtension : DeviceExtensions)
+    for (const char* requiredExtension : a_extensions)
     {
         for (const vk::ExtensionProperties& extension : availableExtensions)
         {
@@ -80,9 +88,9 @@ static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device)
     return requiredCount == 0;
 }
 
-static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalDevice& a_device, AppWindow* a_window)
+static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalDevice& a_device, const std::vector<const char*>& a_extensions, AppWindow* a_window)
 {
-    if (!CheckDeviceExtensionSupport(a_device))
+    if (!CheckDeviceExtensionSupport(a_device, a_extensions))
     {
         return false;
     }
@@ -134,6 +142,11 @@ static std::vector<const char*> GetRequiredExtensions(const AppWindow* a_window)
     if constexpr (VulkanEnableValidationLayers)
     {
         extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    for (const char* ext : InstanceExtensions)
+    {
+        extensions.emplace_back(ext);
     }
 
     return extensions;
@@ -207,6 +220,15 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         TRACE("Created Vulkan Debug Layer");
     }
 
+    std::vector<const char*> dRequiredExtensions = RequiredDeviceExtensions;
+    if (!headless)
+    {
+        for (const char* ext : StandaloneDeviceExtensions)
+        {
+            dRequiredExtensions.emplace_back(ext);
+        }
+    }
+
     uint32_t deviceCount = 0;
     FLARE_ASSERT_R(m_instance.enumeratePhysicalDevices(&deviceCount, nullptr) == vk::Result::eSuccess);
 
@@ -219,7 +241,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     for (const vk::PhysicalDevice& device : devices)
     {
-        if (IsDeviceSuitable(m_instance, device, window))
+        if (IsDeviceSuitable(m_instance, device, dRequiredExtensions, window))
         {
             m_pDevice = device;
 
@@ -300,11 +322,8 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         &deviceFeatures
     );
 
-    if (!headless)
-    {
-        deviceCreateInfo.enabledExtensionCount = (uint32_t)DeviceExtensions.size();
-        deviceCreateInfo.ppEnabledExtensionNames = DeviceExtensions.data();
-    }
+    deviceCreateInfo.enabledExtensionCount = (uint32_t)dRequiredExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = dRequiredExtensions.data();
 
     if constexpr (VulkanEnableValidationLayers)
     {
@@ -365,6 +384,18 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
     );  
 
     FLARE_ASSERT_MSG_R(m_lDevice.createCommandPool(&poolInfo, nullptr, &m_commandPool) == vk::Result::eSuccess, "Failed to create command pool");
+
+    PFN_vkGetPhysicalDeviceProperties2KHR GetPhysicalDeviceProperties2KHRFunc = (PFN_vkGetPhysicalDeviceProperties2KHR)vkGetInstanceProcAddr(m_instance, "vkGetPhysicalDeviceProperties2KHR");
+
+    VkPhysicalDevicePushDescriptorPropertiesKHR pushProperties = { };
+    pushProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR;
+
+    VkPhysicalDeviceProperties2KHR deviceProps2 = { };
+    deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+	deviceProps2.pNext = &pushProperties;
+
+    GetPhysicalDeviceProperties2KHRFunc(m_pDevice, &deviceProps2);
+    m_pushDescriptorProperties = pushProperties;
 
     m_graphicsEngine = new VulkanGraphicsEngine(a_runtime, this);
 }

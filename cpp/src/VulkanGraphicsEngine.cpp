@@ -20,6 +20,7 @@
 #include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 #include "Rendering/Vulkan/VulkanTextureSampler.h"
+#include "Rendering/Vulkan/VulkanUniformBuffer.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeFunction.h"
 #include "Runtime/RuntimeManager.h"
@@ -63,6 +64,16 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
         for (uint32_t j = 0; j < poolSize; ++j)
         {
             device.destroyCommandPool(m_commandPool[i][j]);
+        }
+    }
+
+    TRACE("Deleting camera ubos");
+    for (uint32_t i = 0; i < m_cameraUniforms.size(); ++i)
+    {
+        if (m_cameraUniforms[i] != nullptr)
+        {
+            delete m_cameraUniforms[i];
+            m_cameraUniforms[i] = nullptr;
         }
     }
 
@@ -177,7 +188,7 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
         }
     }
 
-    TRACE("Creating Vulkan Pipeline");
+    TRACE("Allocating Vulkan Pipeline");
     const VulkanRenderTexture* tex = GetRenderTexture(a_renderTexture);
 
     FLARE_ASSERT_MSG(a_pipeline < m_shaderPrograms.Size(), "GetPipeline pipeline out of bounds");
@@ -255,7 +266,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     ObjectManager* objectManager = renderEngine->GetObjectManager();
 
     const CameraBuffer& camBuffer = m_cameraBuffers[a_camIndex];
-
+    
     const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
 
     VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
@@ -267,7 +278,17 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
 
     m_preRenderFunc->Exec(camArgs);
 
-    const glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);    
+    const glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);  
+
+    CameraShaderBuffer camShaderData;
+    camShaderData.InvView = objectManager->GetGlobalMatrix(camBuffer.TransformAddr);
+    camShaderData.View = glm::inverse(camShaderData.InvView);
+    camShaderData.Proj = camBuffer.ToProjection(screenSize);
+    camShaderData.InvProj = glm::inverse(camShaderData.Proj);
+    camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
+
+    VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
+    cameraUniformBuffer->SetData(curFrame, &camShaderData);
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
@@ -279,9 +300,14 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
         {
             const VulkanPipeline* pipeline = renderCommand.BindMaterial(matAddr);
             FLARE_ASSERT(pipeline != nullptr);
+
             const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
             FLARE_ASSERT(shaderData != nullptr);
-            shaderData->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
+            const ShaderBufferInput camInput = shaderData->GetCameraInput();
+            if (camInput.BufferType == ShaderBufferType_CameraBuffer)
+            {
+                shaderData->PushUniformBuffer(commandBuffer, camInput.Slot, cameraUniformBuffer, curFrame);
+            }
             
             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
             for (const ModelBuffer& modelBuff : modelBuffers)
@@ -337,6 +363,16 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
     const glm::ivec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);
 
+    CameraShaderBuffer camShaderData;
+    camShaderData.InvView = objectManager->GetGlobalMatrix(camBuffer.TransformAddr);
+    camShaderData.View = glm::inverse(camShaderData.InvView);
+    camShaderData.Proj = camBuffer.ToProjection(screenSize);
+    camShaderData.InvProj = glm::inverse(camShaderData.Proj);
+    camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
+
+    VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
+    cameraUniformBuffer->SetData(curFrame, &camShaderData);
+
     for (uint32_t i = 0; i < LightType_End; ++i)
     {
         void* lightArgs[] = 
@@ -355,7 +391,11 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
         const VulkanShaderData* data = pipeline->GetShaderData();
         FLARE_ASSERT(data != nullptr);
-        data->UpdateCameraBuffer(curFrame, screenSize, camBuffer, objectManager);
+        const ShaderBufferInput camInput = data->GetCameraInput();
+        if (camInput.BufferType == ShaderBufferType_CameraBuffer)
+        {
+            
+        }
 
         switch ((e_LightType)i)
         {
@@ -471,6 +511,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
             FLARE_ASSERT_MSG_R(device.allocateCommandBuffers(&commandBufferInfo, &buffer) == vk::Result::eSuccess, "Failed to allocate graphics command buffer");
 
             m_commandBuffers[a_index].emplace_back(buffer);
+            m_cameraUniforms.emplace_back(new VulkanUniformBuffer(m_vulkanEngine, sizeof(CameraShaderBuffer)));
         }
     }
 
@@ -482,7 +523,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     Profiler::StopFrame();
 
     PROFILESTACK("Drawing Cmd");
-    
+
     std::vector<std::future<vk::CommandBuffer>> futures;
     for (uint32_t i = 0; i < camIndexSize; ++i)
     {
