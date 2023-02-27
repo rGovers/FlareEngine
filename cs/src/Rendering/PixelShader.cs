@@ -10,13 +10,23 @@ namespace FlareEngine.Rendering
         readonly uint m_internalAddr;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateShader(string a_shader); 
+        extern static uint GenerateGLSLShader(string a_shader); 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GenerateFShader(string a_shader);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
 
-        public PixelShader(string a_shader)
+        internal uint InternalAddr
         {
-            m_internalAddr = GenerateShader(a_shader);
+            get
+            {
+                return m_internalAddr;
+            }
+        }
+
+        PixelShader(uint a_addr)
+        {
+            m_internalAddr = a_addr;
         }
 
         public void Dispose()
@@ -33,27 +43,28 @@ namespace FlareEngine.Rendering
                 string str = File.ReadAllText(a_path);
                 if (!string.IsNullOrWhiteSpace(str))
                 {
-                    return new PixelShader(str);
+                    switch (Path.GetExtension(a_path).ToLower())
+                    {
+                    case ".fpix":
+                    case ".ffrag":
+                    {
+                        return new PixelShader(GenerateFShader(str));
+                    }
+                    }
+
+                    return new PixelShader(GenerateGLSLShader(str));
                 }
                 else
                 {
-                    Logger.Error($"FlareCS: PixelShader Empty: {a_path}");
+                    Logger.FlareError($"PixelShader Empty: {a_path}");
                 }
             }
             else
             {
-                Logger.Error($"FlareCS: PixelShader does not exist: {a_path}");
+                Logger.FlareError($"PixelShader does not exist: {a_path}");
             }
 
             return null;
-        }
-
-        internal uint InternalAddr
-        {
-            get
-            {
-                return m_internalAddr;
-            }
         }
 
         protected virtual void Dispose(bool a_disposing)
@@ -66,14 +77,14 @@ namespace FlareEngine.Rendering
                 }
                 else
                 {
-                    Logger.Error("FlareCS: PixelShader Failed to Dispose");
+                    Logger.FlareMessage("PixelShader Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Logger.Error("FlareCS: Multiple PixelShader Dispose");
+                Logger.FlareError("Multiple PixelShader Dispose");
             }
         }
 

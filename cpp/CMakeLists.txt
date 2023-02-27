@@ -47,12 +47,12 @@ if (GENERATE_CONFIG)
 endif()
 
 FileToHeader(
-    SOURCE_FILE "shaders/quad.vert"
+    SOURCE_FILE "shaders/quad.fvert"
     HEADER_FILE "include/Shaders/QuadVertex.h"
     VARIABLE_NAME "QuadVertex"
 )
 FileToHeader(
-    SOURCE_FILE "shaders/directionalLight.frag"
+    SOURCE_FILE "shaders/directionalLight.fpix"
     HEADER_FILE "include/Shaders/DirectionalLightPixel.h"
     VARIABLE_NAME "DirectionalLightPixel"
 )

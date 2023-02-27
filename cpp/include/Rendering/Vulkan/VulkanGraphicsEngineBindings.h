@@ -24,10 +24,12 @@ public:
     VulkanGraphicsEngineBindings(RuntimeManager* a_runtime, VulkanGraphicsEngine* a_graphicsEngine);
     ~VulkanGraphicsEngineBindings();
 
-    uint32_t GenerateVertexShaderAddr(const std::string_view& a_str) const;
+    uint32_t GenerateFVertexShaderAddr(const std::string_view& a_str) const;
+    uint32_t GenerateGLSLVertexShaderAddr(const std::string_view& a_str) const;
     void DestroyVertexShader(uint32_t a_addr) const;
 
-    uint32_t GeneratePixelShaderAddr(const std::string_view& a_str) const;
+    uint32_t GenerateFPixelShaderAddr(const std::string_view& a_str) const;
+    uint32_t GenerateGLSLPixelShaderAddr(const std::string_view& a_str) const;
     void DestroyPixelShader(uint32_t a_addr) const;
 
     uint32_t GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const;

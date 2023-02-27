@@ -21,9 +21,11 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
 // The lazy part of me won against the part that wants to write clean code
 // My apologies to the poor soul that has to decipher this definition
 #define VULKANGRAPHICS_BINDING_FUNCTION_TABLE(F) \
-    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateGLSLShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateGLSLVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateFShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateFVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
     F(void, FlareEngine.Rendering, VertexShader, DestroyShader, { Engine->DestroyVertexShader(a_addr); }, uint32_t a_addr) \
-    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GeneratePixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateGLSLShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateGLSLPixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
+    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateFShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateFPixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
     F(void, FlareEngine.Rendering, PixelShader, DestroyShader, { Engine->DestroyPixelShader(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, Material, GenerateInternalProgram, { return Engine->GenerateInternalShaderProgram(a_renderProgram); }, e_InternalRenderProgram a_renderProgram) \
@@ -179,9 +181,30 @@ VulkanGraphicsEngineBindings::~VulkanGraphicsEngineBindings()
 
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateVertexShaderAddr(const std::string_view& a_str) const
+uint32_t VulkanGraphicsEngineBindings::GenerateFVertexShaderAddr(const std::string_view& a_str) const
 {
-    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateVertexShaderAddr empty string")
+    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateFVertexShaderAddr empty string")
+
+    VulkanVertexShader* shader = VulkanVertexShader::CreateFromFShader(m_graphicsEngine->m_vulkanEngine, a_str);
+
+    const uint32_t size = m_graphicsEngine->m_vertexShaders.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_vertexShaders[i] == nullptr)
+        {
+            m_graphicsEngine->m_vertexShaders[i] = shader;
+            
+            return i;
+        }
+    }
+
+    m_graphicsEngine->m_vertexShaders.Push(shader);
+
+    return size;
+}
+uint32_t VulkanGraphicsEngineBindings::GenerateGLSLVertexShaderAddr(const std::string_view& a_str) const
+{
+    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateGLSLVertexShaderAddr empty string")
 
     VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
@@ -209,9 +232,30 @@ void VulkanGraphicsEngineBindings::DestroyVertexShader(uint32_t a_addr) const
     m_graphicsEngine->m_vertexShaders[a_addr] = nullptr;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string_view& a_str) const
+uint32_t VulkanGraphicsEngineBindings::GenerateFPixelShaderAddr(const std::string_view& a_str) const
 {
-    FLARE_ASSERT_MSG(!a_str.empty(), "GeneratePixelShaderAddr empty string")
+    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateFPixelShaderAddr empty string")
+
+    VulkanPixelShader* shader = VulkanPixelShader::CreateFromFShader(m_graphicsEngine->m_vulkanEngine, a_str);
+
+    const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_pixelShaders[i] == nullptr)
+        {
+            m_graphicsEngine->m_pixelShaders[i] = shader;
+
+            return i;
+        }
+    }
+
+    m_graphicsEngine->m_pixelShaders.Push(shader);
+
+    return size;
+}
+uint32_t VulkanGraphicsEngineBindings::GenerateGLSLPixelShaderAddr(const std::string_view& a_str) const
+{
+    FLARE_ASSERT_MSG(!a_str.empty(), "GenerateGLSLPixelShaderAddr empty string")
 
     VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
@@ -230,7 +274,6 @@ uint32_t VulkanGraphicsEngineBindings::GeneratePixelShaderAddr(const std::string
 
     return size;
 }
-
 void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pixelShaders.Size(), "DestroyPixelShader out of bounds")
@@ -252,8 +295,8 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
     {
     case InternalRenderProgram_DirectionalLight:
     {
-        program.VertexShader = GenerateVertexShaderAddr(QUADVERTEX);
-        program.PixelShader = GeneratePixelShaderAddr(DIRECTIONALLIGHTPIXEL);
+        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.PixelShader = GenerateFPixelShaderAddr(DIRECTIONALLIGHTPIXEL);
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
 

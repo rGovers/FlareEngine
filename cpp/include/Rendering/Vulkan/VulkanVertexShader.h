@@ -16,4 +16,5 @@ public:
     virtual ~VulkanVertexShader();
 
     static VulkanVertexShader* CreateFromGLSL(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str);
+    static VulkanVertexShader* CreateFromFShader(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str);
 };

@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
@@ -16,12 +17,7 @@ VulkanPixelShader::VulkanPixelShader(VulkanRenderEngineBackend* a_engine, const 
         (uint32_t*)a_data.data()
     );
 
-    if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create PixelShader");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(device.createShaderModule(&createInfo, nullptr, &m_module) == vk::Result::eSuccess, "Failed to create PixelShader");
 
     TRACE("Created PixelShader");
 }
@@ -32,16 +28,15 @@ VulkanPixelShader::~VulkanPixelShader()
     device.destroyShaderModule(m_module);
 }
 
+VulkanPixelShader* VulkanPixelShader::CreateFromFShader(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str)
+{
+    return CreateFromGLSL(a_engine, GLSL_fromFShader(a_str));
+}
 VulkanPixelShader* VulkanPixelShader::CreateFromGLSL(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str)
 {
     const std::vector<unsigned int> spirv = spirv_fromGLSL(EShLangFragment, a_str);
     
-    if (spirv.size() <= 0)
-    {
-        Logger::Error("Failed to generate Pixel Spirv");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(!spirv.empty(), "Failed to generate Pixel Spirv");
 
     return new VulkanPixelShader(a_engine, spirv);
 }

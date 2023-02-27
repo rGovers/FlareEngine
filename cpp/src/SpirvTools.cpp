@@ -2,8 +2,100 @@
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
+#include "FlareAssert.h"
 #include "Logger.h"
+#include "Rendering/ShaderBuffers.h"
 #include "Trace.h"
+
+static std::vector<std::string> SplitArgs(const std::string_view& a_string)
+{
+	std::vector<std::string> args;
+
+	std::size_t pos = 0;
+
+	while (true)
+	{
+		while (a_string[pos] == ' ')
+		{
+			++pos;
+		}
+
+		const std::size_t sPos = a_string.find(',', pos);
+		if (sPos == std::string_view::npos)
+		{
+			args.emplace_back(a_string.substr(pos));
+
+			break;
+		}
+
+		args.emplace_back(a_string.substr(pos, sPos - pos));
+		pos = sPos + 1;
+	}
+	
+	return args;
+}
+
+// Dont know why I never though of using the C++ preprocessor to write my shader uniforms for me 
+// My laziness knows no bounds
+std::string GLSL_fromFShader(const std::string_view& a_str)
+{
+	std::string shader = std::string(a_str);
+
+	std::size_t pos = 0;
+	while (true)
+	{
+		const std::size_t sPos = shader.find("#!", pos);
+		if (sPos == std::string::npos)
+		{
+			break;
+		}
+
+		const std::size_t sAPos = shader.find("(", sPos + 1);
+		const std::size_t eAPos = shader.find(')', sPos + 1);
+
+		FLARE_ASSERT_MSG_R(sAPos != std::string::npos && eAPos != std::string::npos, "Invalid Flare Shader Definition at " + std::to_string(sPos));
+		FLARE_ASSERT_MSG_R(sAPos < eAPos, "Invalid Flare Shader Braces at " + std::to_string(sPos));
+
+		const std::string defName = shader.substr(sPos + 2, sAPos - sPos - 2);
+		std::vector<std::string> args = SplitArgs(shader.substr(sAPos + 1, eAPos - sAPos - 1));
+
+		std::string rStr;
+		if (defName == "structure")
+		{
+			FLARE_ASSERT_MSG_R(args.size() == 3, "Flare Shader structure requires 3 arguments");
+
+			if (args[0] == "CameraBuffer")
+			{
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_CAMERA_SHADER_STRUCTURE);
+			}
+			else if (args[0] == "TimeBuffer")
+			{
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_TIME_SHADER_STRUCTURE);
+			}
+		}
+		else if (defName == "pushbuffer")
+		{
+			FLARE_ASSERT_MSG_R(args.size() == 2, "Flare Push Buffer requires 2 arguments");
+
+			if (args[0] == "ModelBuffer")
+			{
+				rStr = GLSL_PUSHBUFFER_STRING(args[1], GLSL_MODEL_SHADER_STRUCTURE);
+			}
+		}
+
+		std::size_t next = 1;
+		if (!rStr.empty())
+		{
+			next = rStr.size();
+		}
+
+		shader.replace(sPos, eAPos - sPos + 1, rStr);
+
+		pos = sPos + next;
+	}
+
+	return shader;
+}
 
 void spirv_init()
 {

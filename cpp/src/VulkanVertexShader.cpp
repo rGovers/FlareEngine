@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
@@ -11,17 +12,12 @@ VulkanVertexShader::VulkanVertexShader(VulkanRenderEngineBackend* a_engine, cons
 
     const vk::ShaderModuleCreateInfo createInfo = vk::ShaderModuleCreateInfo
     (
-        vk::ShaderModuleCreateFlags(),
+        { },
         a_data.size() * sizeof(unsigned int),
         (uint32_t*)a_data.data()
     );
 
-    if (device.createShaderModule(&createInfo, nullptr, &m_module) != vk::Result::eSuccess)
-    {
-        Logger::Error("Failed to create VertexShader");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(device.createShaderModule(&createInfo, nullptr, &m_module) == vk::Result::eSuccess, "Failed to create VertexShader");
 
     TRACE("Created VertexShader");
 }
@@ -32,16 +28,15 @@ VulkanVertexShader::~VulkanVertexShader()
     device.destroyShaderModule(m_module);
 }
 
+VulkanVertexShader* VulkanVertexShader::CreateFromFShader(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str)
+{
+    return CreateFromGLSL(a_engine, GLSL_fromFShader(a_str));
+}
 VulkanVertexShader* VulkanVertexShader::CreateFromGLSL(VulkanRenderEngineBackend* a_engine, const std::string_view& a_str)
 {
     const std::vector<unsigned int> spirv = spirv_fromGLSL(EShLangVertex, a_str);
     
-    if (spirv.size() <= 0)
-    {
-        Logger::Error("Failed to generate Vertex Spirv");
-
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(!spirv.empty(), "Failed to generate Vertex Spirv");
 
     return new VulkanVertexShader(a_engine, spirv);
 }
