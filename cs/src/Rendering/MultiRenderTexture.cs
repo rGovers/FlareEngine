@@ -41,6 +41,14 @@ namespace FlareEngine.Rendering
             }
         }
 
+        public bool HasDepth
+        {
+            get
+            {
+                return RenderTextureCmd.HasDepth(m_bufferAddr) != 0;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GetTextureCount(uint a_addr);
 

@@ -112,6 +112,10 @@ public:
     {
         return m_textureViews[a_index];
     }
+    inline vk::ImageView GetDepthImageView() const
+    {
+        return m_textureViews[m_textureCount];
+    }
     inline vk::ImageView* GetImageViews() const
     {
         return m_textureViews;

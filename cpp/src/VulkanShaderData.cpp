@@ -266,6 +266,15 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
 
         break;
     }
+    case TextureMode_RenderTextureDepth:
+    {
+        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+
+        imageInfo.imageView = renderTexture->GetDepthImageView();
+        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+        break;
+    }
     default:
     {
         FLARE_ASSERT_MSG(0, "SetTexture invalid texture mode");

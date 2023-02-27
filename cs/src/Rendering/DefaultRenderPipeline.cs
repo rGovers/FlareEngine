@@ -12,6 +12,7 @@ namespace FlareEngine.Rendering
         TextureSampler     m_normalSampler;
         TextureSampler     m_specularSampler;
         TextureSampler     m_dataSampler;
+        TextureSampler     m_depthSampler;
 
         public DefaultRenderPipeline()
         {
@@ -22,11 +23,13 @@ namespace FlareEngine.Rendering
             m_normalSampler = TextureSampler.GenerateRenderTextureSampler(m_drawRenderTexture, 1);
             m_specularSampler = TextureSampler.GenerateRenderTextureSampler(m_drawRenderTexture, 2);
             m_dataSampler = TextureSampler.GenerateRenderTextureSampler(m_drawRenderTexture, 3);
+            m_depthSampler = TextureSampler.GenerateRenderTextureDepthSampler(m_drawRenderTexture);
 
             Material.DirectionalLightMaterial.SetTexture(0, m_colorSampler);
             Material.DirectionalLightMaterial.SetTexture(1, m_normalSampler);
             Material.DirectionalLightMaterial.SetTexture(2, m_specularSampler);
             Material.DirectionalLightMaterial.SetTexture(3, m_dataSampler);
+            Material.DirectionalLightMaterial.SetTexture(4, m_depthSampler);
         }
 
         public override void Resize(uint a_width, uint a_height)
@@ -38,6 +41,7 @@ namespace FlareEngine.Rendering
             Material.DirectionalLightMaterial.SetTexture(1, m_normalSampler);
             Material.DirectionalLightMaterial.SetTexture(2, m_specularSampler);
             Material.DirectionalLightMaterial.SetTexture(3, m_dataSampler);
+            Material.DirectionalLightMaterial.SetTexture(4, m_depthSampler);
         }
 
         public override void PreShadow(Camera a_camera) 
@@ -94,6 +98,7 @@ namespace FlareEngine.Rendering
             m_normalSampler.Dispose();
             m_specularSampler.Dispose();
             m_dataSampler.Dispose();
+            m_depthSampler.Dispose();
         }
     }
 }

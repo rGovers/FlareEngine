@@ -31,6 +31,14 @@ namespace FlareEngine.Rendering
             }
         }
 
+        public bool HasDepth
+        {
+            get
+            {
+                return RenderTextureCmd.HasDepth(m_bufferAddr) != 0;
+            }
+        }
+
         public RenderTexture(uint a_width, uint a_height, bool a_depth = false, bool a_hdr = false)
         {
             uint depthVal = 0;

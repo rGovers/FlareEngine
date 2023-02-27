@@ -63,6 +63,9 @@ namespace FlareEngine.Rendering
         internal static extern void DestroyRenderTexture(uint a_addr);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint HasDepth(uint a_addr);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetWidth(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetHeight(uint a_addr);

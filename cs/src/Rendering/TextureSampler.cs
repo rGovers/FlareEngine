@@ -20,6 +20,8 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateRenderTextureSampler(uint a_renderTexture, uint a_textureIndex, uint a_filter, uint a_addressMode);
         [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GenerateRenderTextureDepthSampler(uint a_renderTexture, uint a_filter, uint a_addressMode);
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroySampler(uint a_addr);
 
         bool          m_disposed = false;
@@ -60,6 +62,25 @@ namespace FlareEngine.Rendering
             }
 
             return new TextureSampler(GenerateRenderTextureSampler(a_renderTexture.BufferAddr, a_index, (uint)a_filter, (uint)a_addressMode));
+        }
+
+        public static TextureSampler GenerateRenderTextureDepthSampler(IRenderTexture a_renderTexture, TextureFilter a_filter = TextureFilter.Linear, TextureAddress a_addressMode = TextureAddress.Repeat)
+        {
+            if (a_renderTexture == null)
+            {
+                Logger.FlareWarning("GenerateRenderTextureDepthSampler null RenderTexture");
+
+                return null;
+            }
+            
+            if (!a_renderTexture.HasDepth)
+            {
+                Logger.FlareWarning("GenerateRenderTextureDepthSampler no depth on render texture");
+
+                return null;
+            }
+
+            return new TextureSampler(GenerateRenderTextureDepthSampler(RenderTextureCmd.GetTextureAddr(a_renderTexture), (uint)a_filter, (uint)a_addressMode));
         }
 
         public void Dispose()

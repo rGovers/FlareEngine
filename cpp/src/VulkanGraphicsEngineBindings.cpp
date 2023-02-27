@@ -42,10 +42,12 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, MeshRenderer, DestroyRenderStack, { Engine->DestroyRenderStack(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureSampler, { return Engine->GenerateRenderTextureSampler(a_renderTexture, a_textureIndex, (e_TextureFilter)a_filter, (e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_textureIndex, uint32_t a_filter, uint32_t a_addressMode) \
+    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureDepthSampler, { return Engine->GenerateRenderTextureDepthSampler(a_renderTexture, (e_TextureFilter)a_filter, (e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_filter, uint32_t a_addressMode) \
     F(void, FlareEngine.Rendering, TextureSampler, DestroySampler, { Engine->DestroyTextureSampler(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GenerateRenderTexture, { return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr); }, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr) \
     F(void, FlareEngine.Rendering, RenderTextureCmd, DestroyRenderTexture, { return Engine->DestroyRenderTexture(a_addr); }, uint32_t a_addr) \
+    F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, HasDepth, { return (uint32_t)Engine->RenderTextureHasDepth(a_addr); }, uint32_t a_addr) \
     F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GetWidth, { return Engine->GetRenderTextureWidth(a_addr); }, uint32_t a_addr) \
     F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GetHeight, { return Engine->GetRenderTextureHeight(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, RenderTextureCmd, Resize, { return Engine->ResizeRenderTexture(a_addr, a_width, a_height); }, uint32_t a_addr, uint32_t a_width, uint32_t a_height) \
@@ -255,7 +257,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
 
-        constexpr uint32_t BufferCount = 4;
+        constexpr uint32_t BufferCount = 5;
 
         program.ShaderBufferInputCount = BufferCount;
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
@@ -557,6 +559,35 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_r
 
     return size;
 }
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const
+{
+    FLARE_ASSERT_MSG(a_renderTexture < m_graphicsEngine->m_renderTextures.Size(), "GenerateRenderTextureDepthSampler out of bounds");
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderTextures[a_renderTexture] != nullptr, "GenerateRenderTextureDepthSampler RenderTexture destroyed");
+
+    TextureSampler sampler;
+    sampler.Addr = a_renderTexture;
+    sampler.TextureMode = TextureMode_RenderTextureDepth;
+    sampler.FilterMode = a_filter;
+    sampler.AddressMode = a_addressMode;
+    sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
+
+    const uint32_t size = m_graphicsEngine->m_textureSampler.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_textureSampler[i].TextureMode == TextureMode_Null)
+        {
+            FLARE_ASSERT_MSG(m_graphicsEngine->m_textureSampler[i].Data == nullptr, "GenerateRenderTextureDepthSampler null sampler with data")
+
+            m_graphicsEngine->m_textureSampler[i] = sampler;
+
+            return i;
+        }
+    }
+
+    m_graphicsEngine->m_textureSampler.Push(sampler);
+
+    return size;
+}
 void VulkanGraphicsEngineBindings::DestroyTextureSampler(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_textureSampler.Size(), "DestroyTextureSampler out of bounds");
@@ -610,6 +641,14 @@ uint32_t VulkanGraphicsEngineBindings::GetRenderTextureTextureCount(uint32_t a_a
     const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
 
     return texture->GetTextureCount();
+}
+bool VulkanGraphicsEngineBindings::RenderTextureHasDepth(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "RenderTextureHasDepth out of bounds");
+
+    const VulkanRenderTexture* texture = m_graphicsEngine->m_renderTextures[a_addr];
+
+    return texture->HasDepthTexture();
 }
 uint32_t VulkanGraphicsEngineBindings::GetRenderTextureWidth(uint32_t a_addr) const
 {

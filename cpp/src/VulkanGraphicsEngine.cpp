@@ -511,6 +511,16 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
             FLARE_ASSERT_MSG_R(device.allocateCommandBuffers(&commandBufferInfo, &buffer) == vk::Result::eSuccess, "Failed to allocate graphics command buffer");
 
             m_commandBuffers[a_index].emplace_back(buffer);
+        }
+    }
+
+    const uint32_t camUniformSize = (uint32_t)m_cameraUniforms.size();
+
+    if (camUniformSize < totalPoolSize)
+    {
+        const uint32_t diff = totalPoolSize - camUniformSize;
+        for (uint32_t i = 0; i < diff; ++i)
+        {
             m_cameraUniforms.emplace_back(new VulkanUniformBuffer(m_vulkanEngine, sizeof(CameraShaderBuffer)));
         }
     }

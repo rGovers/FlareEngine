@@ -51,11 +51,13 @@ public:
     void DestroyRenderStack(uint32_t a_meshAddr) const;
 
     uint32_t GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const;
+    uint32_t GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const;
     void DestroyTextureSampler(uint32_t a_addr) const;
 
     uint32_t GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr) const;
     void DestroyRenderTexture(uint32_t a_addr) const;
     uint32_t GetRenderTextureTextureCount(uint32_t a_addr) const;
+    bool RenderTextureHasDepth(uint32_t a_addr) const;
     uint32_t GetRenderTextureWidth(uint32_t a_addr) const;
     uint32_t GetRenderTextureHeight(uint32_t a_addr) const;
     void ResizeRenderTexture(uint32_t a_addr, uint32_t a_width, uint32_t a_height) const;

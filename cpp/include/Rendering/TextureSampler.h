@@ -5,7 +5,8 @@
 enum e_TextureMode
 {
     TextureMode_Null = -1,
-    TextureMode_RenderTexture
+    TextureMode_RenderTexture,
+    TextureMode_RenderTextureDepth
 };
 
 enum e_TextureFilter
