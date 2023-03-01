@@ -38,10 +38,8 @@ void Logger::Message(const std::string_view& a_msg)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Message);
     }
-    else
-    {
-        std::cout << a_msg << "\n";
-    }
+    
+    std::cout<< "FEL: " << a_msg << "\n";
 }
 void Logger::Warning(const std::string_view& a_msg)
 {
@@ -49,10 +47,8 @@ void Logger::Warning(const std::string_view& a_msg)
     {
         (*CallbackFunc)(a_msg, LoggerMessageType_Warning);
     }
-    else
-    {
-        std::cout << a_msg << "\n";
-    }
+    
+    std::cout << "FEL: " << a_msg << "\n";
 }
 void Logger::Error(const std::string_view& a_msg)
 {
@@ -61,7 +57,7 @@ void Logger::Error(const std::string_view& a_msg)
         (*CallbackFunc)(a_msg, LoggerMessageType_Error);
     }
     
-    std::cout << a_msg << "\n";
+    std::cout << "FEL: " << a_msg << "\n";
 }
 void Logger::InitRuntime(RuntimeManager* a_runtime)
 {

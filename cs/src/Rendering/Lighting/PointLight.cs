@@ -1,30 +1,31 @@
+using FlareEngine.Definitions;
+using FlareEngine.Maths;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using FlareEngine.Definitions;
-using FlareEngine.Maths;
 
 namespace FlareEngine.Rendering.Lighting
 {
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    internal struct DirectionalLightBuffer
+    internal struct PointLightBuffer
     {
         public uint TransformAddr;
         public uint RenderLayer;
         public Vector4 Color;
         public float Intensity;
+        public float Radius;
     }
 
-    public class DirectionalLight : Light, IDisposable
+    public class PointLight : Light, IDisposable
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateBuffer(uint a_transformAddr);
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static DirectionalLightBuffer GetBuffer(uint a_addr);
+        extern static PointLightBuffer GetBuffer(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static void SetBuffer(uint a_addr, DirectionalLightBuffer a_buffer);
+        extern static void SetBuffer(uint a_addr, PointLightBuffer a_buffer);
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static void DestroyBuffer(uint a_addr); 
+        extern static void DestroyBuffer(uint a_addr);
 
         bool m_disposed = false;
         uint m_bufferAddr;
@@ -33,47 +34,47 @@ namespace FlareEngine.Rendering.Lighting
         {
             get
             {
-                return LightType.Directional;
+                return LightType.Spot;
             }
         }
 
-        public DirectionalLightDef DirectionalLightDef
+        public PointLightDef PointLightDef
         {
             get
             {
-                return Def as DirectionalLightDef;
+                return Def as PointLightDef;
             }
         }
 
-        public override uint RenderLayer
-        {
+        public override uint RenderLayer 
+        { 
             get
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                return buffer.RenderLayer;
+                return buffer.RenderLayer;   
             }
             set
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 buffer.RenderLayer = value;
 
                 SetBuffer(m_bufferAddr, buffer);
-            }
+            } 
         }
 
-        public override Vector4 Color
+        public override Vector4 Color 
         {
             get
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 return buffer.Color;
             }
             set
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 buffer.Color = value;
 
@@ -81,17 +82,17 @@ namespace FlareEngine.Rendering.Lighting
             }
         }
 
-        public override float Intensity
+        public override float Intensity 
         {
             get
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
-
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
+                
                 return buffer.Intensity;
             }
             set
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 buffer.Intensity = value;
 
@@ -105,20 +106,35 @@ namespace FlareEngine.Rendering.Lighting
 
             m_bufferAddr = GenerateBuffer(Transform.InternalAddr);
 
-            LightDef def = LightDef;
-            if (def != null)
+            PointLightDef pointDef = PointLightDef;
+            if (pointDef != null)
             {
-                DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
+                PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                buffer.RenderLayer = def.RenderLayer;
-                buffer.Color = def.Color;
-                buffer.Intensity = def.Intensity;
+                buffer.RenderLayer = pointDef.RenderLayer;
+                buffer.Color = pointDef.Color;
+                buffer.Intensity = pointDef.Intensity;
+                buffer.Radius = pointDef.Radius;
 
                 SetBuffer(m_bufferAddr, buffer);
             }
+            else
+            {
+                LightDef lightDef = LightDef;
+                if (lightDef != null)
+                {
+                    PointLightBuffer buffer = GetBuffer(m_bufferAddr);
+
+                    buffer.RenderLayer = lightDef.RenderLayer;
+                    buffer.Color = lightDef.Color;
+                    buffer.Intensity = lightDef.Intensity;
+
+                    SetBuffer(m_bufferAddr, buffer);
+                }
+            }
         }
 
-        ~DirectionalLight()
+        ~PointLight()
         {
             Dispose(false);
         }
@@ -140,14 +156,14 @@ namespace FlareEngine.Rendering.Lighting
                 }
                 else
                 {
-                    Logger.FlareWarning("DirectionalLight Failed to Dispose");
+                    Logger.FlareWarning("PointLight Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Logger.FlareError("Multiple DirectionalLight Dispose");
+                Logger.FlareError("Multiple PointLight Dispose");
             }
         }
     }

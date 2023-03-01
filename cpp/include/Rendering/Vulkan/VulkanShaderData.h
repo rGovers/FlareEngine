@@ -33,6 +33,8 @@ private:
 
     ShaderBufferInput          m_cameraBufferInput;
     ShaderBufferInput          m_transformBufferInput;
+    ShaderBufferInput          m_directionalLightBufferInput;
+    ShaderBufferInput          m_pointLightBufferInput;
 
 protected:
 
@@ -44,12 +46,23 @@ public:
     {
         return m_layout;
     }
+
     inline ShaderBufferInput GetCameraInput() const
     {
         return m_cameraBufferInput;
     }
+    inline ShaderBufferInput GetDirectionalLightInput() const
+    {
+        return m_directionalLightBufferInput;
+    }
+    inline ShaderBufferInput GetPointLightInput() const
+    {
+        return m_pointLightBufferInput;
+    }
 
     void SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const;
+
+    void PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler) const;
     void PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, VulkanUniformBuffer* a_buffer, uint32_t a_index) const;
 
     void UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, uint32_t a_transformAddr, ObjectManager* a_objectManager) const;

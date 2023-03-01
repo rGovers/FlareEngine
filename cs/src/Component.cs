@@ -48,8 +48,6 @@ namespace FlareEngine
             if (comp != null)
             {
                 comp.m_def = a_def;
-
-                comp.Init();
             }
 
             return comp;

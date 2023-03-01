@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "Rendering/TextureSampler.h"
+
 class VulkanGraphicsEngine;
 class VulkanPipeline;
 class VulkanRenderEngineBackend;
@@ -47,6 +49,8 @@ public:
 
     VulkanPipeline* BindMaterial(uint32_t a_materialAddr);
 
+    void PushTexture(uint32_t a_slot, const TextureSampler& a_sampler) const;
+    
     void BindRenderTexture(uint32_t a_renderTexAddr);
     
     void Blit(const VulkanRenderTexture* a_src, const VulkanRenderTexture* a_dst);

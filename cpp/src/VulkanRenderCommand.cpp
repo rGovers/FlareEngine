@@ -1,10 +1,12 @@
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPipeline.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
+#include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
 
 VulkanRenderCommand::VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer)
@@ -56,6 +58,8 @@ VulkanPipeline* VulkanRenderCommand::GetPipeline() const
 
 VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
 {
+    const bool bind = m_materialAddr != a_materialAddr;
+
     m_materialAddr = a_materialAddr;
     if (m_materialAddr == -1)
     {
@@ -63,9 +67,22 @@ VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
     }
 
     VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
-    pipeline->Bind(m_engine->GetCurrentFlightFrame(), m_commandBuffer);
+    if (bind)
+    {
+        pipeline->Bind(m_engine->GetCurrentFlightFrame(), m_commandBuffer);
+    }
 
     return pipeline;
+}
+
+void VulkanRenderCommand::PushTexture(uint32_t a_slot, const TextureSampler& a_sampler) const
+{
+    FLARE_ASSERT_MSG_R(m_materialAddr != -1, "PushTexture Material not bound");
+
+    const RenderProgram program = m_gEngine->GetRenderProgram(m_materialAddr);
+    VulkanShaderData* data = (VulkanShaderData*)program.Data;
+
+    data->PushTexture(m_commandBuffer, a_slot, a_sampler);
 }
 
 void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
@@ -80,7 +97,7 @@ void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
     {
         const glm::ivec2 renderSize = m_swapchain->GetSize();
 
-        constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(std::array{ 0.0f, 0.0f, 0.0f, 1.0f }));
+        constexpr vk::ClearValue ClearColor = vk::ClearValue(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
 
         const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
         (

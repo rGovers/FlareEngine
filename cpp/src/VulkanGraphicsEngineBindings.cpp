@@ -2,6 +2,7 @@
 
 #include "FlareAssert.h"
 #include "Shaders/DirectionalLightPixel.h"
+#include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
@@ -60,7 +61,13 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(DirectionalLightBuffer, FlareEngine.Rendering.Lighting, DirectionalLight, GetBuffer, { return Engine->GetDirectionalLightBuffer(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering.Lighting, DirectionalLight, SetBuffer, { Engine->SetDirectionalLightBuffer(a_addr, a_buffer); }, uint32_t a_addr, DirectionalLightBuffer a_buffer) \
     \
+    F(uint32_t, FlareEngine.Rendering.Lighting, PointLight, GenerateBuffer, { return Engine->GeneratePointLightBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
+    F(void, FlareEngine.Rendering.Lighting, PointLight, DestroyBuffer, { Engine->DestroyPointLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(PointLightBuffer, FlareEngine.Rendering.Lighting, PointLight, GetBuffer, { return Engine->GetPointLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering.Lighting, PointLight, SetBuffer, { Engine->SetPointLightBuffer(a_addr, a_buffer); }, uint32_t a_addr, PointLightBuffer a_buffer) \
+    \
     F(void, FlareEngine.Rendering, RenderCommand, BindMaterial, { Engine->BindMaterial(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, RenderCommand, PushTexture, { Engine->PushTexture(a_slot, a_samplerAddr); }, uint32_t a_slot, uint32_t a_samplerAddr) \
     F(void, FlareEngine.Rendering, RenderCommand, BindRenderTexture, { Engine->BindRenderTexture(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, RenderCommand, RTRTBlit, { Engine->BlitRTRT(a_srcAddr, a_dstAddr); }, uint32_t a_srcAddr, uint32_t a_dstAddr)
 
@@ -295,21 +302,47 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
     {
     case InternalRenderProgram_DirectionalLight:
     {
+        TRACE("Creating Directional Light Shader");
         program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(DIRECTIONALLIGHTPIXEL);
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
 
-        constexpr uint32_t BufferCount = 5;
+        constexpr uint32_t TextureCount = 5;
+        constexpr uint32_t BufferCount = TextureCount + 2;
 
         program.ShaderBufferInputCount = BufferCount;
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
-        for (uint32_t i = 0; i < BufferCount; ++i)
+        for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i].Slot = i;
-            program.ShaderBufferInputs[i].BufferType = ShaderBufferType_Texture;
-            program.ShaderBufferInputs[i].ShaderSlot = ShaderSlot_Pixel;
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
         }
+
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_DirectionalLightBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
+
+        break;
+    }
+    case InternalRenderProgram_PointLight:
+    {
+        TRACE("Creating Point Light Shader");
+        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.PixelShader = GenerateFPixelShaderAddr(POINTLIGHTPIXEL);
+        program.CullingMode = CullMode_None;
+        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+
+        constexpr uint32_t TextureCount = 5;
+        constexpr uint32_t BufferCount = TextureCount + 2;
+        
+        program.ShaderBufferInputCount = BufferCount;
+        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        for (uint32_t i = 0; i < TextureCount; ++i)
+        {
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
+        }
+
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_PointLightBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
 
         break;
     }
@@ -761,6 +794,47 @@ void VulkanGraphicsEngineBindings::DestroyDirectionalLightBuffer(uint32_t a_addr
     m_graphicsEngine->m_directionalLights[a_addr].TransformAddr = -1;
 }
 
+uint32_t VulkanGraphicsEngineBindings::GeneratePointLightBuffer(uint32_t a_transformAddr) const
+{
+    const PointLightBuffer buffer = PointLightBuffer(a_transformAddr);
+
+    FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GeneratePointLightBuffer no transform");
+
+    const uint32_t size = m_graphicsEngine->m_pointLights.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_pointLights[i].TransformAddr != -1)
+        {
+            m_graphicsEngine->m_pointLights[i] = buffer;
+
+            return i;
+        }
+    }
+
+    TRACE("Allocating PointLight Buffer");
+    m_graphicsEngine->m_pointLights.Push(buffer);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::SetPointLightBuffer(uint32_t a_addr, const PointLightBuffer& a_buffer) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "SetPointLightBuffer out of bounds");
+
+    m_graphicsEngine->m_pointLights[a_addr] = a_buffer;
+}
+PointLightBuffer VulkanGraphicsEngineBindings::GetPointLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "GetPointLightBuffer out of bounds");
+
+    return m_graphicsEngine->m_pointLights[a_addr];
+}
+void VulkanGraphicsEngineBindings::DestroyPointLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "DestroyPointLightBuffer out of bounds");
+
+    m_graphicsEngine->m_pointLights[a_addr].TransformAddr = -1;
+}
+
 void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "BindMaterial RenderCommand does not exist");
@@ -770,6 +844,12 @@ void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const
     }
 
     m_graphicsEngine->m_renderCommands->BindMaterial(a_addr);
+}
+void VulkanGraphicsEngineBindings::PushTexture(uint32_t a_slot, uint32_t a_samplerAddr) const
+{
+    FLARE_ASSERT_MSG_R(a_samplerAddr < m_graphicsEngine->m_textureSampler.Size(), "PushTexture sampler out of bounds");
+
+    m_graphicsEngine->m_renderCommands->PushTexture(a_slot, m_graphicsEngine->m_textureSampler[a_samplerAddr]);
 }
 void VulkanGraphicsEngineBindings::BindRenderTexture(uint32_t a_addr) const
 {

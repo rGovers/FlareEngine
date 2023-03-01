@@ -69,7 +69,13 @@ public:
     DirectionalLightBuffer GetDirectionalLightBuffer(uint32_t a_addr) const;
     void DestroyDirectionalLightBuffer(uint32_t a_addr) const;
 
+    uint32_t GeneratePointLightBuffer(uint32_t a_transformAddr) const;
+    void SetPointLightBuffer(uint32_t a_addr, const PointLightBuffer& a_buffer) const;
+    PointLightBuffer GetPointLightBuffer(uint32_t a_addr) const;
+    void DestroyPointLightBuffer(uint32_t a_addr) const;
+
     void BindMaterial(uint32_t a_addr) const;
+    void PushTexture(uint32_t a_slot, uint32_t a_samplerAddr) const;
     void BindRenderTexture(uint32_t a_addr) const;
     void BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAddr) const;
 };

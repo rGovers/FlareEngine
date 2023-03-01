@@ -7,6 +7,8 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void BindMaterial(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static void PushTexture(uint a_slot, uint a_sampler);
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void BindRenderTexture(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void RTRTBlit(uint a_srcAddr, uint a_dstAddr);
@@ -21,6 +23,11 @@ namespace FlareEngine.Rendering
             {
                 BindMaterial(uint.MaxValue);
             }
+        }
+
+        public static void PushTexture(uint a_slot, TextureSampler a_sampler)
+        {
+            PushTexture(a_slot, a_sampler.BufferAddr);
         }
 
         public static void BindRenderTexture(IRenderTexture a_renderTexture)

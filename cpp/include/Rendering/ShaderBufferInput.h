@@ -7,7 +7,10 @@ enum e_ShaderBufferType : uint16_t
     ShaderBufferType_Null = UINT16_MAX,
     ShaderBufferType_CameraBuffer = 0,
     ShaderBufferType_ModelBuffer = 1,
-    ShaderBufferType_Texture = 2,
+    ShaderBufferType_DirectionalLightBuffer = 2,
+    ShaderBufferType_PointLightBuffer = 3,
+    ShaderBufferType_Texture = 4,
+    ShaderBufferType_PushTexture = 5
 };
 
 enum e_ShaderSlot : uint16_t

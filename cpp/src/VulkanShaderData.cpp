@@ -44,6 +44,14 @@ constexpr static uint32_t GetBufferSize(e_ShaderBufferType a_type)
     {
         return sizeof(ModelShaderBuffer);
     }
+    case ShaderBufferType_DirectionalLightBuffer:
+    {
+        return sizeof(DirectionalLightShaderBuffer);
+    }
+    case ShaderBufferType_PointLightBuffer:
+    {
+        return sizeof(PointLightShaderBuffer);
+    }
     }
     
     return 0;
@@ -53,6 +61,7 @@ constexpr static vk::DescriptorType GetDescriptorType(e_ShaderBufferType a_buffe
     switch (a_bufferType)
     {
     case ShaderBufferType_Texture:
+    case ShaderBufferType_PushTexture:
     {
         return vk::DescriptorType::eCombinedImageSampler;
     }
@@ -81,6 +90,9 @@ constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<
             break;
         }
         case ShaderBufferType_CameraBuffer:
+        case ShaderBufferType_DirectionalLightBuffer:
+        case ShaderBufferType_PointLightBuffer:
+        case ShaderBufferType_PushTexture:
         {
             a_pushBindings.push_back(vk::DescriptorSetLayoutBinding
             (
@@ -117,6 +129,7 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
     {
         TRACE("Loading vkCmdPushDescriptorSetKHR Func");
         PushDescriptorSetKHRFunc = (PFN_vkCmdPushDescriptorSetKHR)vkGetInstanceProcAddr(m_engine->GetInstance(), "vkCmdPushDescriptorSetKHR");
+
         FLARE_ASSERT_R(PushDescriptorSetKHRFunc != nullptr);
     }
 
@@ -129,8 +142,6 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
     TRACE("Creating Shader Data");
     const vk::Device device = m_engine->GetLogicalDevice();
     const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
-
-    m_transformBufferInput.ShaderSlot = ShaderSlot_Null;
 
     for (uint16_t i = 0; i < program.ShaderBufferInputCount; ++i)
     {
@@ -145,6 +156,18 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
         case ShaderBufferType_ModelBuffer:
         {
             m_transformBufferInput = program.ShaderBufferInputs[i];
+
+            break;
+        }
+        case ShaderBufferType_DirectionalLightBuffer:
+        {
+            m_directionalLightBufferInput = program.ShaderBufferInputs[i];
+
+            break;
+        }
+        case ShaderBufferType_PointLightBuffer:
+        {
+            m_pointLightBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }
@@ -246,7 +269,7 @@ VulkanShaderData::~VulkanShaderData()
     device.destroyPipelineLayout(m_layout);
 }
 
-void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_sampler) const
+void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const
 {
     const vk::Device device = m_engine->GetLogicalDevice();
 
@@ -287,7 +310,7 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
     const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
     (
         m_descriptorSet,
-        a_index,
+        a_slot,
         0,
         1,
         vk::DescriptorType::eCombinedImageSampler,
@@ -297,16 +320,53 @@ void VulkanShaderData::SetTexture(uint32_t a_index, const TextureSampler& a_samp
     device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, uint32_t a_transformAddr, ObjectManager* a_objectManager) const
+void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler) const
 {
-    if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
-    {
-        ModelShaderBuffer buffer;
-        buffer.Model = a_objectManager->GetGlobalMatrix(a_transformAddr);
-        buffer.InvModel = glm::inverse(buffer.Model);
+    const vk::Device device = m_engine->GetLogicalDevice();
 
-        a_commandBuffer.pushConstants(m_layout, GetShaderStage(m_transformBufferInput.ShaderSlot), 0, sizeof(ModelShaderBuffer), &buffer);
+    const VulkanTextureSampler* vSampler = (VulkanTextureSampler*)a_sampler.Data;
+    FLARE_ASSERT(vSampler != nullptr);
+
+    VkDescriptorImageInfo imageInfo;
+    imageInfo.sampler = vSampler->GetSampler();
+
+    switch (a_sampler.TextureMode)
+    {
+    case TextureMode_RenderTexture:
+    {
+        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+
+        imageInfo.imageView = renderTexture->GetImageView(a_sampler.TSlot);
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        break;
     }
+    case TextureMode_RenderTextureDepth:
+    {
+        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+
+        imageInfo.imageView = renderTexture->GetDepthImageView();
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        break;
+    }
+    default:
+    {
+        FLARE_ASSERT_MSG(0, "SetTexture invalid texture mode");
+
+        return;
+    }
+    }
+
+    VkWriteDescriptorSet descriptorWrite = { };
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = 0;
+    descriptorWrite.dstBinding = a_slot;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    PushDescriptorSetKHRFunc((VkCommandBuffer)a_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)m_layout, 0, 1, &descriptorWrite);
 }
 void VulkanShaderData::PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, VulkanUniformBuffer* a_buffer, uint32_t a_index) const
 {
@@ -326,8 +386,21 @@ void VulkanShaderData::PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint
     PushDescriptorSetKHRFunc((VkCommandBuffer)a_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)m_layout, 0, 1, &descriptorWrite);
 }
 
+void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, uint32_t a_transformAddr, ObjectManager* a_objectManager) const
+{
+    if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
+    {
+        ModelShaderBuffer buffer;
+        buffer.Model = a_objectManager->GetGlobalMatrix(a_transformAddr);
+        buffer.InvModel = glm::inverse(buffer.Model);
+
+        a_commandBuffer.pushConstants(m_layout, GetShaderStage(m_transformBufferInput.ShaderSlot), 0, sizeof(ModelShaderBuffer), &buffer);
+    }
+}
+
 void VulkanShaderData::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const
 {
+    // TODO: Update
     if (m_descriptorSet != vk::DescriptorSet(nullptr))
     {
         a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, 0, 1, &m_descriptorSet, 0, nullptr);

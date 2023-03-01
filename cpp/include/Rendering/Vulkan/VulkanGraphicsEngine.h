@@ -68,6 +68,10 @@ private:
     TArray<MaterialRenderStack>                   m_renderStacks;
 
     TArray<DirectionalLightBuffer>                m_directionalLights;
+    TArray<PointLightBuffer>                      m_pointLights;
+
+    std::vector<VulkanUniformBuffer*>             m_directionalLightUniforms;
+    std::vector<VulkanUniformBuffer*>             m_pointLightUniforms;
 
     TArray<CameraBuffer>                          m_cameraBuffers;
     std::vector<VulkanUniformBuffer*>             m_cameraUniforms;

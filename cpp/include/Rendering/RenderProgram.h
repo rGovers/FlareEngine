@@ -7,7 +7,8 @@
 
 enum e_InternalRenderProgram : uint16_t
 {
-    InternalRenderProgram_DirectionalLight = 0
+    InternalRenderProgram_DirectionalLight = 0,
+    InternalRenderProgram_PointLight = 1
 };
 
 enum e_CullMode : uint16_t

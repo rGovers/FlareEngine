@@ -53,8 +53,8 @@ std::string GLSL_fromFShader(const std::string_view& a_str)
 		const std::size_t sAPos = shader.find("(", sPos + 1);
 		const std::size_t eAPos = shader.find(')', sPos + 1);
 
-		FLARE_ASSERT_MSG_R(sAPos != std::string::npos && eAPos != std::string::npos, "Invalid Flare Shader Definition at " + std::to_string(sPos));
-		FLARE_ASSERT_MSG_R(sAPos < eAPos, "Invalid Flare Shader Braces at " + std::to_string(sPos));
+		FLARE_ASSERT_MSG_R(sAPos != std::string::npos && eAPos != std::string::npos, "Invalid Flare Shader definition at " + std::to_string(sPos));
+		FLARE_ASSERT_MSG_R(sAPos < eAPos, "Invalid Flare Shader braces at " + std::to_string(sPos));
 
 		const std::string defName = shader.substr(sPos + 2, sAPos - sPos - 2);
 		std::vector<std::string> args = SplitArgs(shader.substr(sAPos + 1, eAPos - sAPos - 1));
@@ -68,6 +68,14 @@ std::string GLSL_fromFShader(const std::string_view& a_str)
 			{
 				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_CAMERA_SHADER_STRUCTURE);
 			}
+			else if (args[0] == "DirectionalLightBuffer")
+			{
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_DIRECTIONAL_LIGHT_SHADER_STRUCTURE);
+			}
+			else if (args[0] == "PointLightBuffer")
+			{
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_POINT_LIGHT_SHADER_STRUCTURE);
+			}
 			else if (args[0] == "TimeBuffer")
 			{
 				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_TIME_SHADER_STRUCTURE);
@@ -75,7 +83,7 @@ std::string GLSL_fromFShader(const std::string_view& a_str)
 		}
 		else if (defName == "pushbuffer")
 		{
-			FLARE_ASSERT_MSG_R(args.size() == 2, "Flare Push Buffer requires 2 arguments");
+			FLARE_ASSERT_MSG_R(args.size() == 2, "Flare Shader push buffer requires 2 arguments");
 
 			if (args[0] == "ModelBuffer")
 			{

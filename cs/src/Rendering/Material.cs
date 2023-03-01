@@ -27,7 +27,10 @@ namespace FlareEngine.Rendering
         Null = ushort.MaxValue,
         CameraBuffer = 0,
         ModelBuffer = 1,
-        Texture = 2
+        DirectionalLightBuffer = 2,
+        PointLightBuffer = 3,
+        Texture = 4,
+        PushTexture = 5
     };
 
     public enum ShaderSlot : ushort
@@ -53,7 +56,8 @@ namespace FlareEngine.Rendering
 
     internal enum InternalRenderProgram : ushort
     {
-        DirectionalLight = 0
+        DirectionalLight = 0,
+        PointLight = 1
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -67,6 +71,7 @@ namespace FlareEngine.Rendering
     public class Material : IDisposable
     {
         public static Material DirectionalLightMaterial = null;
+        public static Material PointLightMaterial = null;
 
         MaterialDef   m_def = null;
 
@@ -123,10 +128,12 @@ namespace FlareEngine.Rendering
         internal static void Init()
         {
             DirectionalLightMaterial = new Material(InternalRenderProgram.DirectionalLight);
+            PointLightMaterial = new Material(InternalRenderProgram.PointLight);
         }
         internal static void Destroy()
         {
             DirectionalLightMaterial.Dispose();
+            PointLightMaterial.Dispose();
         }
 
         Material(InternalRenderProgram a_program)

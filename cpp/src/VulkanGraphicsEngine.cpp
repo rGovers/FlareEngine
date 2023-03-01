@@ -68,12 +68,28 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     }
 
     TRACE("Deleting camera ubos");
-    for (uint32_t i = 0; i < m_cameraUniforms.size(); ++i)
+    for (const VulkanUniformBuffer* uniform : m_cameraUniforms)
     {
-        if (m_cameraUniforms[i] != nullptr)
+        if (uniform != nullptr)
         {
-            delete m_cameraUniforms[i];
-            m_cameraUniforms[i] = nullptr;
+            delete uniform;
+        }
+    }
+
+    TRACE("Deleting directional light ubos");
+    for (const VulkanUniformBuffer* uniform : m_directionalLightUniforms)
+    {
+        if (uniform != nullptr)
+        {
+            delete uniform;
+        }
+    }
+    TRACE("Deleting point light ubos");
+    for (const VulkanUniformBuffer* uniform : m_pointLightUniforms)
+    {
+        if (uniform != nullptr)
+        {
+            delete uniform;
         }
     }
 
@@ -292,6 +308,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
+    // TODO: Pre-Culling and batching
     for (const MaterialRenderStack& renderStack : stacks)
     {
         const uint32_t matAddr = renderStack.GetMaterialAddr();
@@ -394,27 +411,78 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         const ShaderBufferInput camInput = data->GetCameraInput();
         if (camInput.BufferType == ShaderBufferType_CameraBuffer)
         {
-            
+            data->PushUniformBuffer(commandBuffer, camInput.Slot, cameraUniformBuffer, curFrame);
         }
 
+        // TODO: Could probably batch this down the line
         switch ((e_LightType)i)
         {
         case LightType_Directional:
         {
             const std::vector<DirectionalLightBuffer> lights = m_directionalLights.ToVector();
 
-            for (const DirectionalLightBuffer& dirLight : lights)
+            const ShaderBufferInput dirLightInput = data->GetDirectionalLightInput();
+
+            if (dirLightInput.BufferType == ShaderBufferType_DirectionalLightBuffer)
             {
-                if (dirLight.TransformAddr != -1 && camBuffer.RenderLayer & dirLight.RenderLayer)
+                const uint32_t dirLightCount = (uint32_t)lights.size();
+                for (uint32_t i = 0; i < dirLightCount; ++i)
                 {
-                    commandBuffer.draw(4, 1, 0, 0);
+                    const DirectionalLightBuffer& dirLight = lights[i];
+
+                    if (dirLight.TransformAddr != -1 && camBuffer.RenderLayer & dirLight.RenderLayer)
+                    {
+                        data->PushUniformBuffer(commandBuffer, dirLightInput.Slot, m_directionalLightUniforms[i], curFrame);
+
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
                 }
             }
-
+            else
+            {
+                for (const DirectionalLightBuffer& dirLight : lights)
+                {
+                    if (dirLight.TransformAddr != -1 && camBuffer.RenderLayer & dirLight.RenderLayer)
+                    {
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
+                }
+            }
+            
             break;
         }
         case LightType_Point:
         {
+            const std::vector<PointLightBuffer> lights = m_pointLights.ToVector();
+
+            const ShaderBufferInput pointLightInput = data->GetPointLightInput();
+
+            if (pointLightInput.BufferType == ShaderBufferType_PointLightBuffer)
+            {
+                const uint32_t pointLightCount = (uint32_t)lights.size();
+                for (uint32_t i = 0; i < pointLightCount; ++i)
+                {
+                    const PointLightBuffer& pointLight = lights[i];
+
+                    if (pointLight.TransformAddr != -1 && camBuffer.RenderLayer & pointLight.RenderLayer)
+                    {
+                        data->PushUniformBuffer(commandBuffer, pointLightInput.Slot, m_pointLightUniforms[i], curFrame);
+
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
+                }
+            }
+            else
+            {
+                for (const PointLightBuffer& pointLight : lights)
+                {
+                    if (pointLight.TransformAddr != -1 && camBuffer.RenderLayer & pointLight.RenderLayer)
+                    {
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
+                }
+            }
+
             break;
         }
         case LightType_Spot:
@@ -466,6 +534,9 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     m_renderCommands.Clear();
 
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
+    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
+
+    ObjectManager* objectManager = m_vulkanEngine->GetRenderEngine()->GetObjectManager();
 
     const uint32_t camBufferSize = m_cameraBuffers.Size();
 
@@ -518,6 +589,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
 
     if (camUniformSize < totalPoolSize)
     {
+        TRACE("Allocating camera ubos");
         const uint32_t diff = totalPoolSize - camUniformSize;
         for (uint32_t i = 0; i < diff; ++i)
         {
@@ -528,6 +600,63 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     for (uint32_t i = 0; i < glm::min(poolSize, totalPoolSize); ++i)
     {
         device.resetCommandPool(m_commandPool[a_index][i]);
+    }
+
+    const uint32_t directionalLightSize = m_directionalLights.Size();
+    const uint32_t directionalLightUniformSize = (uint32_t)m_directionalLightUniforms.size();
+    if (directionalLightUniformSize < directionalLightSize)
+    {
+        TRACE("Allocating directional light ubos");
+        const uint32_t diff = directionalLightSize - directionalLightUniformSize;
+        for (uint32_t i = 0; i < diff; ++i)
+        {
+            m_directionalLightUniforms.emplace_back(new VulkanUniformBuffer(m_vulkanEngine, sizeof(DirectionalLightShaderBuffer)));
+        }
+    }
+
+    for (uint32_t i = 0; i < directionalLightSize; ++i)
+    {
+        const DirectionalLightBuffer& dirLight = m_directionalLights[i];
+
+        const glm::mat4 tMat = objectManager->GetGlobalMatrix(dirLight.TransformAddr);
+
+        const glm::vec3 forward = glm::normalize(tMat[2].xyz());
+
+        DirectionalLightShaderBuffer buffer;
+        buffer.LightDir = glm::vec4(forward, dirLight.Intensity);
+        buffer.LightColor = dirLight.Color;
+
+        VulkanUniformBuffer* uniformBuffer = m_directionalLightUniforms[i];
+        uniformBuffer->SetData(curFrame, &buffer);
+    }
+
+    const uint32_t pointLightSize = m_pointLights.Size();
+    const uint32_t pointLightUniformSize = (uint32_t)m_pointLightUniforms.size();
+    if (pointLightUniformSize < pointLightSize)
+    {
+        TRACE("Allocating point light ubos");
+        const uint32_t diff = pointLightSize - pointLightUniformSize;
+        for (uint32_t i = 0; i < diff; ++i)
+        {
+            m_pointLightUniforms.emplace_back(new VulkanUniformBuffer(m_vulkanEngine, sizeof(PointLightShaderBuffer)));
+        }
+    }
+
+    for (uint32_t i = 0; i < pointLightSize; ++i)
+    {
+        const PointLightBuffer& pointLight = m_pointLights[i];
+
+        const glm::mat4 tMat = objectManager->GetGlobalMatrix(pointLight.TransformAddr);
+
+        const glm::vec3 pos = tMat[3].xyz();
+
+        PointLightShaderBuffer buffer;
+        buffer.LightPos = glm::vec4(pos, pointLight.Intensity);
+        buffer.LightColor = pointLight.Color;
+        buffer.Radius = pointLight.Radius;
+
+        VulkanUniformBuffer* uniformBuffer = m_pointLightUniforms[i];
+        uniformBuffer->SetData(curFrame, &buffer);
     }
 
     Profiler::StopFrame();

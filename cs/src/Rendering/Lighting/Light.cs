@@ -1,12 +1,13 @@
 using FlareEngine.Definitions;
+using FlareEngine.Maths;
 
 namespace FlareEngine.Rendering.Lighting
 {
     public enum LightType : ushort
     {
         Directional = 0,
-        Point,
-        Spot
+        Point = 1,
+        Spot = 2
     }
 
     public abstract class Light : Component
@@ -14,6 +15,23 @@ namespace FlareEngine.Rendering.Lighting
         public abstract LightType LightType
         {
             get;
+        }
+
+        public abstract uint RenderLayer
+        {
+            get;
+            set;
+        }
+
+        public abstract Vector4 Color
+        {
+            get;
+            set;
+        }
+        public abstract float Intensity
+        {
+            get;
+            set;
         }
 
         public LightDef LightDef
