@@ -6,8 +6,9 @@ namespace FlareEngine
 {
     public class GameObject : IDisposable
     {
-        static List<Object> Objs = new List<Object>();
-        static Dictionary<string, Object> ObjDictionary = new Dictionary<string, Object>();
+        static List<Scriptable> ScriptableComps = new List<Scriptable>();
+        static List<GameObject> Objs = new List<GameObject>();
+        static Dictionary<string, GameObject> ObjDictionary = new Dictionary<string, GameObject>();
 
         GameObjectDef   m_def = null;
 
@@ -95,6 +96,11 @@ namespace FlareEngine
 
                     foreach (Component comp in m_components)
                     {
+                        if (comp is Scriptable script)
+                        {
+                            ScriptableComps.Remove(script);
+                        }
+
                         if (comp is IDisposable val)
                         {
                             val.Dispose();
@@ -104,14 +110,14 @@ namespace FlareEngine
                 }
                 else
                 {
-                    Logger.Error("FlareCS: Object Failed to Dispose");
+                    Logger.FlareWarning("GameObject Failed to Dispose");
                 }
 
                 m_disposed = true;
             }
             else
             {
-                Logger.Error("FlareCS: Object Failed to Dispose");
+                Logger.FlareError("GameObject Multiple Dispose");
             }
         }
 
@@ -131,6 +137,25 @@ namespace FlareEngine
 
             Profiler.StopFrame();
         }
+        internal static void UpdateScripts()
+        {
+            Profiler.StartFrame("Script Update");
+
+            foreach (Scriptable script in ScriptableComps)
+            {
+                script.Update();
+            }
+
+            Profiler.StopFrame();
+        }
+        internal static void DestroyObjects() 
+        {
+            List<GameObject> objList = new List<GameObject>(Objs);
+            foreach (GameObject obj in objList)
+            {
+                obj.Dispose();
+            }
+        }
 
         public virtual void Init() { }
         public virtual void Update() { }
@@ -143,6 +168,11 @@ namespace FlareEngine
             if (comp != null)
             {
                 m_components.Add(comp);
+            }
+
+            if (comp is Scriptable script)
+            {
+                ScriptableComps.Add(script);
             }
 
             comp.Init();
@@ -161,6 +191,11 @@ namespace FlareEngine
             if (comp != null)
             {
                 m_components.Add(comp);
+            }
+
+            if (comp is Scriptable script)
+            {
+                ScriptableComps.Add(script);
             }
 
             comp.Init();
@@ -199,6 +234,11 @@ namespace FlareEngine
 
         public void RemoveComponent(Component a_component)
         {
+            if (a_component is Scriptable script)
+            {
+                ScriptableComps.Remove(script);
+            }
+
             m_components.Remove(a_component);
         }
         public void RemoveComponent(ComponentDef a_def)

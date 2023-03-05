@@ -15,6 +15,8 @@ GLFWAppWindow::GLFWAppWindow(Config* a_config) : AppWindow()
     m_startTime = m_time;
 
     m_surface = nullptr;
+
+    m_shouldClose = false;
 }
 GLFWAppWindow::~GLFWAppWindow()
 {
@@ -24,7 +26,7 @@ GLFWAppWindow::~GLFWAppWindow()
 
 bool GLFWAppWindow::ShouldClose() const
 {
-    return false;
+    return m_shouldClose;
 }
 
 double GLFWAppWindow::GetDelta() const
@@ -42,6 +44,8 @@ void GLFWAppWindow::Update()
 
     m_prevTime = m_time;
     m_time = glfwGetTime();
+
+    m_shouldClose = glfwWindowShouldClose(m_window);
 }
 
 glm::ivec2 GLFWAppWindow::GetSize() const

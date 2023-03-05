@@ -47,6 +47,8 @@ namespace FlareEngine
             DefLibrary.Clear();
             AssetLibrary.ClearAssets();
 
+            GameObject.DestroyObjects();
+
             RenderPipeline.Destroy();
 
             Material.Destroy();
@@ -62,6 +64,7 @@ namespace FlareEngine
             ModControl.Update();
 
             GameObject.UpdateObjects();
+            GameObject.UpdateScripts();
         }
     }
 }
