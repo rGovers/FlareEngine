@@ -52,6 +52,10 @@ constexpr static uint32_t GetBufferSize(e_ShaderBufferType a_type)
     {
         return sizeof(PointLightShaderBuffer);
     }
+    case ShaderBufferType_SpotLightBuffer:
+    {
+        return sizeof(SpotLightShaderBuffer);
+    }
     }
     
     return 0;
@@ -92,6 +96,7 @@ constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<
         case ShaderBufferType_CameraBuffer:
         case ShaderBufferType_DirectionalLightBuffer:
         case ShaderBufferType_PointLightBuffer:
+        case ShaderBufferType_SpotLightBuffer:
         case ShaderBufferType_PushTexture:
         {
             a_pushBindings.push_back(vk::DescriptorSetLayoutBinding
@@ -168,6 +173,12 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
         case ShaderBufferType_PointLightBuffer:
         {
             m_pointLightBufferInput = program.ShaderBufferInputs[i];
+
+            break;
+        }
+        case ShaderBufferType_SpotLightBuffer:
+        {
+            m_spotLightBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }

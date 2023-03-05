@@ -85,6 +85,12 @@ namespace FlareEngine.Rendering
 
                 break;
             }
+            case LightType.Spot:
+            {
+                mat = Material.SpotLightMaterial;
+
+                break;
+            }
             }   
 
             // TODO: Temp fix

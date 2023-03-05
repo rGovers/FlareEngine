@@ -23,7 +23,7 @@ namespace FlareEngine.Rendering.Lighting
             set;
         }
 
-        public abstract Vector4 Color
+        public abstract Color Color
         {
             get;
             set;

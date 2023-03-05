@@ -63,19 +63,19 @@ namespace FlareEngine.Rendering.Lighting
             }
         }
 
-        public override Vector4 Color
+        public override Color Color
         {
             get
             {
                 DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                return buffer.Color;
+                return buffer.Color.ToColor();
             }
             set
             {
                 DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                buffer.Color = value;
+                buffer.Color = value.ToVector4();
 
                 SetBuffer(m_bufferAddr, buffer);
             }
@@ -111,7 +111,7 @@ namespace FlareEngine.Rendering.Lighting
                 DirectionalLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 buffer.RenderLayer = def.RenderLayer;
-                buffer.Color = def.Color;
+                buffer.Color = def.Color.ToVector4();
                 buffer.Intensity = def.Intensity;
 
                 SetBuffer(m_bufferAddr, buffer);

@@ -456,7 +456,7 @@ VulkanRenderEngineBackend::~VulkanRenderEngineBackend()
 
 void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 {
-    Profiler::StartFrame("Render Setup");
+    Profiler::StartFrame("Swap Setup");
 
     m_runtime->AttachThread();
 
@@ -478,7 +478,6 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StartFrame("Render Update");
 
-    // TODO: Rewrite to be a bit smarter
     const std::vector<vk::CommandBuffer> buffers = m_graphicsEngine->Update(m_currentFrame);
     
     Profiler::StartFrame("Render Setup");
@@ -559,7 +558,7 @@ void VulkanRenderEngineBackend::Update(double a_delta, double a_time)
 
     Profiler::StopFrame();
 
-    Profiler::StartFrame("Render Present");
+    Profiler::StartFrame("Swap Present");
 
     m_swapchain->EndFrame(m_interSemaphore[m_currentFlightFrame][endBuffer], m_inFlight[m_currentFlightFrame], m_imageIndex);
 

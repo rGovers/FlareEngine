@@ -94,6 +94,19 @@ namespace FlareEngine.Definitions
 
                     break;
                 }
+                case byte val:
+                {
+                    if (byte.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(byte), a_datObj, a_data);
+                    }
+
+                    break;
+                }
                 case uint val:
                 {
                     if (uint.TryParse(a_datObj.Text, out val))

@@ -29,8 +29,9 @@ namespace FlareEngine.Rendering
         ModelBuffer = 1,
         DirectionalLightBuffer = 2,
         PointLightBuffer = 3,
-        Texture = 4,
-        PushTexture = 5
+        SpotLightBuffer = 4,
+        Texture = 5,
+        PushTexture = 6
     };
 
     public enum ShaderSlot : ushort
@@ -57,7 +58,8 @@ namespace FlareEngine.Rendering
     internal enum InternalRenderProgram : ushort
     {
         DirectionalLight = 0,
-        PointLight = 1
+        PointLight = 1,
+        SpotLight = 2
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -72,6 +74,7 @@ namespace FlareEngine.Rendering
     {
         public static Material DirectionalLightMaterial = null;
         public static Material PointLightMaterial = null;
+        public static Material SpotLightMaterial = null;
 
         MaterialDef   m_def = null;
 
@@ -81,7 +84,6 @@ namespace FlareEngine.Rendering
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateInternalProgram(InternalRenderProgram a_renderProgram);
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateProgram(uint a_vertexShader, uint a_pixelShader, ushort a_vertexStride, VertexInputAttribute[] a_attributes, ShaderBufferInput[] a_shaderInputs, uint a_cullMode, uint a_primitiveMode); 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -129,11 +131,13 @@ namespace FlareEngine.Rendering
         {
             DirectionalLightMaterial = new Material(InternalRenderProgram.DirectionalLight);
             PointLightMaterial = new Material(InternalRenderProgram.PointLight);
+            SpotLightMaterial = new Material(InternalRenderProgram.SpotLight);
         }
         internal static void Destroy()
         {
             DirectionalLightMaterial.Dispose();
             PointLightMaterial.Dispose();
+            SpotLightMaterial.Dispose();
         }
 
         Material(InternalRenderProgram a_program)

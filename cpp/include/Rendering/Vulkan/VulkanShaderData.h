@@ -35,6 +35,7 @@ private:
     ShaderBufferInput          m_transformBufferInput;
     ShaderBufferInput          m_directionalLightBufferInput;
     ShaderBufferInput          m_pointLightBufferInput;
+    ShaderBufferInput          m_spotLightBufferInput;
 
 protected:
 
@@ -58,6 +59,10 @@ public:
     inline ShaderBufferInput GetPointLightInput() const
     {
         return m_pointLightBufferInput;
+    }
+    inline ShaderBufferInput GetSpotLightInput() const
+    {
+        return m_spotLightBufferInput;
     }
 
     void SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const;

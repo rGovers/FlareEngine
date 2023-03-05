@@ -61,6 +61,11 @@ FileToHeader(
     HEADER_FILE "include/Shaders/PointLightPixel.h"
     VARIABLE_NAME "PointLightPixel"
 )
+FileToHeader(
+    SOURCE_FILE "shaders/spotLight.fpix"
+    HEADER_FILE "include/Shaders/SpotLightPixel.h"
+    VARIABLE_NAME "SpotLightPixel"
+)
 
 include_directories("${PROJECT_SOURCE_DIR}/Headless/"
                     "${PROJECT_SOURCE_DIR}/../deps/mono/build/include/mono-2.0/"

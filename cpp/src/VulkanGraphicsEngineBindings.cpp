@@ -4,6 +4,7 @@
 #include "Shaders/DirectionalLightPixel.h"
 #include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
+#include "Shaders/SpotLightPixel.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
@@ -65,6 +66,11 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering.Lighting, PointLight, DestroyBuffer, { Engine->DestroyPointLightBuffer(a_addr); }, uint32_t a_addr) \
     F(PointLightBuffer, FlareEngine.Rendering.Lighting, PointLight, GetBuffer, { return Engine->GetPointLightBuffer(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering.Lighting, PointLight, SetBuffer, { Engine->SetPointLightBuffer(a_addr, a_buffer); }, uint32_t a_addr, PointLightBuffer a_buffer) \
+    \
+    F(uint32_t, FlareEngine.Rendering.Lighting, SpotLight, GenerateBuffer, { return Engine->GenerateSpotLightBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
+    F(void, FlareEngine.Rendering.Lighting, SpotLight, DestroyBuffer, { Engine->DestroySpotLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(SpotLightBuffer, FlareEngine.Rendering.Lighting, SpotLight, GetBuffer, { return Engine->GetSpotLightBuffer(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering.Lighting, SpotLight, SetBuffer, { Engine->SetSpotLightBuffer(a_addr, a_buffer); }, uint32_t a_addr, SpotLightBuffer a_buffer) \
     \
     F(void, FlareEngine.Rendering, RenderCommand, BindMaterial, { Engine->BindMaterial(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, RenderCommand, PushTexture, { Engine->PushTexture(a_slot, a_samplerAddr); }, uint32_t a_slot, uint32_t a_samplerAddr) \
@@ -342,6 +348,29 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         }
 
         program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_PointLightBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
+
+        break;
+    }
+    case InternalRenderProgram_SpotLight:
+    {
+        TRACE("Creating Spot Light Shader");
+        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.PixelShader = GenerateFPixelShaderAddr(SPOTLIGHTPIXEL);
+        program.CullingMode = CullMode_None;
+        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+
+        constexpr uint32_t TextureCount = 5;
+        constexpr uint32_t BufferCount = TextureCount + 2;
+
+        program.ShaderBufferInputCount = BufferCount;
+        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        for (uint32_t i = 0; i < TextureCount; ++i)
+        {
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
+        }
+
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_SpotLightBuffer, ShaderSlot_Pixel);
         program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
 
         break;
@@ -833,6 +862,47 @@ void VulkanGraphicsEngineBindings::DestroyPointLightBuffer(uint32_t a_addr) cons
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "DestroyPointLightBuffer out of bounds");
 
     m_graphicsEngine->m_pointLights[a_addr].TransformAddr = -1;
+}
+
+uint32_t VulkanGraphicsEngineBindings::GenerateSpotLightBuffer(uint32_t a_transformAddr) const
+{
+    const SpotLightBuffer buffer = SpotLightBuffer(a_transformAddr);
+
+    FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GenerateSpotLightBuffer no tranform");
+
+    const uint32_t size = m_graphicsEngine->m_spotLights.Size();
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        if (m_graphicsEngine->m_spotLights[i].TransformAddr != -1)
+        {
+            m_graphicsEngine->m_spotLights[i] = buffer;
+
+            return i;
+        }
+    }
+
+    TRACE("Allocating SpotLight Buffer");
+    m_graphicsEngine->m_spotLights.Push(buffer);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::SetSpotLightBuffer(uint32_t a_addr, const SpotLightBuffer& a_buffer) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_spotLights.Size(), "SetSpotLightBuffer out of bounds");
+
+    m_graphicsEngine->m_spotLights[a_addr] = a_buffer;
+}
+SpotLightBuffer VulkanGraphicsEngineBindings::GetSpotLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_spotLights.Size(), "GetSpotLightBuffer out of bounds");
+
+    return m_graphicsEngine->m_spotLights[a_addr];
+}
+void VulkanGraphicsEngineBindings::DestroySpotLightBuffer(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_spotLights.Size(), "DestroySpotLightBuffer out of bounds");
+
+    m_graphicsEngine->m_spotLights[a_addr].TransformAddr = -1;
 }
 
 void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const

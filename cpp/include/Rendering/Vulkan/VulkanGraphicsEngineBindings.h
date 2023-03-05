@@ -74,6 +74,11 @@ public:
     PointLightBuffer GetPointLightBuffer(uint32_t a_addr) const;
     void DestroyPointLightBuffer(uint32_t a_addr) const;
 
+    uint32_t GenerateSpotLightBuffer(uint32_t a_transformAddr) const;
+    void SetSpotLightBuffer(uint32_t a_addr, const SpotLightBuffer& a_buffer) const;
+    SpotLightBuffer GetSpotLightBuffer(uint32_t a_addr) const;
+    void DestroySpotLightBuffer(uint32_t a_addr) const;
+
     void BindMaterial(uint32_t a_addr) const;
     void PushTexture(uint32_t a_slot, uint32_t a_samplerAddr) const;
     void BindRenderTexture(uint32_t a_addr) const;

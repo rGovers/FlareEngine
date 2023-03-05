@@ -34,7 +34,7 @@ namespace FlareEngine.Rendering.Lighting
         {
             get
             {
-                return LightType.Spot;
+                return LightType.Point;
             }
         }
 
@@ -64,19 +64,19 @@ namespace FlareEngine.Rendering.Lighting
             } 
         }
 
-        public override Vector4 Color 
+        public override Color Color 
         {
             get
             {
                 PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                return buffer.Color;
+                return buffer.Color.ToColor();
             }
             set
             {
                 PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
-                buffer.Color = value;
+                buffer.Color = value.ToVector4();
 
                 SetBuffer(m_bufferAddr, buffer);
             }
@@ -112,7 +112,7 @@ namespace FlareEngine.Rendering.Lighting
                 PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                 buffer.RenderLayer = pointDef.RenderLayer;
-                buffer.Color = pointDef.Color;
+                buffer.Color = pointDef.Color.ToVector4();
                 buffer.Intensity = pointDef.Intensity;
                 buffer.Radius = pointDef.Radius;
 
@@ -126,7 +126,7 @@ namespace FlareEngine.Rendering.Lighting
                     PointLightBuffer buffer = GetBuffer(m_bufferAddr);
 
                     buffer.RenderLayer = lightDef.RenderLayer;
-                    buffer.Color = lightDef.Color;
+                    buffer.Color = lightDef.Color.ToVector4();
                     buffer.Intensity = lightDef.Intensity;
 
                     SetBuffer(m_bufferAddr, buffer);

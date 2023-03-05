@@ -69,9 +69,11 @@ private:
 
     TArray<DirectionalLightBuffer>                m_directionalLights;
     TArray<PointLightBuffer>                      m_pointLights;
+    TArray<SpotLightBuffer>                       m_spotLights;
 
     std::vector<VulkanUniformBuffer*>             m_directionalLightUniforms;
     std::vector<VulkanUniformBuffer*>             m_pointLightUniforms;
+    std::vector<VulkanUniformBuffer*>             m_spotLightUniforms;
 
     TArray<CameraBuffer>                          m_cameraBuffers;
     std::vector<VulkanUniformBuffer*>             m_cameraUniforms;

@@ -92,6 +92,14 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
             delete uniform;
         }
     }
+    TRACE("Deleting spot light ubos");
+    for (const VulkanUniformBuffer* uniform : m_spotLightUniforms)
+    {
+        if (uniform != nullptr)
+        {
+            delete uniform;
+        }
+    }
 
     TRACE("Deleting Pipelines");
     for (const auto& iter : m_pipelines)
@@ -487,6 +495,36 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         }
         case LightType_Spot:
         {
+            const std::vector<SpotLightBuffer> lights = m_spotLights.ToVector();
+
+            const ShaderBufferInput spotLightInput = data->GetSpotLightInput();
+
+            if (spotLightInput.BufferType == ShaderBufferType_SpotLightBuffer)
+            {
+                const uint32_t spotLightCount = (uint32_t)lights.size();
+                for (uint32_t i = 0; i < spotLightCount; ++i)
+                {
+                    const SpotLightBuffer& spotLight = lights[i];
+
+                    if (spotLight.TransformAddr != -1 && camBuffer.RenderLayer & spotLight.RenderLayer)
+                    {
+                        data->PushUniformBuffer(commandBuffer, spotLightInput.Slot, m_spotLightUniforms[i], curFrame);
+
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
+                }
+            }
+            else
+            {
+                for (const SpotLightBuffer& spotLight : lights)
+                {
+                    if (spotLight.TransformAddr != -1 && camBuffer.RenderLayer & spotLight.RenderLayer)
+                    {
+                        commandBuffer.draw(4, 1, 0, 0);
+                    }
+                }
+            }
+
             break;
         }
         default:
@@ -618,16 +656,19 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     {
         const DirectionalLightBuffer& dirLight = m_directionalLights[i];
 
-        const glm::mat4 tMat = objectManager->GetGlobalMatrix(dirLight.TransformAddr);
+        if (dirLight.TransformAddr != -1)
+        {
+            const glm::mat4 tMat = objectManager->GetGlobalMatrix(dirLight.TransformAddr);
 
-        const glm::vec3 forward = glm::normalize(tMat[2].xyz());
+            const glm::vec3 forward = glm::normalize(tMat[2].xyz());
 
-        DirectionalLightShaderBuffer buffer;
-        buffer.LightDir = glm::vec4(forward, dirLight.Intensity);
-        buffer.LightColor = dirLight.Color;
+            DirectionalLightShaderBuffer buffer;
+            buffer.LightDir = glm::vec4(forward, dirLight.Intensity);
+            buffer.LightColor = dirLight.Color;
 
-        VulkanUniformBuffer* uniformBuffer = m_directionalLightUniforms[i];
-        uniformBuffer->SetData(curFrame, &buffer);
+            VulkanUniformBuffer* uniformBuffer = m_directionalLightUniforms[i];
+            uniformBuffer->SetData(curFrame, &buffer);
+        }
     }
 
     const uint32_t pointLightSize = m_pointLights.Size();
@@ -646,17 +687,54 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     {
         const PointLightBuffer& pointLight = m_pointLights[i];
 
-        const glm::mat4 tMat = objectManager->GetGlobalMatrix(pointLight.TransformAddr);
+        if (pointLight.TransformAddr != -1)
+        {
+            const glm::mat4 tMat = objectManager->GetGlobalMatrix(pointLight.TransformAddr);
 
-        const glm::vec3 pos = tMat[3].xyz();
+            const glm::vec3 pos = tMat[3].xyz();
 
-        PointLightShaderBuffer buffer;
-        buffer.LightPos = glm::vec4(pos, pointLight.Intensity);
-        buffer.LightColor = pointLight.Color;
-        buffer.Radius = pointLight.Radius;
+            PointLightShaderBuffer buffer;
+            buffer.LightPos = glm::vec4(pos, pointLight.Intensity);
+            buffer.LightColor = pointLight.Color;
+            buffer.Radius = pointLight.Radius;
 
-        VulkanUniformBuffer* uniformBuffer = m_pointLightUniforms[i];
-        uniformBuffer->SetData(curFrame, &buffer);
+            VulkanUniformBuffer* uniformBuffer = m_pointLightUniforms[i];
+            uniformBuffer->SetData(curFrame, &buffer);
+        }
+    }
+
+    const uint32_t spotLightSize = m_spotLights.Size();
+    const uint32_t spotLightUniformSize = (uint32_t)m_spotLightUniforms.size();
+    if (spotLightUniformSize < spotLightSize)
+    {
+        TRACE("Allocating spot light ubos");
+        const uint32_t diff = spotLightSize - spotLightUniformSize;
+        for (uint32_t i = 0; i < diff; ++i)
+        {
+            m_spotLightUniforms.emplace_back(new VulkanUniformBuffer(m_vulkanEngine, sizeof(SpotLightShaderBuffer)));
+        }
+    }
+
+    for (uint32_t i = 0; i < spotLightSize; ++i)
+    {
+        const SpotLightBuffer& spotLight = m_spotLights[i];
+
+        if (spotLight.TransformAddr != -1)
+        {
+            const glm::mat4 tMat = objectManager->GetGlobalMatrix(spotLight.TransformAddr);
+
+            const glm::vec3 pos = tMat[3].xyz();
+            const glm::vec3 forward = glm::normalize(tMat[2].xyz());
+
+            SpotLightShaderBuffer buffer;
+            buffer.LightPos = pos;
+            buffer.LightDir = glm::vec4(forward, spotLight.Intensity);
+            buffer.LightColor = spotLight.Color;
+            buffer.CutoffAngle = glm::vec3(spotLight.CutoffAngle, spotLight.Radius);
+
+            VulkanUniformBuffer* uniformBuffer = m_spotLightUniforms[i];
+            uniformBuffer->SetData(curFrame, &buffer);
+        }
     }
 
     Profiler::StopFrame();

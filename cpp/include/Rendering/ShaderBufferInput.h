@@ -9,8 +9,9 @@ enum e_ShaderBufferType : uint16_t
     ShaderBufferType_ModelBuffer = 1,
     ShaderBufferType_DirectionalLightBuffer = 2,
     ShaderBufferType_PointLightBuffer = 3,
-    ShaderBufferType_Texture = 4,
-    ShaderBufferType_PushTexture = 5
+    ShaderBufferType_SpotLightBuffer = 4,
+    ShaderBufferType_Texture = 5,
+    ShaderBufferType_PushTexture = 6
 };
 
 enum e_ShaderSlot : uint16_t

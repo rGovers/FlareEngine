@@ -76,6 +76,10 @@ std::string GLSL_fromFShader(const std::string_view& a_str)
 			{
 				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_POINT_LIGHT_SHADER_STRUCTURE);
 			}
+			else if (args[0] == "SpotLightBuffer")
+			{
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_SPOT_LIGHT_SHADER_STRUCTURE);
+			}
 			else if (args[0] == "TimeBuffer")
 			{
 				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_TIME_SHADER_STRUCTURE);
