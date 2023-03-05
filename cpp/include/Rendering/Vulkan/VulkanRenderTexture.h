@@ -12,7 +12,6 @@ class VulkanRenderTexture
 private:
     static constexpr int HDRFlag = 0;
     static constexpr int DepthTextureFlag = 1;
-    static constexpr int ShaderFlag = 2;
 
     VulkanRenderEngineBackend* m_engine;
 
@@ -57,41 +56,6 @@ public:
     inline bool HasDepthTexture() const
     {
         return m_flags & 0b1 << DepthTextureFlag;
-    }
-    inline bool InShaderMode() const
-    {
-        return m_flags & 0b1 << ShaderFlag;
-    }
-
-    inline void SetShaderMode(bool a_value)
-    {
-        if (a_value)
-        {
-            m_flags |= 0b1 << ShaderFlag;
-        }
-        else
-        {
-            m_flags &= ~(0b1 << ShaderFlag);
-        }
-    }
-
-    inline vk::ImageLayout GetImageLayout() const
-    {
-        if (InShaderMode())
-        {
-            return vk::ImageLayout::eShaderReadOnlyOptimal;
-        }
-
-        return vk::ImageLayout::eColorAttachmentOptimal;
-    }
-    inline vk::PipelineStageFlags GetPipelineStage() const
-    {
-        if (InShaderMode())
-        {
-            return vk::PipelineStageFlagBits::eFragmentShader;
-        }
-
-        return vk::PipelineStageFlagBits::eColorAttachmentOutput;
     }
 
     inline uint32_t GetTextureCount() const

@@ -357,7 +357,7 @@ void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a
         const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
 
         imageInfo.imageView = renderTexture->GetDepthImageView();
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
         break;
     }

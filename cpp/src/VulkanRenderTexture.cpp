@@ -101,12 +101,11 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
         attachments[m_textureCount].format = depthFormat;
         attachments[m_textureCount].samples = vk::SampleCountFlagBits::e1;
         attachments[m_textureCount].loadOp = vk::AttachmentLoadOp::eClear;
-        attachments[m_textureCount].storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachments[m_textureCount].storeOp = vk::AttachmentStoreOp::eStore;
         attachments[m_textureCount].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachments[m_textureCount].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
         attachments[m_textureCount].initialLayout = vk::ImageLayout::eUndefined;
-        // attachments[m_textureCount].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        attachments[m_textureCount].finalLayout = GetDepthLayout(depthFormat);
+        attachments[m_textureCount].finalLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
     }
 
     std::vector<vk::AttachmentReference> colorAttachmentRef = std::vector<vk::AttachmentReference>(m_textureCount);
@@ -154,7 +153,7 @@ VulkanRenderTexture::VulkanRenderTexture(VulkanRenderEngineBackend* a_engine, ui
     {
         dependencies[0].dstStageMask |= vk::PipelineStageFlagBits::eEarlyFragmentTests;
         dependencies[0].dstAccessMask |= vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-        dependencies[1].srcStageMask |= vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        dependencies[1].srcStageMask |= vk::PipelineStageFlagBits::eLateFragmentTests;
         dependencies[1].srcAccessMask |= vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
     }
 
@@ -346,8 +345,6 @@ void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
     );
 
     device.createFramebuffer(&fbCreateInfo, nullptr, &m_frameBuffer);
-
-    SetShaderMode(true);
 }
 void VulkanRenderTexture::Destroy()
 {

@@ -30,11 +30,6 @@ void VulkanRenderCommand::Flush()
     if (!m_flushed)
     {
         m_commandBuffer.endRenderPass();
-        VulkanRenderTexture* renderTexture = GetRenderTexture();
-        if (renderTexture != nullptr)
-        {
-            renderTexture->SetShaderMode(true);
-        }
     }
 
     m_flushed = true;
@@ -113,7 +108,6 @@ void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
     else
     {
         VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(m_renderTexAddr);
-        renderTexture->SetShaderMode(false);
 
         const vk::RenderPassBeginInfo renderPassInfo = vk::RenderPassBeginInfo
         (
@@ -150,7 +144,7 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
     {
         dstImage = a_dst->GetTexture(0);
         dstOffset = vk::Offset3D((int32_t)a_dst->GetWidth(), (int32_t)a_dst->GetHeight(), 1);
-        dstLayout = a_dst->GetImageLayout();
+        dstLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
     }
 
     const vk::Image srcImage = a_src->GetTexture(0);
@@ -177,7 +171,8 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
 
     constexpr vk::ImageSubresourceRange SubResourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 
-    const vk::ImageLayout srcLayout = a_src->GetImageLayout();
+    // const vk::ImageLayout srcLayout = a_src->GetImageLayout();
+    const vk::ImageLayout srcLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
     const vk::ImageMemoryBarrier srcMemoryBarrier = vk::ImageMemoryBarrier
     (
