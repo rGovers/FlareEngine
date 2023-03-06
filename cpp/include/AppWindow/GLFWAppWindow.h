@@ -40,5 +40,6 @@ public:
     }
 
     virtual std::vector<const char*> GetRequiredVulkanExtenions() const;
+    virtual std::vector<const char*> GetRequiredVulkanDeviceExtensions() const;
     virtual vk::SurfaceKHR GetSurface(const vk::Instance& a_instance);
 };

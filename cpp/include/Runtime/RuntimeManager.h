@@ -8,7 +8,9 @@
 class RenderEngine;
 class RuntimeFunction;
 
-#if WIN32
+#include "FlarePlatform.h"
+
+#if FLARE_WINDOWS
 #define FLARE_MONO_EXPORT(ret, func, ...) __declspec(dllexport) ret func(__VA_ARGS__)
 #else
 #define FLARE_MONO_EXPORT(ret, func, ...) static ret func(__VA_ARGS__)

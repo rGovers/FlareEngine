@@ -12,6 +12,7 @@ enum e_PipeMessageType : uint32_t
     PipeMessageType_ProfileScope,
     PipeMessageType_UnlockFrame,
     PipeMessageType_PushFrame,
+    PipeMessageType_PushTextureHandle,
     PipeMessageType_Message,
     PipeMessageType_EndStream
 };

@@ -67,10 +67,19 @@ vk::SurfaceKHR GLFWAppWindow::GetSurface(const vk::Instance& a_instance)
     
     return m_surface;
 }
+
 std::vector<const char*> GLFWAppWindow::GetRequiredVulkanExtenions() const
 {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
     return std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
+}
+std::vector<const char*> GLFWAppWindow::GetRequiredVulkanDeviceExtensions() const
+{
+    std::vector<const char*> extensions;
+
+    extensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+    return extensions;
 }

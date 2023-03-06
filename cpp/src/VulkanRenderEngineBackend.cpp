@@ -26,11 +26,7 @@ const static std::vector<const char*> InstanceExtensions =
 {
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
 };
-const static std::vector<const char*> StandaloneDeviceExtensions =
-{
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-const static std::vector<const char*> RequiredDeviceExtensions = 
+const static std::vector<const char*> DeviceExtensions = 
 {
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
 };
@@ -151,6 +147,17 @@ static std::vector<const char*> GetRequiredExtensions(const AppWindow* a_window)
 
     return extensions;
 }
+static std::vector<const char*> GetRequiredDeviceExtensions(const AppWindow* a_window)
+{
+    std::vector<const char*> extensions = a_window->GetRequiredVulkanDeviceExtensions();
+
+    for (const char* ext : DeviceExtensions)
+    {
+        extensions.emplace_back(ext);
+    }
+
+    return extensions;
+}
 
 VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, RenderEngine* a_engine) : RenderEngineBackend(a_engine)
 {
@@ -220,14 +227,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         TRACE("Created Vulkan Debug Layer");
     }
 
-    std::vector<const char*> dRequiredExtensions = RequiredDeviceExtensions;
-    if (!headless)
-    {
-        for (const char* ext : StandaloneDeviceExtensions)
-        {
-            dRequiredExtensions.emplace_back(ext);
-        }
-    }
+    const std::vector<const char*> dRequiredExtensions = GetRequiredDeviceExtensions(window);
 
     uint32_t deviceCount = 0;
     FLARE_ASSERT_R(m_instance.enumeratePhysicalDevices(&deviceCount, nullptr) == vk::Result::eSuccess);

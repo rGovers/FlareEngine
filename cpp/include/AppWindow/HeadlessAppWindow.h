@@ -2,7 +2,9 @@
 
 #include "AppWindow/AppWindow.h"
 
-#if WIN32
+#include "FlarePlatform.h"
+
+#ifdef FLARE_WINDOWS
 #include <WinSock2.h>
 #include <Windows.h>
 #include <afunix.h>
@@ -39,20 +41,21 @@ private:
 
     static constexpr std::string_view PipeName = "FlareEngine-IPC";
 
-#if WIN32
+#ifdef FLARE_WINDOWS
     SOCKET                                         m_sock;
+
+    char*                                          m_frameData;
+    volatile bool                                  m_unlockWindow;    
 #else
     int                                            m_sock;
 #endif
 
-    volatile bool                                  m_unlockWindow;    
     bool                                           m_close;
 
     std::mutex                                     m_fLock;
 
     TArray<PipeMessage>                            m_queuedMessages;
 
-    char*                                          m_frameData;
 
     uint32_t                                       m_width;
     uint32_t                                       m_height;
@@ -91,14 +94,17 @@ public:
     {
         return true;
     }
-    virtual std::vector<const char*> GetRequiredVulkanExtenions() const
-    {
-        return std::vector<const char*>();
-    }
+
     virtual vk::SurfaceKHR GetSurface(const vk::Instance& a_instance)
     {
-        return vk::SurfaceKHR();
+        return vk::SurfaceKHR(nullptr);
     }
+    virtual std::vector<const char*> GetRequiredVulkanExtenions() const;
+    virtual std::vector<const char*> GetRequiredVulkanDeviceExtensions() const;
 
+#ifdef FLARE_WINDOWS
     void PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer, double a_delta, double a_time);
+#else
+    void PushTextureHandle(int a_fd, uint64_t a_size, int32_t a_slot, uint64_t a_offset);
+#endif
 };

@@ -7,7 +7,7 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#ifndef WIN32
+#ifdef FLARE_LINUX
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -84,9 +84,6 @@ HeadlessAppWindow::HeadlessAppWindow()
 
     m_close = false;
 
-    m_frameData = nullptr;
-    m_unlockWindow = false;
-    
     m_delta = 0.0;
     m_time = 0.0;
 
@@ -94,7 +91,10 @@ HeadlessAppWindow::HeadlessAppWindow()
 
     const std::string addrStr = GetAddr(PipeName);
 
-#if WIN32
+#if FLARE_WINDOWS
+    m_frameData = nullptr;
+    m_unlockWindow = false;
+
     WSADATA wsaData = { };
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
@@ -160,25 +160,25 @@ HeadlessAppWindow::~HeadlessAppWindow()
 
     PushMessage({ PipeMessageType_Close });
 
-#if WIN32
+#if FLARE_WINDOWS
     if (m_sock != INVALID_SOCKET)
     {
         closesocket(m_sock);
     }
 
     WSACleanup();
-#else
-    if (m_sock >= 0)
-    {
-        close(m_sock);
-    }
-#endif
 
     if (m_frameData != nullptr)
     {
         delete[] m_frameData;
         m_frameData = nullptr;
     }
+#else
+    if (m_sock >= 0)
+    {
+        close(m_sock);
+    }
+#endif
 
     delete Logger::CallbackFunc;
     Logger::CallbackFunc = nullptr;
@@ -210,7 +210,7 @@ void HeadlessAppWindow::PushMessageQueue()
 PipeMessage HeadlessAppWindow::ReceiveMessage() const
 {
     PipeMessage msg;
-#if WIN32
+#if FLARE_WINDOWS
     const int size = recv(m_sock, (char*)&msg, PipeMessage::Size, 0);
     if (size >= PipeMessage::Size)
     {
@@ -264,7 +264,7 @@ void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
 {
     assert(a_message.Type != PipeMessageType_Null);
 
-#if WIN32
+#if FLARE_WINDOWS
     // TODO: CRITICAL: Find a better way of handling messages seems to be 2-3 orders of magnitude slower on Windows
     send(m_sock, (const char*)&a_message, PipeMessage::Size, 0);
     if (a_message.Data != nullptr)
@@ -310,7 +310,9 @@ bool HeadlessAppWindow::PollMessage()
     }
     case PipeMessageType_UnlockFrame:
     {
+#ifdef FLARE_WINDOWS
         m_unlockWindow = true;
+#endif
 
         break;
     }
@@ -322,11 +324,13 @@ bool HeadlessAppWindow::PollMessage()
         m_width = (uint32_t)size.x;
         m_height = (uint32_t)size.y;
 
+#if FLARE_WINDOWS
         if (m_frameData != nullptr)
         {
             delete[] m_frameData;
             m_frameData = nullptr;
         }
+#endif
 
         break;
     }
@@ -357,7 +361,7 @@ bool HeadlessAppWindow::PollMessage()
 void HeadlessAppWindow::Update()
 {
     Profiler::StartFrame("Polling");
-#if WIN32
+#if FLARE_WINDOWS
     if (m_sock == INVALID_SOCKET)
     {
         return;
@@ -414,6 +418,7 @@ void HeadlessAppWindow::Update()
     PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
     Profiler::StopFrame();
 
+#ifdef FLARE_WINDOWS
     Profiler::StartFrame("Frame Data");
     if (m_frameData != nullptr && m_unlockWindow)
     {
@@ -424,6 +429,7 @@ void HeadlessAppWindow::Update()
         PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
     }
     Profiler::StopFrame();
+#endif
 
     Profiler::StartFrame("Messages");
     PushMessageQueue();
@@ -435,6 +441,32 @@ glm::ivec2 HeadlessAppWindow::GetSize() const
     return glm::ivec2((int)m_width, (int)m_height);
 }
 
+std::vector<const char*> HeadlessAppWindow::GetRequiredVulkanExtenions() const
+{
+    std::vector<const char*> extensions;
+
+#ifdef FLARE_LINUX
+    extensions.emplace_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+#endif
+
+    return extensions;
+}
+std::vector<const char*> HeadlessAppWindow::GetRequiredVulkanDeviceExtensions() const
+{
+    std::vector<const char*> extensions;
+
+#ifdef FLARE_LINUX
+    extensions.emplace_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+    extensions.emplace_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+    extensions.emplace_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+    extensions.emplace_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+    extensions.emplace_back(VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME);
+#endif
+
+    return extensions;
+}
+
+#ifdef FLARE_WINDOWS
 void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const char* a_buffer, double a_delta, double a_time)
 {
     PROFILESTACK("Frame Data");
@@ -465,3 +497,16 @@ void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const
         memcpy(m_frameData, a_buffer, size);
     }
 }
+#else
+void HeadlessAppWindow::PushTextureHandle(int a_fd, uint64_t a_size, int32_t a_slot, uint64_t a_offset)
+{
+    constexpr uint32_t Size = sizeof(a_fd) + sizeof(a_size) + sizeof(a_slot) + sizeof(a_offset);
+    char* data = new char[Size];
+    *(int*)(data + 0) = a_fd;
+    *(uint64_t*)(data + 4) = a_size;
+    *(int32_t*)(data + 12) = a_slot;
+    *(uint64_t*)(data + 16) = a_offset;
+
+    m_queuedMessages.Push(PipeMessage(PipeMessageType_PushTextureHandle, Size, data));
+}
+#endif

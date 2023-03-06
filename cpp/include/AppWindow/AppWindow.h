@@ -27,5 +27,6 @@ public:
     virtual bool IsHeadless() const = 0;
 
     virtual std::vector<const char*> GetRequiredVulkanExtenions() const = 0;
+    virtual std::vector<const char*> GetRequiredVulkanDeviceExtensions() const = 0;
     virtual vk::SurfaceKHR GetSurface(const vk::Instance& a_instance) = 0;
 };

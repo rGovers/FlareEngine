@@ -15,6 +15,9 @@
 // Fixes error on Windows
 #undef min
 
+static PFN_vkGetMemoryFdKHR GetMemoryFdKHRFunc = nullptr;
+static PFN_vkGetSemaphoreFdKHR GetSemaphoreFdKHRFunc = nullptr;
+
 static vk::SurfaceFormatKHR GetSurfaceFormatFromFormats(const std::vector<vk::SurfaceFormatKHR>& a_formats)
 {
     for (const vk::SurfaceFormatKHR& format : a_formats)
@@ -137,7 +140,8 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
 
     const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
-
+    HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
+    
     VkImageCreateInfo imageInfo = { };
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -207,7 +211,7 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
         FLARE_ASSERT_MSG_R(device.createFramebuffer(&framebufferInfo, nullptr, &m_framebuffers[i]) == vk::Result::eSuccess, "Failed to create Swapchain Framebuffer");
     }
     TRACE("Created Swapchain Headless Images");
-
+#ifdef FLARE_WINDOWS
     VkBufferCreateInfo buffCreateInfo = { };
     buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -220,6 +224,25 @@ void VulkanSwapchain::InitHeadless(const glm::ivec2& a_size)
     VkBuffer buff;
     vmaCreateBuffer(allocator, &buffCreateInfo, &allocCreateInfo, &buff, &m_allocBuffer, nullptr);
     m_buffer = buff;
+#else
+    for (int32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    {
+        VmaAllocationInfo info;
+        vmaGetAllocationInfo(allocator, m_colorAllocation[i], &info);
+
+        VkMemoryGetFdInfoKHR memoryFdInfo = { };
+        memoryFdInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR; 
+        memoryFdInfo.memory = info.deviceMemory;
+        memoryFdInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+
+        int fd;
+        FLARE_ASSERT_R(GetMemoryFdKHRFunc(device, &memoryFdInfo, &fd) == VK_SUCCESS);
+        // const vk::MemoryGetFdInfoKHR memoryFdInfo = vk::MemoryGetFdInfoKHR(info.deviceMemory, vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+        // const int fd = device.getMemoryFdKHR(memoryFdInfo);
+
+        window->PushTextureHandle(fd, (uint64_t)info.size, i, (uint64_t)info.offset);
+    }
+#endif
 
     TRACE("Created Swapchain Buffer");
 }
@@ -272,6 +295,15 @@ VulkanSwapchain::VulkanSwapchain(VulkanRenderEngineBackend* a_engine, AppWindow*
     const vk::Device device = m_engine->GetLogicalDevice();
     const vk::PhysicalDevice pDevice = m_engine->GetPhysicalDevice();
     const vk::SurfaceKHR surface = m_window->GetSurface(instance);
+
+    if (GetMemoryFdKHRFunc == nullptr)
+    {
+        GetMemoryFdKHRFunc = (PFN_vkGetMemoryFdKHR)instance.getProcAddr("vkGetMemoryFdKHR");
+    }
+    if (GetSemaphoreFdKHRFunc == nullptr)
+    {
+        GetSemaphoreFdKHRFunc = (PFN_vkGetSemaphoreFdKHR)instance.getProcAddr("vkGetSemaphoreFdKHR");
+    }
 
     const glm::ivec2 winSize = m_window->GetSize();
 
@@ -479,7 +511,8 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
 
         *a_imageIndex = (*a_imageIndex + 1) % VulkanMaxFlightFrames;
-        
+
+#ifdef FLARE_WINDOWS
         if ((m_init & (0b1 << *a_imageIndex)) == 0)
         {
             return true;
@@ -492,17 +525,26 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
 
         char* dat;
-        if (vmaMapMemory(allocator, m_allocBuffer, (void**)&dat) != VK_SUCCESS)
-        {
-            Logger::Error("Failed mapping frame buffer");
-
-            assert(0);
-        }
+        FLARE_ASSERT_MSG_R(vmaMapMemory(allocator, m_allocBuffer, (void**)&dat) == VK_SUCCESS, "Failed mapping frame buffer");
 
         HeadlessAppWindow* window = (HeadlessAppWindow*)m_window;
         window->PushFrameData((uint32_t)m_size.x, (uint32_t)m_size.y, dat, a_delta, a_time);
 
         vmaUnmapMemory(allocator, m_allocBuffer);
+#else
+        if ((m_init & (0b1 << *a_imageIndex)) == 0)
+        {
+            VkSemaphoreGetFdInfoKHR info = { };
+            info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR;
+            info.semaphore = a_semaphore;
+            info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
+
+            int fd;
+            FLARE_ASSERT_R(GetSemaphoreFdKHRFunc(device, &info, &fd) == VK_SUCCESS);
+        }
+
+        assert(0);
+#endif
     }
     else
     {
@@ -538,16 +580,14 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
         default:
         {
-            Logger::Error("Failed to aquire swapchain image");
-
-            assert(0);
+            FLARE_ASSERT_MSG_R(0, "Failed to aquire swapchain image");
 
             break;
         }
         }
     }
 
-    std::ignore = device.resetFences(1, &a_fence);
+    FLARE_ASSERT_R(device.resetFences(1, &a_fence) == vk::Result::eSuccess);
 
     return true;
 }
