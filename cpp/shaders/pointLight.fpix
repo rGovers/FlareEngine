@@ -8,8 +8,8 @@ layout(binding = 2) uniform sampler2D specSampler;
 layout(binding = 3) uniform sampler2D emissionSampler;
 layout(binding = 4) uniform sampler2D depthSampler;
 
-#!structure(PointLightBuffer, 5, pointLightBuffer)
-#!structure(CameraBuffer, 6, camBuffer)
+#!structure(PointLightBuffer, 5, 1, pointLightBuffer)
+#!structure(CameraBuffer, 6, 2, camBuffer)
 
 layout(location = 0) out vec4 fragColor;
 

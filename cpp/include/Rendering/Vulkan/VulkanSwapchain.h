@@ -3,11 +3,6 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#define VMA_VULKAN_VERSION 1000000
-#include <vk_mem_alloc.h>
-
-#include <vulkan/vulkan.hpp>
-
 #include "Rendering/Vulkan/VulkanConstants.h"
 
 class AppWindow;

@@ -351,13 +351,10 @@ void VulkanPipeline::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) c
 {
     const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
 
-    if (program.ShaderBufferInputCount > 0)
-    {
-        const VulkanShaderData* data = (VulkanShaderData*)program.Data;
-        FLARE_ASSERT(data != nullptr);
+    const VulkanShaderData* data = (VulkanShaderData*)program.Data;
+    FLARE_ASSERT(data != nullptr);
 
-        data->Bind(a_index, a_commandBuffer);
-    }
+    data->Bind(a_index, a_commandBuffer);
 
     a_commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
 }

@@ -201,6 +201,8 @@ RenderProgram VulkanGraphicsEngine::GetRenderProgram(uint32_t a_addr)
 }
 VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline)
 {
+    FLARE_ASSERT_MSG(a_pipeline < m_shaderPrograms.Size(), "GetPipeline pipeline out of bounds");
+
     const uint64_t addr = (uint64_t)a_renderTexture | (uint64_t)a_pipeline << 32;
 
     {
@@ -214,8 +216,6 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
 
     TRACE("Allocating Vulkan Pipeline");
     const VulkanRenderTexture* tex = GetRenderTexture(a_renderTexture);
-
-    FLARE_ASSERT_MSG(a_pipeline < m_shaderPrograms.Size(), "GetPipeline pipeline out of bounds");
 
     vk::RenderPass pass = m_swapchain->GetRenderPass();
     bool hasDepth = false;
@@ -285,7 +285,6 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     // ^ No longer applicable as actually using mono functions on this thread however leaving for future reference and reminder to attach all threads
     m_runtimeManager->AttachThread();
     
-    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
     const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
     ObjectManager* objectManager = renderEngine->GetObjectManager();
 
@@ -312,7 +311,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
 
     VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
-    cameraUniformBuffer->SetData(curFrame, &camShaderData);
+    cameraUniformBuffer->SetData(a_index, &camShaderData);
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
@@ -331,7 +330,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
             const ShaderBufferInput camInput = shaderData->GetCameraInput();
             if (camInput.BufferType == ShaderBufferType_CameraBuffer)
             {
-                shaderData->PushUniformBuffer(commandBuffer, camInput.Slot, cameraUniformBuffer, curFrame);
+                shaderData->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
             }
             
             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
@@ -347,7 +346,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
                         const uint32_t indexCount = model->GetIndexCount();
                         for (uint32_t tAddr : modelBuff.TransformAddr)
                         {
-                            shaderData->UpdateTransformBuffer(commandBuffer, curFrame, tAddr, objectManager);
+                            shaderData->UpdateTransformBuffer(commandBuffer, tAddr, objectManager);
 
                             commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
                         }
@@ -371,7 +370,6 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
     const CameraBuffer& camBuffer = m_cameraBuffers[a_camIndex];
     
-    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
     const RenderEngine* renderEngine = m_vulkanEngine->GetRenderEngine();
     ObjectManager* objectManager = renderEngine->GetObjectManager();
 
@@ -396,9 +394,10 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
     camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
 
     VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
-    cameraUniformBuffer->SetData(curFrame, &camShaderData);
+    cameraUniformBuffer->SetData(a_index, &camShaderData);
 
     for (uint32_t i = 0; i < LightType_End; ++i)
+    // for (uint32_t i = 0; i < 1; ++i)
     {
         void* lightArgs[] = 
         {
@@ -419,7 +418,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         const ShaderBufferInput camInput = data->GetCameraInput();
         if (camInput.BufferType == ShaderBufferType_CameraBuffer)
         {
-            data->PushUniformBuffer(commandBuffer, camInput.Slot, cameraUniformBuffer, curFrame);
+            data->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
         }
 
         // TODO: Could probably batch this down the line
@@ -440,7 +439,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
                     if (dirLight.TransformAddr != -1 && camBuffer.RenderLayer & dirLight.RenderLayer)
                     {
-                        data->PushUniformBuffer(commandBuffer, dirLightInput.Slot, m_directionalLightUniforms[i], curFrame);
+                        data->PushUniformBuffer(commandBuffer, dirLightInput.Set, m_directionalLightUniforms[i], a_index);
 
                         commandBuffer.draw(4, 1, 0, 0);
                     }
@@ -474,7 +473,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
                     if (pointLight.TransformAddr != -1 && camBuffer.RenderLayer & pointLight.RenderLayer)
                     {
-                        data->PushUniformBuffer(commandBuffer, pointLightInput.Slot, m_pointLightUniforms[i], curFrame);
+                        data->PushUniformBuffer(commandBuffer, pointLightInput.Set, m_pointLightUniforms[i], a_index);
 
                         commandBuffer.draw(4, 1, 0, 0);
                     }
@@ -508,7 +507,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
                     if (spotLight.TransformAddr != -1 && camBuffer.RenderLayer & spotLight.RenderLayer)
                     {
-                        data->PushUniformBuffer(commandBuffer, spotLightInput.Slot, m_spotLightUniforms[i], curFrame);
+                        data->PushUniformBuffer(commandBuffer, spotLightInput.Set, m_spotLightUniforms[i], a_index);
 
                         commandBuffer.draw(4, 1, 0, 0);
                     }
@@ -572,7 +571,6 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
     m_renderCommands.Clear();
 
     const vk::Device device = m_vulkanEngine->GetLogicalDevice();
-    const uint32_t curFrame = m_vulkanEngine->GetCurrentFlightFrame();
 
     ObjectManager* objectManager = m_vulkanEngine->GetRenderEngine()->GetObjectManager();
 
@@ -667,7 +665,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
             buffer.LightColor = dirLight.Color;
 
             VulkanUniformBuffer* uniformBuffer = m_directionalLightUniforms[i];
-            uniformBuffer->SetData(curFrame, &buffer);
+            uniformBuffer->SetData(a_index, &buffer);
         }
     }
 
@@ -699,7 +697,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
             buffer.Radius = pointLight.Radius;
 
             VulkanUniformBuffer* uniformBuffer = m_pointLightUniforms[i];
-            uniformBuffer->SetData(curFrame, &buffer);
+            uniformBuffer->SetData(a_index, &buffer);
         }
     }
 
@@ -733,7 +731,7 @@ std::vector<vk::CommandBuffer> VulkanGraphicsEngine::Update(uint32_t a_index)
             buffer.CutoffAngle = glm::vec3(spotLight.CutoffAngle, spotLight.Radius);
 
             VulkanUniformBuffer* uniformBuffer = m_spotLightUniforms[i];
-            uniformBuffer->SetData(curFrame, &buffer);
+            uniformBuffer->SetData(a_index, &buffer);
         }
     }
 

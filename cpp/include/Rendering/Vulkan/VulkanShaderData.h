@@ -3,9 +3,8 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#include <vulkan/vulkan.hpp>
-
 #include "Rendering/Vulkan/VulkanConstants.h"
+
 #include "Rendering/ShaderBufferInput.h"
 
 class ObjectManager;
@@ -18,24 +17,38 @@ struct TextureSampler;
 class VulkanShaderData
 {
 private:
-    VulkanRenderEngineBackend* m_engine;
-    VulkanGraphicsEngine*      m_gEngine;
+    // Emulating push descriptors cause of AMD
+    // Newer drivers have it but relying on new version
+    struct PushDescriptor
+    {
+        uint32_t Set;
+        uint32_t Binding;
+        vk::DescriptorSetLayout DescriptorLayout;
+        vk::DescriptorPool DescriptorPool;
+    };
 
-    uint32_t                   m_programAddr;
 
-    vk::PipelineLayout         m_layout;
+    static constexpr uint32_t PushCount = 32;
+    static constexpr uint32_t StaticIndex = 0;
 
-    vk::DescriptorSetLayout    m_staticDesciptorLayout;
-    vk::DescriptorSetLayout    m_pushDescriptorLayout;
+    VulkanRenderEngineBackend*  m_engine;
+    VulkanGraphicsEngine*       m_gEngine;
+ 
+    uint32_t                    m_programAddr;
+ 
+    vk::PipelineLayout          m_layout;
 
-    vk::DescriptorPool         m_descriptorPool;
-    vk::DescriptorSet          m_descriptorSet;
+    std::vector<PushDescriptor> m_pushDescriptors[VulkanFlightPoolSize];
 
-    ShaderBufferInput          m_cameraBufferInput;
-    ShaderBufferInput          m_transformBufferInput;
-    ShaderBufferInput          m_directionalLightBufferInput;
-    ShaderBufferInput          m_pointLightBufferInput;
-    ShaderBufferInput          m_spotLightBufferInput;
+    vk::DescriptorSetLayout     m_staticDesciptorLayout;
+    vk::DescriptorPool          m_staticDescriptorPool;
+    vk::DescriptorSet           m_staticDescriptorSet;
+
+    ShaderBufferInput           m_cameraBufferInput;
+    ShaderBufferInput           m_transformBufferInput;
+    ShaderBufferInput           m_directionalLightBufferInput;
+    ShaderBufferInput           m_pointLightBufferInput;
+    ShaderBufferInput           m_spotLightBufferInput;
 
 protected:
 
@@ -67,10 +80,10 @@ public:
 
     void SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const;
 
-    void PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler) const;
+    void PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler, uint32_t a_index) const;
     void PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, VulkanUniformBuffer* a_buffer, uint32_t a_index) const;
 
-    void UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, uint32_t a_transformAddr, ObjectManager* a_objectManager) const;
+    void UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_transformAddr, ObjectManager* a_objectManager) const;
 
     void Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const;
 };

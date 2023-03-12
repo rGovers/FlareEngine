@@ -1,10 +1,5 @@
 #pragma once
 
-#define VMA_VULKAN_VERSION 1000000
-#include <vk_mem_alloc.h>
-
-#include <vulkan/vulkan.hpp>
-
 #include "Rendering/Vulkan/VulkanConstants.h"
 
 class VulkanRenderEngineBackend;
@@ -15,8 +10,8 @@ private:
     VulkanRenderEngineBackend* m_engine;
 
     uint32_t                   m_uniformSize;
-    vk::Buffer                 m_buffers[VulkanMaxFlightFrames];
-    VmaAllocation              m_allocations[VulkanMaxFlightFrames];
+    vk::Buffer                 m_buffers[VulkanFlightPoolSize];
+    VmaAllocation              m_allocations[VulkanFlightPoolSize];
 protected:
 
 public:

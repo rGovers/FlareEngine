@@ -1,9 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-
-#define VMA_VULKAN_VERSION 1000000
-#include <vk_mem_alloc.h>
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 class VulkanRenderEngineBackend;
 

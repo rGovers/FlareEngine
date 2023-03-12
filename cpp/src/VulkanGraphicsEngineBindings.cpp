@@ -321,11 +321,11 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_DirectionalLightBuffer, ShaderSlot_Pixel);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_DirectionalLightBuffer, ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
 
         break;
     }
@@ -344,11 +344,11 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_PointLightBuffer, ShaderSlot_Pixel);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_PointLightBuffer, ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
 
         break;
     }
@@ -367,11 +367,11 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_PushTexture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_SpotLightBuffer, ShaderSlot_Pixel);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel);
+        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_SpotLightBuffer, ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
 
         break;
     }

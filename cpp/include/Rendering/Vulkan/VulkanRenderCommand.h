@@ -3,7 +3,7 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#include <vulkan/vulkan.hpp>
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 #include "Rendering/TextureSampler.h"
 

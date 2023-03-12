@@ -64,7 +64,7 @@ VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
     VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
     if (bind)
     {
-        pipeline->Bind(m_engine->GetCurrentFlightFrame(), m_commandBuffer);
+        pipeline->Bind(m_engine->GetCurrentFrame(), m_commandBuffer);
     }
 
     return pipeline;
@@ -77,7 +77,7 @@ void VulkanRenderCommand::PushTexture(uint32_t a_slot, const TextureSampler& a_s
     const RenderProgram program = m_gEngine->GetRenderProgram(m_materialAddr);
     VulkanShaderData* data = (VulkanShaderData*)program.Data;
 
-    data->PushTexture(m_commandBuffer, a_slot, a_sampler);
+    data->PushTexture(m_commandBuffer, a_slot, a_sampler, m_engine->GetCurrentFrame());
 }
 
 void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)

@@ -13,7 +13,7 @@ VulkanUniformBuffer::VulkanUniformBuffer(VulkanRenderEngineBackend* a_engine, ui
 
     m_uniformSize = a_uniformSize;
 
-    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    for (uint32_t i = 0; i < VulkanFlightPoolSize; ++i)
     {
         const VmaAllocator allocator = m_engine->GetAllocator();
 
@@ -38,7 +38,7 @@ VulkanUniformBuffer::~VulkanUniformBuffer()
     TRACE("Destroying UBO");
     const VmaAllocator allocator = m_engine->GetAllocator();
     
-    for (uint32_t i = 0; i < VulkanMaxFlightFrames; ++i)
+    for (uint32_t i = 0; i < VulkanFlightPoolSize; ++i)
     {
         vmaDestroyBuffer(allocator, m_buffers[i], m_allocations[i]);
     }

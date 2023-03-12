@@ -27,11 +27,13 @@ struct ShaderBufferInput
     uint16_t Slot;
     e_ShaderBufferType BufferType;
     e_ShaderSlot ShaderSlot;
+    uint16_t Set;
 
-    constexpr ShaderBufferInput(uint16_t a_slot = -1, e_ShaderBufferType a_bufferType = ShaderBufferType_Null, e_ShaderSlot a_shaderSlot = ShaderSlot_Null) :
+    constexpr ShaderBufferInput(uint16_t a_slot = -1, e_ShaderBufferType a_bufferType = ShaderBufferType_Null, e_ShaderSlot a_shaderSlot = ShaderSlot_Null, uint32_t a_set = 0) :
         Slot(a_slot),
         BufferType(a_bufferType),
-        ShaderSlot(a_shaderSlot)
+        ShaderSlot(a_shaderSlot),
+        Set(a_set)
     {
         
     }

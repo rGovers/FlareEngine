@@ -10,8 +10,6 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 #include "Trace.h"
 
-static PFN_vkCmdPushDescriptorSetKHR PushDescriptorSetKHRFunc = nullptr;
-
 constexpr static vk::ShaderStageFlags GetShaderStage(e_ShaderSlot a_slot) 
 {
     switch (a_slot)
@@ -74,12 +72,18 @@ constexpr static vk::DescriptorType GetDescriptorType(e_ShaderBufferType a_buffe
     return vk::DescriptorType::eUniformBuffer;
 }
 
-constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<vk::PushConstantRange>& a_pushConstants, std::vector<vk::DescriptorSetLayoutBinding>& a_bindings, std::vector<vk::DescriptorSetLayoutBinding>& a_pushBindings)
+struct Input
+{
+    uint32_t Slot;
+    vk::DescriptorSetLayoutBinding Binding;
+};
+
+static void GetLayoutInfo(const RenderProgram& a_program, std::vector<vk::PushConstantRange>& a_pushConstants, std::vector<Input>& a_bindings, std::vector<Input>& a_pushBindings)
 {
     for (uint16_t i = 0; i < a_program.ShaderBufferInputCount; ++i)
     {
         const ShaderBufferInput& input = a_program.ShaderBufferInputs[i];
-
+        
         switch (input.BufferType)
         {
         case ShaderBufferType_ModelBuffer:
@@ -99,25 +103,33 @@ constexpr static void GetLayoutInfo(const RenderProgram& a_program, std::vector<
         case ShaderBufferType_SpotLightBuffer:
         case ShaderBufferType_PushTexture:
         {
-            a_pushBindings.push_back(vk::DescriptorSetLayoutBinding
+            Input in;
+            in.Slot = i;
+            in.Binding = vk::DescriptorSetLayoutBinding
             (
                 input.Slot,
                 GetDescriptorType(input.BufferType),
                 1,
                 GetShaderStage(input.ShaderSlot)
-            ));
+            );
+
+            a_pushBindings.push_back(in);
 
             break;
         }
         default:
         {
-            a_bindings.push_back(vk::DescriptorSetLayoutBinding
+            Input in;
+            in.Slot = i;
+            in.Binding = vk::DescriptorSetLayoutBinding
             (
                 input.Slot,
                 GetDescriptorType(input.BufferType),
                 1,
                 GetShaderStage(input.ShaderSlot)
-            ));
+            );
+
+            a_bindings.push_back(in);
 
             break;
         }
@@ -130,19 +142,10 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
     m_engine = a_engine;
     m_gEngine = a_gEngine;
 
-    if (PushDescriptorSetKHRFunc == nullptr)
-    {
-        TRACE("Loading vkCmdPushDescriptorSetKHR Func");
-        PushDescriptorSetKHRFunc = (PFN_vkCmdPushDescriptorSetKHR)vkGetInstanceProcAddr(m_engine->GetInstance(), "vkCmdPushDescriptorSetKHR");
-
-        FLARE_ASSERT_R(PushDescriptorSetKHRFunc != nullptr);
-    }
-
     m_programAddr = a_programAddr;
 
     m_staticDesciptorLayout = nullptr;
-    m_pushDescriptorLayout = nullptr;
-    m_descriptorSet = nullptr;
+    m_staticDescriptorSet = nullptr;
 
     TRACE("Creating Shader Data");
     const vk::Device device = m_engine->GetLogicalDevice();
@@ -186,67 +189,109 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
     }
 
     std::vector<vk::PushConstantRange> pushConstants;
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    std::vector<vk::DescriptorSetLayoutBinding> pushBindings;
+    std::vector<Input> bindings;
+    std::vector<Input> pushBindings;
     GetLayoutInfo(program, pushConstants, bindings, pushBindings);
 
     std::vector<vk::DescriptorSetLayout> layouts;
-
-    if (!pushBindings.empty())
-    {
-        TRACE("Creating Pipeline Push Descriptor Layout");
-        const vk::DescriptorSetLayoutCreateInfo pushDescriptorLayout = vk::DescriptorSetLayoutCreateInfo
-        (
-            vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR,
-            (uint32_t)pushBindings.size(),
-            pushBindings.data()
-        );
-
-        FLARE_ASSERT_MSG_R(device.createDescriptorSetLayout(&pushDescriptorLayout, nullptr, &m_pushDescriptorLayout) == vk::Result::eSuccess, "Failed to create Push Descriptor Layout");
-
-        layouts.emplace_back(m_pushDescriptorLayout);
-    }
 
     if (!bindings.empty())
     {
         const uint32_t bindingCount = (uint32_t)bindings.size();
 
-        TRACE("Creating Pipeline Descriptor Layout");
+        std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
+        layoutBindings.reserve(bindingCount);
+        for (const Input& in : bindings)
+        {
+            layoutBindings.emplace_back(in.Binding);
+        }
+
+        TRACE("Creating Pipeline Static Descriptor Layout");
         const vk::DescriptorSetLayoutCreateInfo staticDescriptorLayout = vk::DescriptorSetLayoutCreateInfo
         (
-            { },
+            vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPoolEXT,
             bindingCount,
-            bindings.data()
+            layoutBindings.data()
         );
         FLARE_ASSERT_MSG_R(device.createDescriptorSetLayout(&staticDescriptorLayout, nullptr, &m_staticDesciptorLayout) == vk::Result::eSuccess, "Failed to create Static Descriptor Layout");
 
-        TRACE("Creating Pipeline Descriptor Pool");
+        TRACE("Creating Pipeline Static Descriptor Pool");
         std::vector<vk::DescriptorPoolSize> poolSizes = std::vector<vk::DescriptorPoolSize>(bindingCount);
+        std::vector<vk::DescriptorBindingFlagsEXT> bindingFlags = std::vector<vk::DescriptorBindingFlagsEXT>(bindingCount);
         for (uint32_t i = 0; i < bindingCount; ++i)
         {
-            poolSizes[i].type = bindings[i].descriptorType;
-            poolSizes[i].descriptorCount = 1;
+            poolSizes[i].type = bindings[i].Binding.descriptorType;
+            poolSizes[i].descriptorCount = bindings[i].Binding.descriptorCount;
+            bindingFlags[i] = vk::DescriptorBindingFlagBitsEXT::eUpdateAfterBind;
         }
 
         const vk::DescriptorPoolCreateInfo poolInfo = vk::DescriptorPoolCreateInfo
         (
-            { }, 
+            vk::DescriptorPoolCreateFlagBits::eUpdateAfterBindEXT, 
             1, 
             bindingCount, 
             poolSizes.data()
         );
-        FLARE_ASSERT_MSG_R(device.createDescriptorPool(&poolInfo, nullptr, &m_descriptorPool) == vk::Result::eSuccess, "Failed to create Descriptor Pool");
+        FLARE_ASSERT_MSG_R(device.createDescriptorPool(&poolInfo, nullptr, &m_staticDescriptorPool) == vk::Result::eSuccess, "Failed to create Static Descriptor Pool");
 
-        TRACE("Creating Pipeline Descriptor Set");
+        TRACE("Creating Pipeline Static Descriptor Set");
+        // const vk::DescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlagsInfo = vk::DescriptorSetLayoutBindingFlagsCreateInfoEXT
+        // (
+        //     bindingCount,
+        //     bindingFlags.data()
+        // );
         const vk::DescriptorSetAllocateInfo descriptorSetAllocInfo = vk::DescriptorSetAllocateInfo
         (
-            m_descriptorPool,
+            m_staticDescriptorPool,
             1,
             &m_staticDesciptorLayout
+            // &m_staticDesciptorLayout,
+            // &bindingFlagsInfo
         );
-        FLARE_ASSERT_MSG_R(device.allocateDescriptorSets(&descriptorSetAllocInfo, &m_descriptorSet) == vk::Result::eSuccess, "Failed to create Descriptor Sets");
+        FLARE_ASSERT_MSG_R(device.allocateDescriptorSets(&descriptorSetAllocInfo, &m_staticDescriptorSet) == vk::Result::eSuccess, "Failed to create Static Descriptor Sets");
 
         layouts.emplace_back(m_staticDesciptorLayout);
+    }
+
+    if (!pushBindings.empty())
+    {
+        TRACE("Creating Pipeline Push Descriptor Layout");
+        const uint32_t bindingCount = (uint32_t)pushBindings.size();
+
+        for (uint32_t i = 0; i < bindingCount; ++i)
+        {
+            const Input binding = pushBindings[i];
+            const vk::DescriptorSetLayoutCreateInfo descriptorLayoutInfo = vk::DescriptorSetLayoutCreateInfo
+            (
+                { },
+                1,
+                &binding.Binding
+            );
+
+            vk::DescriptorSetLayout layout;
+            FLARE_ASSERT_MSG_R(device.createDescriptorSetLayout(&descriptorLayoutInfo, nullptr, &layout) == vk::Result::eSuccess, "Failed to create Push Descriptor Layout");
+            layouts.emplace_back(layout);
+
+            const vk::DescriptorPoolSize poolSize = vk::DescriptorPoolSize(binding.Binding.descriptorType, 1);
+            const vk::DescriptorPoolCreateInfo poolInfo = vk::DescriptorPoolCreateInfo
+            (
+                { },
+                PushCount,
+                1,
+                &poolSize
+            );
+
+            for (uint32_t j = 0; j < VulkanFlightPoolSize; ++j)
+            {
+                PushDescriptor d;
+                d.Set = program.ShaderBufferInputs[binding.Slot].Set;
+                d.Binding = program.ShaderBufferInputs[binding.Slot].Slot;
+                d.DescriptorLayout = layout;
+                FLARE_ASSERT_MSG_R(device.createDescriptorPool(&poolInfo, nullptr, &d.DescriptorPool) == vk::Result::eSuccess, "Failed to create Push Descriptor Pool");
+
+                m_pushDescriptors[j].emplace_back(d);
+            }
+        }
     }
 
     const vk::PipelineLayoutCreateInfo pipelineLayoutInfo = vk::PipelineLayoutCreateInfo
@@ -269,12 +314,18 @@ VulkanShaderData::~VulkanShaderData()
     if (m_staticDesciptorLayout != vk::DescriptorSetLayout(nullptr))
     {
         device.destroyDescriptorSetLayout(m_staticDesciptorLayout);
-        device.destroyDescriptorPool(m_descriptorPool);
+        device.destroyDescriptorPool(m_staticDescriptorPool);
     }
 
-    if (m_pushDescriptorLayout != vk::DescriptorSetLayout(nullptr))
+    const uint32_t pDescriptorCount = (uint32_t)m_pushDescriptors[0].size();
+    for (uint32_t i = 0; i < pDescriptorCount; ++i)
     {
-        device.destroyDescriptorSetLayout(m_pushDescriptorLayout);
+        device.destroyDescriptorSetLayout(m_pushDescriptors[0][i].DescriptorLayout);
+
+        for (uint32_t j = 0; j < VulkanFlightPoolSize; ++j)
+        {
+            device.destroyDescriptorPool(m_pushDescriptors[j][i].DescriptorPool);
+        }
     }
 
     device.destroyPipelineLayout(m_layout);
@@ -305,7 +356,7 @@ void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampl
         const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
 
         imageInfo.imageView = renderTexture->GetDepthImageView();
-        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        imageInfo.imageLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
 
         break;
     }
@@ -320,7 +371,7 @@ void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampl
     TRACE("Setting material render texture");
     const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
     (
-        m_descriptorSet,
+        m_staticDescriptorSet,
         a_slot,
         0,
         1,
@@ -331,73 +382,124 @@ void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampl
     device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler) const
-{
+void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler, uint32_t a_index) const
+{   
     const vk::Device device = m_engine->GetLogicalDevice();
 
     const VulkanTextureSampler* vSampler = (VulkanTextureSampler*)a_sampler.Data;
     FLARE_ASSERT(vSampler != nullptr);
 
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.sampler = vSampler->GetSampler();
-
-    switch (a_sampler.TextureMode)
+    for (const PushDescriptor& d : m_pushDescriptors[a_index])
     {
-    case TextureMode_RenderTexture:
-    {
-        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+        if (d.Set == a_slot)
+        {
+            const vk::DescriptorSetAllocateInfo descriptorSetInfo = vk::DescriptorSetAllocateInfo
+            (
+                d.DescriptorPool,
+                1,
+                &d.DescriptorLayout
+            );
 
-        imageInfo.imageView = renderTexture->GetImageView(a_sampler.TSlot);
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            vk::DescriptorSet descriptorSet;
+            FLARE_ASSERT_R(device.allocateDescriptorSets(&descriptorSetInfo, &descriptorSet) == vk::Result::eSuccess);
 
-        break;
+            vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(vSampler->GetSampler());
+            switch (a_sampler.TextureMode)
+            {
+            case TextureMode_RenderTexture:
+            {
+                const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+
+                imageInfo.imageView = renderTexture->GetImageView(a_sampler.TSlot);
+                imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+                break;
+            }
+            case TextureMode_RenderTextureDepth:
+            {
+                const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
+
+                imageInfo.imageView = renderTexture->GetDepthImageView();
+                imageInfo.imageLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
+
+                break;
+            }
+            default:
+            {
+                FLARE_ASSERT_MSG(0, "PushTexture invalid texture mode");
+
+                return;
+            }
+            }
+
+            const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
+            (
+                descriptorSet,
+                d.Binding,
+                0,
+                1,
+                vk::DescriptorType::eCombinedImageSampler,
+                &imageInfo
+            );
+
+            device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
+            
+            a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, d.Set, 1, &descriptorSet, 0, nullptr);
+
+            return;
+        }
     }
-    case TextureMode_RenderTextureDepth:
-    {
-        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
 
-        imageInfo.imageView = renderTexture->GetDepthImageView();
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-        break;
-    }
-    default:
-    {
-        FLARE_ASSERT_MSG(0, "SetTexture invalid texture mode");
-
-        return;
-    }
-    }
-
-    VkWriteDescriptorSet descriptorWrite = { };
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = 0;
-    descriptorWrite.dstBinding = a_slot;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.pImageInfo = &imageInfo;
-
-    PushDescriptorSetKHRFunc((VkCommandBuffer)a_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)m_layout, 0, 1, &descriptorWrite);
+    FLARE_ASSERT_MSG(0, "PushTexture binding not found");
 }
 void VulkanShaderData::PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, VulkanUniformBuffer* a_buffer, uint32_t a_index) const
 {
-    VkDescriptorBufferInfo bufferInfo = { };
-    bufferInfo.buffer = a_buffer->GetBuffer(a_index);
-    bufferInfo.offset = 0;
-    bufferInfo.range = VK_WHOLE_SIZE;
+    const vk::Device device = m_engine->GetLogicalDevice();
 
-    VkWriteDescriptorSet descriptorWrite = { };
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = 0;
-    descriptorWrite.dstBinding = a_slot;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrite.pBufferInfo = &bufferInfo;
+    for (const PushDescriptor& d : m_pushDescriptors[a_index])
+    {
+        if (d.Set == a_slot)
+        {
+            const vk::DescriptorSetAllocateInfo descriptorSetInfo = vk::DescriptorSetAllocateInfo
+            (
+                d.DescriptorPool,
+                1,
+                &d.DescriptorLayout
+            );
 
-    PushDescriptorSetKHRFunc((VkCommandBuffer)a_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)m_layout, 0, 1, &descriptorWrite);
+            vk::DescriptorSet descriptorSet;
+            FLARE_ASSERT_R(device.allocateDescriptorSets(&descriptorSetInfo, &descriptorSet) == vk::Result::eSuccess);
+
+            const vk::DescriptorBufferInfo bufferInfo = vk::DescriptorBufferInfo
+            (
+                a_buffer->GetBuffer(a_index), 
+                0, 
+                VK_WHOLE_SIZE
+            );
+
+            const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
+            (
+                descriptorSet,
+                d.Binding,
+                0,
+                1,
+                vk::DescriptorType::eUniformBuffer,
+                nullptr,
+                &bufferInfo
+            );
+
+            device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
+
+            a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, d.Set, 1, &descriptorSet, 0, nullptr);
+
+            return;
+        }
+    }
+
+    FLARE_ASSERT_MSG(0, "PushUniformBuffer binding not found");
 }
 
-void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_index, uint32_t a_transformAddr, ObjectManager* a_objectManager) const
+void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_transformAddr, ObjectManager* a_objectManager) const
 {
     if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
     {
@@ -411,9 +513,14 @@ void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, 
 
 void VulkanShaderData::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const
 {
-    // TODO: Update
-    if (m_descriptorSet != vk::DescriptorSet(nullptr))
+    const vk::Device device = m_engine->GetLogicalDevice();
+    for (const PushDescriptor& d : m_pushDescriptors[a_index])
     {
-        a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, 0, 1, &m_descriptorSet, 0, nullptr);
+        device.resetDescriptorPool(d.DescriptorPool);
+    }
+
+    if (m_staticDescriptorSet != vk::DescriptorSet(nullptr))
+    {
+        a_commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_layout, StaticIndex, 1, &m_staticDescriptorSet, 0, nullptr);
     }
 }

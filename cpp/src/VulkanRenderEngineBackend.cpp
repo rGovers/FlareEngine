@@ -26,13 +26,15 @@ const static std::vector<const char*> InstanceExtensions =
 {
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
 };
+const static std::vector<const char*> DeviceExtensions = 
+{
+    VK_KHR_MAINTENANCE_3_EXTENSION_NAME,
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
+};
+
 const static std::vector<const char*> StandaloneDeviceExtensions =
 {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-const static std::vector<const char*> RequiredDeviceExtensions = 
-{
-    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT a_msgSeverity, VkDebugUtilsMessageTypeFlagsEXT a_msgType, const VkDebugUtilsMessengerCallbackDataEXT* a_callbackData, void* a_userData)
@@ -179,7 +181,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         0U, 
         "FlareEngine", 
         VK_MAKE_VERSION(FLARENATIVE_VERSION_MAJOR, FLARENATIVE_VERSION_MINOR, 0), 
-        VK_API_VERSION_1_0, 
+        FLARE_VULKAN_VERSION, 
         nullptr
     );
 
@@ -220,7 +222,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
         TRACE("Created Vulkan Debug Layer");
     }
 
-    std::vector<const char*> dRequiredExtensions = RequiredDeviceExtensions;
+    std::vector<const char*> dRequiredExtensions = DeviceExtensions;
     if (!headless)
     {
         for (const char* ext : StandaloneDeviceExtensions)
@@ -342,7 +344,7 @@ VulkanRenderEngineBackend::VulkanRenderEngineBackend(RuntimeManager* a_runtime, 
 
     VmaAllocatorCreateInfo allocatorCreateInfo;
     memset(&allocatorCreateInfo, 0, sizeof(allocatorCreateInfo));
-    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_0;
+    allocatorCreateInfo.vulkanApiVersion = FLARE_VULKAN_VERSION;
     allocatorCreateInfo.physicalDevice = m_pDevice;
     allocatorCreateInfo.device = m_lDevice;
     allocatorCreateInfo.instance = m_instance;

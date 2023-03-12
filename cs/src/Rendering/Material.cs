@@ -68,6 +68,7 @@ namespace FlareEngine.Rendering
         public ushort Slot;
         public ShaderBufferType BufferType;
         public ShaderSlot ShaderSlot;
+        public ushort Set;
     };
 
     public class Material : IDisposable

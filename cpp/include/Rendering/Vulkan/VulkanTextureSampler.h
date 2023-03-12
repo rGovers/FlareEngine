@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 #include "Rendering/TextureSampler.h"
 

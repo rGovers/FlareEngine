@@ -2,7 +2,8 @@
 
 #include <unordered_map>
 #include <vector>
-#include <vulkan/vulkan.hpp>
+
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 class RuntimeFunction;
 class RuntimeManager;
@@ -25,7 +26,6 @@ class VulkanVertexShader;
 #include "Rendering/MeshRenderBuffer.h"
 #include "Rendering/RenderProgram.h"
 #include "Rendering/TextureSampler.h"
-#include "Rendering/Vulkan/VulkanConstants.h"
 
 class VulkanGraphicsEngine
 {

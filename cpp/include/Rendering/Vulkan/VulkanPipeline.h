@@ -1,9 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include "Rendering/Vulkan/VulkanConstants.h"
 
 #include "Rendering/RenderProgram.h"
-#include "Rendering/Vulkan/VulkanConstants.h"
 
 class VulkanGraphicsEngine;
 class VulkanRenderEngineBackend;

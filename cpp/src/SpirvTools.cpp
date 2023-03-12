@@ -62,27 +62,27 @@ std::string GLSL_fromFShader(const std::string_view& a_str)
 		std::string rStr;
 		if (defName == "structure")
 		{
-			FLARE_ASSERT_MSG_R(args.size() == 3, "Flare Shader structure requires 3 arguments");
+			FLARE_ASSERT_MSG_R(args.size() == 4, "Flare Shader structure requires 3 arguments");
 
 			if (args[0] == "CameraBuffer")
 			{
-				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_CAMERA_SHADER_STRUCTURE);
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], args[3], GLSL_CAMERA_SHADER_STRUCTURE);
 			}
 			else if (args[0] == "DirectionalLightBuffer")
 			{
-				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_DIRECTIONAL_LIGHT_SHADER_STRUCTURE);
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], args[3], GLSL_DIRECTIONAL_LIGHT_SHADER_STRUCTURE);
 			}
 			else if (args[0] == "PointLightBuffer")
 			{
-				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_POINT_LIGHT_SHADER_STRUCTURE);
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], args[3], GLSL_POINT_LIGHT_SHADER_STRUCTURE);
 			}
 			else if (args[0] == "SpotLightBuffer")
 			{
-				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_SPOT_LIGHT_SHADER_STRUCTURE);
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], args[3], GLSL_SPOT_LIGHT_SHADER_STRUCTURE);
 			}
 			else if (args[0] == "TimeBuffer")
 			{
-				rStr = GLSL_UNIFORM_STRING(args[1], args[2], GLSL_TIME_SHADER_STRUCTURE);
+				rStr = GLSL_UNIFORM_STRING(args[1], args[2], args[3], GLSL_TIME_SHADER_STRUCTURE);
 			}
 		}
 		else if (defName == "pushbuffer")

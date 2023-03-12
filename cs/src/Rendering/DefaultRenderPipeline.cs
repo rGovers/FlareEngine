@@ -14,6 +14,15 @@ namespace FlareEngine.Rendering
         TextureSampler     m_emissionSampler;
         TextureSampler     m_depthSampler;
 
+        void SetTextures(Material a_mat)
+        {
+            a_mat.SetTexture(0, m_colorSampler);
+            a_mat.SetTexture(1, m_normalSampler);
+            a_mat.SetTexture(2, m_specularSampler);
+            a_mat.SetTexture(3, m_emissionSampler);
+            a_mat.SetTexture(4, m_depthSampler);
+        }
+
         public DefaultRenderPipeline()
         {
             m_drawRenderTexture = new MultiRenderTexture(4, 1920, 1080, true, true);
@@ -25,11 +34,9 @@ namespace FlareEngine.Rendering
             m_emissionSampler = TextureSampler.GenerateRenderTextureSampler(m_drawRenderTexture, 3);
             m_depthSampler = TextureSampler.GenerateRenderTextureDepthSampler(m_drawRenderTexture);
 
-            // Material.DirectionalLightMaterial.SetTexture(0, m_colorSampler);
-            // Material.DirectionalLightMaterial.SetTexture(1, m_normalSampler);
-            // Material.DirectionalLightMaterial.SetTexture(2, m_specularSampler);
-            // Material.DirectionalLightMaterial.SetTexture(3, m_dataSampler);
-            // Material.DirectionalLightMaterial.SetTexture(4, m_depthSampler);
+            SetTextures(Material.DirectionalLightMaterial);
+            SetTextures(Material.PointLightMaterial);
+            SetTextures(Material.SpotLightMaterial);
         }
 
         public override void Resize(uint a_width, uint a_height)
@@ -37,11 +44,9 @@ namespace FlareEngine.Rendering
             m_drawRenderTexture.Resize(a_width, a_height);
             m_lightRenderTexture.Resize(a_width, a_height);
 
-            // Material.DirectionalLightMaterial.SetTexture(0, m_colorSampler);
-            // Material.DirectionalLightMaterial.SetTexture(1, m_normalSampler);
-            // Material.DirectionalLightMaterial.SetTexture(2, m_specularSampler);
-            // Material.DirectionalLightMaterial.SetTexture(3, m_dataSampler);
-            // Material.DirectionalLightMaterial.SetTexture(4, m_depthSampler);
+            SetTextures(Material.DirectionalLightMaterial);
+            SetTextures(Material.PointLightMaterial);
+            SetTextures(Material.SpotLightMaterial);
         }
 
         public override void PreShadow(Camera a_camera) 
@@ -92,18 +97,6 @@ namespace FlareEngine.Rendering
                 break;
             }
             }   
-
-            // TODO: Temp fix
-            RenderCommand.BindMaterial(mat);
-
-            if (mat != null)
-            {   
-                RenderCommand.PushTexture(0, m_colorSampler);
-                RenderCommand.PushTexture(1, m_normalSampler);
-                RenderCommand.PushTexture(2, m_specularSampler);
-                RenderCommand.PushTexture(3, m_emissionSampler);
-                RenderCommand.PushTexture(4, m_depthSampler);
-            }
             
             return mat;
         }
