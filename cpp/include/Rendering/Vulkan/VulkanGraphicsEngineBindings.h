@@ -43,6 +43,7 @@ public:
     void DestroyCameraBuffer(uint32_t a_addr) const;
     CameraBuffer GetCameraBuffer(uint32_t a_addr) const;
     void SetCameraBuffer(uint32_t a_add, const CameraBuffer& a_buffer) const;
+    glm::vec3 CameraScreenToWorld(uint32_t a_addr, const glm::vec3& a_screenPos, const glm::vec2& a_screenSize) const;
 
     uint32_t GenerateModel(const char* a_vertices, uint32_t a_vertexCount, const uint32_t* a_indices, uint32_t a_indexCount, uint16_t a_vertexStride) const;
     void DestroyModel(uint32_t a_addr) const;

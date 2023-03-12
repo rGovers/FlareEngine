@@ -1,14 +1,17 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
 #include "FlareAssert.h"
+#include "ObjectManager.h"
 #include "Shaders/DirectionalLightPixel.h"
 #include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
 #include "Shaders/SpotLightPixel.h"
+#include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
+#include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanTextureSampler.h"
@@ -39,6 +42,7 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, Camera, DestroyBuffer, { Engine->DestroyCameraBuffer(a_addr); }, uint32_t a_addr) \
     F(CameraBuffer, FlareEngine.Rendering, Camera, GetBuffer, { return Engine->GetCameraBuffer(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, Camera, SetBuffer, { Engine->SetCameraBuffer(a_addr, a_buffer); }, uint32_t a_addr, CameraBuffer a_buffer) \
+    F(glm::vec3, FlareEngine.Rendering, Camera, ScreenToWorld, { return Engine->CameraScreenToWorld(a_addr, a_screenPos, a_screenSize); }, uint32_t a_addr, glm::vec3 a_screenPos, glm::vec2 a_screenSize) \
     \
     F(uint32_t, FlareEngine.Rendering, MeshRenderer, GenerateBuffer, { return Engine->GenerateMeshRenderBuffer(a_materialAddr, a_modelAddr, a_transformAddr); }, uint32_t a_transformAddr, uint32_t a_materialAddr, uint32_t a_modelAddr) \
     F(void, FlareEngine.Rendering, MeshRenderer, DestroyBuffer, { Engine->DestroyMeshRenderBuffer(a_addr); }, uint32_t a_addr) \
@@ -507,6 +511,25 @@ void VulkanGraphicsEngineBindings::SetCameraBuffer(uint32_t a_addr, const Camera
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "SetCameraBuffer out of bounds")
 
     m_graphicsEngine->m_cameraBuffers[a_addr] = a_buffer;
+}
+glm::vec3 VulkanGraphicsEngineBindings::CameraScreenToWorld(uint32_t a_addr, const glm::vec3& a_screenPos, const glm::vec2& a_screenSize) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "CameraScreenToWorld out of bounds");
+
+    const CameraBuffer camBuf = m_graphicsEngine->m_cameraBuffers[a_addr];
+
+    FLARE_ASSERT_MSG(camBuf.TransformAddr != -1, "CameraScreenToWorld invalid transform");
+
+    const glm::mat4 proj = camBuf.ToProjection(a_screenSize);
+    const glm::mat4 invProj = glm::inverse(proj);
+
+    ObjectManager* objManager = m_graphicsEngine->m_vulkanEngine->GetRenderEngine()->GetObjectManager();
+    const glm::mat4 invView = objManager->GetGlobalMatrix(camBuf.TransformAddr);
+
+    const glm::vec4 cPos = invProj * glm::vec4(a_screenPos.xy() * 2.0f - 1.0f, a_screenPos.z, 1.0f);
+    const glm::vec4 wPos = invView * cPos;
+
+    return wPos.xyz() / wPos.w;
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uint32_t a_vertexCount, const uint32_t* a_indices, uint32_t a_indexCount, uint16_t a_vertexStride) const

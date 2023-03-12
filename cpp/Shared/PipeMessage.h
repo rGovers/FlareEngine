@@ -7,6 +7,8 @@ enum e_PipeMessageType : uint32_t
     PipeMessageType_Null = 0,
     PipeMessageType_Close,
     PipeMessageType_Resize,
+    PipeMessageType_CursorPos,
+    PipeMessageType_MouseState,
     PipeMessageType_FrameData,
     PipeMessageType_UpdateData,
     PipeMessageType_ProfileScope,

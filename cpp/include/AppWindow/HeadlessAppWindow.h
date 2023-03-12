@@ -75,7 +75,7 @@ private:
 protected:
 
 public:
-    HeadlessAppWindow();
+    HeadlessAppWindow(Application* a_app);
     ~HeadlessAppWindow();
 
     virtual bool ShouldClose() const;

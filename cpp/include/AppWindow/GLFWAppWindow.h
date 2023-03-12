@@ -19,10 +19,11 @@ private:
     double         m_startTime;
 
     vk::SurfaceKHR m_surface;
+    
 protected:
 
 public:
-    GLFWAppWindow(Config* a_config);
+    GLFWAppWindow(Application* a_app, Config* a_config);
     virtual ~GLFWAppWindow();
 
     virtual bool ShouldClose() const;

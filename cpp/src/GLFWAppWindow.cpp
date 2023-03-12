@@ -1,8 +1,11 @@
 #include "AppWindow/GLFWAppWindow.h"
 
+#include "Application.h"
 #include "Config.h"
+#include "InputManager.h"
+#include "Profiler.h"
 
-GLFWAppWindow::GLFWAppWindow(Config* a_config) : AppWindow()
+GLFWAppWindow::GLFWAppWindow(Application* a_app, Config* a_config) : AppWindow(a_app)
 {
     glfwInit();
 
@@ -46,6 +49,22 @@ void GLFWAppWindow::Update()
     m_time = glfwGetTime();
 
     m_shouldClose = glfwWindowShouldClose(m_window);
+
+    const Application* app = GetApplication();
+    
+    {
+        PROFILESTACK("Input");
+        InputManager* inputManager = app->GetInputManager();
+
+        glm::dvec2 cPos;
+        glfwGetCursorPos(m_window, &cPos.x, &cPos.y);
+
+        inputManager->SetCursorPos((glm::vec2)cPos);
+        
+        inputManager->SetMouseButton(MouseButton_Left, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT));
+        inputManager->SetMouseButton(MouseButton_Middle, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_MIDDLE));
+        inputManager->SetMouseButton(MouseButton_Right, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_RIGHT));
+    }   
 }
 
 glm::ivec2 GLFWAppWindow::GetSize() const

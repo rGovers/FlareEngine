@@ -115,5 +115,10 @@ namespace FlareEngine.Maths
 
             return new Quaternion(a_quat.X / mag, a_quat.Y / mag, a_quat.Z / mag, a_quat.W / mag);
         }
+
+        public override string ToString()
+        {
+            return $"({X}, {Y}, {Z}, {W})";
+        }
     }
 }

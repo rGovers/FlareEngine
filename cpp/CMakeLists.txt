@@ -67,7 +67,7 @@ FileToHeader(
     VARIABLE_NAME "SpotLightPixel"
 )
 
-include_directories("${PROJECT_SOURCE_DIR}/Headless/"
+include_directories("${PROJECT_SOURCE_DIR}/Shared/"
                     "${PROJECT_SOURCE_DIR}/../deps/mono/build/include/mono-2.0/"
                     "${PROJECT_SOURCE_DIR}/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glfw/include/"

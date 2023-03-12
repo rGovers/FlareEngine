@@ -18,6 +18,8 @@
 #include <filesystem>
 #include <string>
 
+#include "Application.h"
+#include "InputManager.h"
 #include "Profiler.h"
 #include "Trace.h"
 
@@ -78,7 +80,7 @@ void HeadlessAppWindow::ProfilerCallback(const Profiler::PData& a_profilerData)
     m_queuedMessages.Push(msg);
 }
 
-HeadlessAppWindow::HeadlessAppWindow()
+HeadlessAppWindow::HeadlessAppWindow(Application* a_app) : AppWindow(a_app)
 {
     TRACE("Creating headless window");
 
@@ -327,6 +329,29 @@ bool HeadlessAppWindow::PollMessage()
             delete[] m_frameData;
             m_frameData = nullptr;
         }
+
+        break;
+    }
+    case PipeMessageType_CursorPos:
+    {
+        const Application* app = GetApplication();
+        
+        InputManager* inputManager = app->GetInputManager();
+        inputManager->SetCursorPos(*(glm::vec2*)msg.Data);
+
+        break;
+    }
+    case PipeMessageType_MouseState:
+    {
+        const Application* app = GetApplication();
+
+        InputManager* inputManager = app->GetInputManager();
+        
+        const unsigned char mouseState = *(unsigned char*)msg.Data;
+
+        inputManager->SetMouseButton(MouseButton_Left, mouseState & 0b1 << MouseButton_Left);
+        inputManager->SetMouseButton(MouseButton_Middle, mouseState & 0b1 << MouseButton_Middle);
+        inputManager->SetMouseButton(MouseButton_Right, mouseState & 0b1 << MouseButton_Right);
 
         break;
     }

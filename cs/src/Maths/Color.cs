@@ -77,6 +77,11 @@ namespace FlareEngine.Maths
             return R == color.R && G == color.G && B == color.B && A == color.A;
         }
 
+        public override string ToString()
+        {
+            return $"({R}, {G}, {B}, {A})";
+        }
+
         public static Color FromColorCode(uint a_code)
         {
             return new Color((byte)(a_code >> 0), (byte)(a_code >> 8), (byte)(a_code >> 16), (byte)(a_code >> 24));

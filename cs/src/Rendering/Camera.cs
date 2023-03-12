@@ -1,6 +1,5 @@
 using FlareEngine.Definitions;
 using FlareEngine.Maths;
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -34,6 +33,9 @@ namespace FlareEngine.Rendering
         extern static CameraBuffer GetBuffer(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void SetBuffer(uint a_addr, CameraBuffer a_buffer);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static Vector3 ScreenToWorld(uint a_addr, Vector3 a_screenPos, Vector2 a_screenSize);
 
         public Viewport Viewport
         {
@@ -177,6 +179,11 @@ namespace FlareEngine.Rendering
 
                 SetBuffer(m_bufferAddr, val);
             }
+        }
+
+        public Vector3 ScreenToWorld(Vector3 a_screenPos, Vector2 a_screenSize)
+        {
+            return ScreenToWorld(m_bufferAddr, a_screenPos, a_screenSize);
         }
 
         internal static Camera GetCamera(uint a_buffer)

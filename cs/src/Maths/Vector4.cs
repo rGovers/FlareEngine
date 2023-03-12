@@ -898,6 +898,10 @@ namespace FlareEngine.Maths
                 return hash;
             }
         }
+        public override string ToString()
+        {
+            return $"({X}, {Y}, {Z}, {W})";
+        }
 
         public float MagnitudeSqr
         {
