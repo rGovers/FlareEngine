@@ -9,6 +9,7 @@ enum e_PipeMessageType : uint32_t
     PipeMessageType_Resize,
     PipeMessageType_CursorPos,
     PipeMessageType_MouseState,
+    PipeMessageType_KeyboardState,
     PipeMessageType_FrameData,
     PipeMessageType_UpdateData,
     PipeMessageType_ProfileScope,

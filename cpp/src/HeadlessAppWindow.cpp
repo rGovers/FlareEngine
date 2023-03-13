@@ -337,6 +337,7 @@ bool HeadlessAppWindow::PollMessage()
         const Application* app = GetApplication();
         
         InputManager* inputManager = app->GetInputManager();
+        
         inputManager->SetCursorPos(*(glm::vec2*)msg.Data);
 
         break;
@@ -352,6 +353,23 @@ bool HeadlessAppWindow::PollMessage()
         inputManager->SetMouseButton(MouseButton_Left, mouseState & 0b1 << MouseButton_Left);
         inputManager->SetMouseButton(MouseButton_Middle, mouseState & 0b1 << MouseButton_Middle);
         inputManager->SetMouseButton(MouseButton_Right, mouseState & 0b1 << MouseButton_Right);
+
+        break;
+    }
+    case PipeMessageType_KeyboardState:
+    {
+        const Application* app = GetApplication();
+
+        InputManager* inputManager = app->GetInputManager();
+
+        const KeyboardState state = KeyboardState::FromData((unsigned char*)msg.Data);
+
+        for (unsigned int i = 0; i < KeyCode_Last; ++i)
+        {
+            const e_KeyCode keyCode = (e_KeyCode)i;
+
+            inputManager->SetKeyboardKey(keyCode, state.IsKeyDown(keyCode));
+        }
 
         break;
     }

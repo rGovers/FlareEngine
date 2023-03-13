@@ -10,9 +10,14 @@ static InputManager* Instance = nullptr;
 
 #define INPUTMANAGER_BINDING_FUNCTION_TABLE(F) \
     F(glm::vec2, FlareEngine, Input, GetCursorPos, { return Instance->GetCursorPos(); }) \
+    \
     F(uint32_t, FlareEngine, Input, GetMouseDownState, { return (uint32_t)Instance->IsMouseDown((e_MouseButton)a_button); }, uint32_t a_button) \
     F(uint32_t, FlareEngine, Input, GetMousePressedState, { return (uint32_t)Instance->IsMousePressed((e_MouseButton)a_button); }, uint32_t a_button) \
-    F(uint32_t, FlareEngine, Input, GetMouseReleasedState, { return (uint32_t)Instance->IsMouseReleased((e_MouseButton)a_button); }, uint32_t a_button)
+    F(uint32_t, FlareEngine, Input, GetMouseReleasedState, { return (uint32_t)Instance->IsMouseReleased((e_MouseButton)a_button); }, uint32_t a_button) \
+    \
+    F(uint32_t, FlareEngine, Input, GetKeyDownState, { return (uint32_t)Instance->IsKeyDown((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \ 
+    F(uint32_t, FlareEngine, Input, GetKeyPressedState, { return (uint32_t)Instance->IsKeyPressed((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
+    F(uint32_t, FlareEngine, Input, GetKeyReleasedState, { return (uint32_t)Instance->IsKeyReleased((e_KeyCode)a_keyCode); }, uint32_t a_keyCode)
 
 INPUTMANAGER_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION);
 
@@ -29,6 +34,8 @@ InputManager::InputManager(RuntimeManager* a_runtime)
 
     m_mousePressedFunc = a_runtime->GetFunction("FlareEngine", "Input", ":MousePressedEvent(uint)");
     m_mouseReleasedFunc = a_runtime->GetFunction("FlareEngine", "Input", ":MouseReleasedEvent(uint)");
+    m_keyPressedFunc = a_runtime->GetFunction("FlareEngine", "Input", ":KeyPressedEvent(uint)");
+    m_keyReleasedFunc = a_runtime->GetFunction("FlareEngine", "Input", ":KeyReleasedEvent(uint)");
 }
 InputManager::~InputManager()
 {
@@ -83,6 +90,38 @@ void InputManager::SetMouseButton(e_MouseButton a_button, bool a_state)
     }
 }
 
+void InputManager::SetKeyboardKey(e_KeyCode a_keyCode, bool a_state)
+{
+    const bool prevState = m_curKeyState.IsKeyDown(a_keyCode);
+
+    m_curKeyState.SetKey(a_keyCode, a_state);
+    if (a_state)
+    {
+        if (!prevState)
+        {
+            uint32_t key = (uint32_t)a_keyCode;
+            void* args[]
+            {
+                &key
+            };
+
+            m_keyPressedFunc->Exec(args);
+        }   
+    }
+    else if (prevState)
+    {
+        uint32_t key = (uint32_t)a_keyCode;
+        void* args[]
+        {
+            &key
+        };
+        
+        m_keyReleasedFunc->Exec(args);
+    }
+
+    m_prevKeyState.SetKey(a_keyCode, prevState);
+}
+
 void InputManager::Update()
 {
     // Required for frame events can get multiple press and release events cause majority of time engine runs faster then editor 
@@ -97,4 +136,6 @@ void InputManager::Update()
             m_mouseButton &= ~(0b1 << (i * 2 + 1));
         }
     }
+
+    m_prevKeyState = m_curKeyState;
 }
