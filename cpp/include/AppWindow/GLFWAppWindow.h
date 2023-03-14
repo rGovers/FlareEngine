@@ -34,11 +34,15 @@ public:
     virtual void Update();
 
     virtual glm::ivec2 GetSize() const;
+    virtual void Resize(uint32_t a_width, uint32_t a_height);
+    virtual void SetFullscreen(const AppMonitor& a_monitor, bool a_state, uint32_t a_width, uint32_t a_height);
 
     virtual bool IsHeadless() const
     {
         return false;
     }
+
+    virtual AppMonitor* GetMonitors(int* a_count) const;
 
     virtual std::vector<const char*> GetRequiredVulkanExtenions() const;
     virtual vk::SurfaceKHR GetSurface(const vk::Instance& a_instance);

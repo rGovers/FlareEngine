@@ -142,7 +142,7 @@ GLFWAppWindow::GLFWAppWindow(Application* a_app, Config* a_config) : AppWindow(a
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(1280, 720, a_config->GetApplicationName().data(), nullptr, nullptr);
+    m_window = glfwCreateWindow(1280, 720, a_config->GetApplicationName().data(), NULL, NULL);
 
     m_time = glfwGetTime();
     m_prevTime = m_time;
@@ -210,6 +210,55 @@ glm::ivec2 GLFWAppWindow::GetSize() const
 
     return winSize;
 }
+void GLFWAppWindow::Resize(uint32_t a_width, uint32_t a_height)
+{
+    glfwSetWindowSize(m_window, (int)a_width, (int)a_height);
+}
+void GLFWAppWindow::SetFullscreen(const AppMonitor& a_monitor, bool a_state, uint32_t a_width, uint32_t a_height)
+{
+    if (a_state)
+    {
+        glfwSetWindowMonitor(m_window, (GLFWmonitor*)a_monitor.Handle, 0, 0, a_width, a_height, GLFW_DONT_CARE);
+    }
+    else
+    {
+        glfwSetWindowMonitor(m_window, NULL, a_width / 2, a_height / 2, a_width, a_height, GLFW_DONT_CARE);
+    }
+}
+
+AppMonitor* GLFWAppWindow::GetMonitors(int* a_count) const
+{
+    AppMonitor* monitors = nullptr;
+    *a_count = 0;
+
+    int monitorCount;
+    GLFWmonitor** glfwMonitors = glfwGetMonitors(&monitorCount);
+    if (monitorCount > 0 && glfwMonitors != nullptr)
+    {
+        monitors = new AppMonitor[monitorCount];
+        *a_count = monitorCount;
+
+        for (int i = 0; i < monitorCount; ++i)
+        {
+            GLFWmonitor* mon = glfwMonitors[i];
+
+            monitors[i].Name = glfwGetMonitorName(mon);
+            monitors[i].Width = 0;
+            monitors[i].Height = 0;
+            monitors[i].Handle = mon;
+            
+            int vidModeCount;
+            const GLFWvidmode* vidModes = glfwGetVideoModes(mon, &vidModeCount);
+            for (int j = 0; j < vidModeCount; ++j)
+            {
+                monitors[i].Width = glm::max(monitors[i].Width, (uint32_t)vidModes[j].width);
+                monitors[i].Height = glm::max(monitors[i].Height, (uint32_t)vidModes[j].height);
+            }
+        }
+    }
+
+    return monitors;
+}
 
 vk::SurfaceKHR GLFWAppWindow::GetSurface(const vk::Instance& a_instance) 
 {
@@ -217,7 +266,7 @@ vk::SurfaceKHR GLFWAppWindow::GetSurface(const vk::Instance& a_instance)
     {
         VkSurfaceKHR tempSurf;
         glfwCreateWindowSurface(a_instance, m_window, nullptr, &tempSurf);
-        m_surface = vk::SurfaceKHR(tempSurf);
+        m_surface = tempSurf;
     }
     
     return m_surface;

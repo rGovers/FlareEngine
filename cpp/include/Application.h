@@ -39,6 +39,26 @@ public:
     {
         return (uint32_t)m_appWindow->GetSize().y;
     }
+
+    inline void Resize(uint32_t a_width, uint32_t a_height)
+    {
+        m_appWindow->Resize(a_width, a_height);
+    }
+    inline void SetFullscreen(const AppMonitor& a_monitor, bool a_state, uint32_t a_width, uint32_t a_height)
+    {
+        m_appWindow->SetFullscreen(a_monitor, a_state, a_width, a_height);
+    }
+
+    inline bool IsHeadless() const
+    {
+        return m_appWindow->IsHeadless();
+    }
+
+    inline AppMonitor* GetMonitors(int* a_count) const
+    {
+        return m_appWindow->GetMonitors(a_count);
+    }
+
     inline void Close()
     {
         m_close = true;
@@ -47,5 +67,9 @@ public:
     inline InputManager* GetInputManager() const
     {
         return m_inputManager;
+    }
+    inline RuntimeManager* GetRuntime() const
+    {
+        return m_runtime;
     }
 };

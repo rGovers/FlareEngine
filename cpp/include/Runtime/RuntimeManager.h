@@ -47,5 +47,12 @@ public:
 
     void AttachThread();
 
+    inline MonoDomain* GetDomain() const
+    {
+        return m_domain;
+    }
+
+    MonoClass* GetClass(const std::string_view& a_namespace, const std::string_view& a_name) const;
+
     RuntimeFunction* GetFunction(const std::string_view& a_namespace, const std::string_view& a_class, const std::string_view& a_method) const;
 };

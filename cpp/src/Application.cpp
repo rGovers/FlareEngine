@@ -13,15 +13,71 @@
 
 static Application* Instance = nullptr;
 
+struct Monitor
+{
+    uint32_t Index;
+    MonoString* Name;
+    uint32_t Width;
+    uint32_t Height;
+    void* Handle;
+};
+
 #define APPLICATION_RUNTIME_ATTACH(ret, namespace, klass, name, code, ...) m_runtime->BindFunction(RUNTIME_FUNCTION_STRING(namespace, klass, name), (void*)RUNTIME_FUNCTION_NAME(klass, name));
 
 #define APPLICATION_BINDING_FUNCTION_TABLE(F) \
     F(uint32_t, FlareEngine, Application, GetWidth, { return Instance->GetWidth(); }) \
     F(uint32_t, FlareEngine, Application, GetHeight, { return Instance->GetHeight(); }) \
-    F(void, FlareEngine, Application, Close, { Instance->Close(); })
-    
+    F(void, FlareEngine, Application, Resize, { Instance->Resize(a_width, a_height); }, uint32_t a_width, uint32_t a_height) \
+    \
+    F(uint32_t, FlareEngine, Application, GetHeadlessState, { return (uint32_t)Instance->IsHeadless(); }) \
+    \
+    F(void, FlareEngine, Application, Close, { Instance->Close(); }) 
 
 APPLICATION_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION);
+
+FLARE_MONO_EXPORT(MonoArray*, RUNTIME_FUNCTION_NAME(Application, GetMonitors))
+{
+    MonoArray* arr = nullptr;
+
+    int monitorCount;
+    const AppMonitor* appMonitors = Instance->GetMonitors(&monitorCount);
+    if (monitorCount > 0 && appMonitors != nullptr)
+    {
+        const RuntimeManager* runtime = Instance->GetRuntime();
+        MonoDomain* domain = runtime->GetDomain();
+
+        MonoClass* monitorClass = runtime->GetClass("FlareEngine", "Monitor");
+
+        arr = mono_array_new(domain, monitorClass, (uintptr_t)monitorCount);
+        for (int i = 0; i < monitorCount; ++i)
+        {
+            Monitor monitor;
+            monitor.Index = i;
+            monitor.Name = mono_string_new(domain, appMonitors[i].Name.c_str());
+            monitor.Width = appMonitors[i].Width;
+            monitor.Height = appMonitors[i].Height;
+            monitor.Handle = appMonitors[i].Handle;
+
+            mono_array_set(arr, Monitor, i, monitor);
+        }
+    }
+
+    if (appMonitors != nullptr)
+    {
+        delete[] appMonitors;
+    }
+
+    return arr;
+}
+FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Application, SetFullscreenState), Monitor a_monitor, uint32_t a_state, uint32_t a_width, uint32_t a_height)
+{
+    AppMonitor appMonitor;
+    appMonitor.Width = a_monitor.Width;
+    appMonitor.Height = a_monitor.Height;
+    appMonitor.Handle = a_monitor.Handle;
+
+    Instance->SetFullscreen(appMonitor, (bool)a_state, a_width, a_height);
+}
 
 // Compiler why 
 static void PlzNoReorder(RuntimeManager* a_runtime)
@@ -59,6 +115,9 @@ Application::Application(Config* a_config)
     m_renderEngine = new RenderEngine(m_runtime, m_objectManager, m_appWindow, m_config);
 
     APPLICATION_BINDING_FUNCTION_TABLE(APPLICATION_RUNTIME_ATTACH);
+
+    m_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Application, GetMonitors), (void*)RUNTIME_FUNCTION_NAME(Application, GetMonitors));
+    m_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Application, SetFullscreenState), (void*)RUNTIME_FUNCTION_NAME(Application, SetFullscreenState));
 }
 Application::~Application()
 {

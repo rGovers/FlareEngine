@@ -72,6 +72,11 @@ void RuntimeManager::AttachThread()
     mono_jit_thread_attach(m_domain);
 }
 
+MonoClass* RuntimeManager::GetClass(const std::string_view& a_namespace, const std::string_view& a_name) const
+{
+    return mono_class_from_name(m_image, a_namespace.data(), a_name.data());
+}
+
 RuntimeFunction* RuntimeManager::GetFunction(const std::string_view& a_namespace, const std::string_view& a_class, const std::string_view& a_method) const
 {
     MonoClass* cls = mono_class_from_name(m_image, a_namespace.data(), a_class.data());
