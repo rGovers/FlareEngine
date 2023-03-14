@@ -356,7 +356,7 @@ void VulkanRenderTexture::Destroy()
     const uint32_t totalTextureCount = GetTotalTextureCount();
 
     TRACE("Destroying Render Texture Textures");
-    for (uint i = 0; i < totalTextureCount; ++i)
+    for (uint32_t i = 0; i < totalTextureCount; ++i)
     {
         vmaDestroyImage(allocator, m_textures[i], m_textureAllocations[i]);
         device.destroyImageView(m_textureViews[i]);

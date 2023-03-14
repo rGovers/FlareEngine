@@ -15,9 +15,9 @@ static InputManager* Instance = nullptr;
     F(uint32_t, FlareEngine, Input, GetMousePressedState, { return (uint32_t)Instance->IsMousePressed((e_MouseButton)a_button); }, uint32_t a_button) \
     F(uint32_t, FlareEngine, Input, GetMouseReleasedState, { return (uint32_t)Instance->IsMouseReleased((e_MouseButton)a_button); }, uint32_t a_button) \
     \
-    F(uint32_t, FlareEngine, Input, GetKeyDownState, { return (uint32_t)Instance->IsKeyDown((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \ 
+    F(uint32_t, FlareEngine, Input, GetKeyDownState, { return (uint32_t)Instance->IsKeyDown((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
     F(uint32_t, FlareEngine, Input, GetKeyPressedState, { return (uint32_t)Instance->IsKeyPressed((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
-    F(uint32_t, FlareEngine, Input, GetKeyReleasedState, { return (uint32_t)Instance->IsKeyReleased((e_KeyCode)a_keyCode); }, uint32_t a_keyCode)
+    F(uint32_t, FlareEngine, Input, GetKeyReleasedState, { return (uint32_t)Instance->IsKeyReleased((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) 
 
 INPUTMANAGER_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION);
 
