@@ -2,7 +2,7 @@
 
 git submodule update --init --recursive
 
-cd deps/mono
+cd deps/flare-mono
 
 ./autogen.sh  
 ./configure --with-static_mono=yes --prefix=$PWD/build/

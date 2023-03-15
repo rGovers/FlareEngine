@@ -12,7 +12,7 @@ Flare Engine is a cross platform game engine to allow ease of modding.
 Requires cygwin for compiling Mono. 
 Refer to the following for requirements https://www.mono-project.com/docs/compiling-mono/windows/ 
 
-Enter the mono directory in deps/mono/ and run the following commands to build mono 
+Enter the mono directory in deps/flare-mono/ and run the following commands to build mono 
 ```
 ./autogen.sh
 ./configure --prefix=$PWD/build --host=x86_64-w64-mingw32 --disable-boehm --enable-msvc

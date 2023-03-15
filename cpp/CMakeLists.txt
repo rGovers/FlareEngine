@@ -39,6 +39,10 @@ if (ENABLE_ASSERT)
     add_compile_definitions(FLARENATIVE_ENABLE_ASSERT)
 endif()
 
+add_compile_definitions(GLM_FORCE_QUAT_DATA_XYZW)
+add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
+add_compile_definitions(GLM_FORCE_RADIANS)
+
 if (GENERATE_CONFIG)
     configure_file(
         "${PROJECT_SOURCE_DIR}/config.xml.in"
@@ -68,16 +72,18 @@ FileToHeader(
 )
 
 include_directories("${PROJECT_SOURCE_DIR}/Shared/"
-                    "${PROJECT_SOURCE_DIR}/../deps/mono/build/include/mono-2.0/"
+                    "${PROJECT_SOURCE_DIR}/../deps/flare-glfw/include/"
+                    "${PROJECT_SOURCE_DIR}/../deps/flare-glm/"
+                    "${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/include/mono-2.0/"
+                    "${PROJECT_SOURCE_DIR}/../deps/flare-tinyxml2/"
                     "${PROJECT_SOURCE_DIR}/include/"
-                    "${PROJECT_SOURCE_DIR}/lib/glfw/include/"
-                    "${PROJECT_SOURCE_DIR}/lib/glm/"
                     "${PROJECT_SOURCE_DIR}/lib/glslang/"
-                    "${PROJECT_SOURCE_DIR}/lib/tinyxml2/"
                     "${PROJECT_SOURCE_DIR}/lib/VulkanMemoryAllocator/include/"
                     ${Vulkan_INCLUDE_DIRS})
 
-file(GLOB SOURCES "src/*.cpp" "lib/tinyxml2/tinyxml2.cpp")
+file(GLOB SOURCES 
+    "src/*.cpp" 
+    "../deps/flare-tinyxml2/tinyxml2.cpp")
 
 set(SKIP_GLSLANG_INSTALL ON)
 set(ENABLE_GLSLANG_BINARIES OFF)
@@ -85,11 +91,11 @@ set(BUILD_EXTERNAL OFF)
 set(ENABLE_CTEST OFF)
 
 if (NOT TARGET glfw)
-    add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glfw/")
+    add_subdirectory("${PROJECT_SOURCE_DIR}/../deps/flare-glfw/" "build/glfw")
 endif()
 add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glslang")
 
-link_directories("${PROJECT_SOURCE_DIR}/../deps/mono/build/lib/")
+link_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/lib/")
 
 add_executable(FlareNative ${SOURCES})
 target_link_libraries(FlareNative glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES})

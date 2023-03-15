@@ -448,14 +448,18 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
     const VmaAllocator allocator = m_engine->GetAllocator();
     const vk::Device device = m_engine->GetLogicalDevice();
     const glm::ivec2 size = m_window->GetSize();
-
-    vk::Result r = device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
-    if (r != vk::Result::eSuccess)
+    
     {
-        Logger::Warning(std::string("FlareEngine: Could not wait for fence: ") + string_VkResult((VkResult)r));
+        PROFILESTACK("Fence");
+        vk::Result r = device.waitForFences(1, &a_fence, VK_TRUE, UINT64_MAX);
+        if (r != vk::Result::eSuccess)
+        {
+            Logger::Warning(std::string("FlareEngine: Could not wait for fence: ") + string_VkResult((VkResult)r));
 
-        return false;
+            return false;
+        }
     }
+    
 
     if (m_window->IsHeadless())
     {
@@ -547,7 +551,11 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         }
     }
 
-    std::ignore = device.resetFences(1, &a_fence);
+    {
+        PROFILESTACK("Reset Fence");
+        
+        FLARE_ASSERT_R(device.resetFences(1, &a_fence) == vk::Result::eSuccess);
+    }
 
     return true;
 }

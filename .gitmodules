@@ -1,18 +1,18 @@
-[submodule "cpp/lib/tinyxml2"]
-	path = cpp/lib/tinyxml2
-	url = https://github.com/leethomason/tinyxml2.git
-[submodule "cpp/lib/glfw"]
-	path = cpp/lib/glfw
-	url = https://github.com/glfw/glfw.git
-[submodule "cpp/lib/glm"]
-	path = cpp/lib/glm
-	url = https://github.com/g-truc/glm.git
 [submodule "cpp/lib/VulkanMemoryAllocator"]
 	path = cpp/lib/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 [submodule "cpp/lib/glslang"]
 	path = cpp/lib/glslang
 	url = https://github.com/KhronosGroup/glslang.git
-[submodule "deps/mono"]
-	path = deps/mono
-	url = https://github.com/mono/mono.git
+[submodule "deps/flare-mono"]
+	path = deps/flare-mono
+	url = https://github.com/rGovers/flare-mono.git
+[submodule "deps/flare-glfw"]
+	path = deps/flare-glfw
+	url = https://github.com/rGovers/flare-glfw.git
+[submodule "deps/flare-glm"]
+	path = deps/flare-glm
+	url = https://github.com/rGovers/flare-glm.git
+[submodule "deps/flare-tinyxml2"]
+	path = deps/flare-tinyxml2
+	url = https://github.com/rGovers/flare-tinyxml2.git
