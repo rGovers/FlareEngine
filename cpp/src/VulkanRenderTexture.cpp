@@ -240,7 +240,7 @@ void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
 
     VmaAllocationCreateInfo allocInfo = { 0 };
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     allocInfo.flags = 0;
 
     constexpr vk::ImageSubresourceRange SubresourceRange = vk::ImageSubresourceRange
