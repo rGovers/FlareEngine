@@ -1,7 +1,7 @@
 using FlareEngine.Definitions;
+using FlareEngine.Mod;
 using FlareEngine.Rendering;
 using System.Collections.Generic;
-using System.IO;
 
 namespace FlareEngine
 {
@@ -50,25 +50,18 @@ namespace FlareEngine
                 return VertexShaders[a_path];
             }
 
-            string path = Path.Combine("Assets", a_path);
-
-            VertexShader shader;
-
-            if (!string.IsNullOrWhiteSpace(WorkingDir))
+            string filepath = ModControl.GetAssetPath(a_path);
+            if (string.IsNullOrEmpty(filepath))
             {
-                shader = VertexShader.LoadVertexShader(Path.Combine(WorkingDir, "Core", path));
-                if (shader != null)
-                {
-                    VertexShaders.Add(a_path, shader);
+                Logger.FlareError($"Cannot find filepath: {a_path}");
 
-                    return shader;
-                }
+                return null;
             }
 
-            shader = VertexShader.LoadVertexShader(path);
+            VertexShader shader = VertexShader.LoadVertexShader(filepath);
             if (shader == null)
             {
-                Logger.Error($"FlareCS: Error loading VertexShader: {a_path}");
+                Logger.FlareError($"Error loading VertexShader: {a_path}, at {filepath}");
 
                 return null;
             }
@@ -84,24 +77,18 @@ namespace FlareEngine
                 return PixelShaders[a_path];
             }
 
-            string path = Path.Combine("Assets", a_path);
-
-            PixelShader shader;
-            if (!string.IsNullOrWhiteSpace(WorkingDir))
+            string filepath = ModControl.GetAssetPath(a_path);
+            if (string.IsNullOrEmpty(filepath))
             {
-                shader = PixelShader.LoadPixelShader(Path.Combine(WorkingDir, "Core", path));
-                if (shader != null)
-                {
-                    PixelShaders.Add(a_path, shader);
+                Logger.FlareError($"Cannot find filepath: {a_path}");
 
-                    return shader;
-                }
+                return null;
             }
 
-            shader = PixelShader.LoadPixelShader(path);
+            PixelShader shader = PixelShader.LoadPixelShader(filepath);
             if (shader == null)
             {
-                Logger.Error($"FlareCS: Error loading PixelShader: {a_path}");
+                Logger.FlareError($"Error loading PixelShader: {a_path} at {filepath}");
 
                 return null;
             }
@@ -115,7 +102,7 @@ namespace FlareEngine
         {
             if (a_def == null)
             {
-                Logger.Warning("FlareCS: Null MaterialDef");
+                Logger.FlareWarning("Null MaterialDef");
 
                 return null;
             }

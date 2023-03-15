@@ -67,5 +67,30 @@ namespace FlareEngine.Mod
 
             Assemblies.Clear();
         }
+
+        public static string GetAssetPath(string a_path)
+        {
+            if (File.Exists(a_path))
+            {
+                return a_path;
+            }
+
+            foreach (FlareAssembly asm in Assemblies)
+            {
+                string mPath = Path.Combine(asm.AssemblyInfo.Path, "Assets", a_path);
+                if (File.Exists(mPath))
+                {
+                    return mPath;
+                }
+            }
+
+            string cPath = Path.Combine(CoreAssembly.AssemblyInfo.Path, "Assets", a_path);
+            if (File.Exists(cPath))
+            {
+                return cPath;
+            }
+
+            return null;
+        } 
     }
 }

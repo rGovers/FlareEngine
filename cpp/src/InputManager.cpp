@@ -41,6 +41,8 @@ InputManager::~InputManager()
 {
     delete m_mousePressedFunc;
     delete m_mouseReleasedFunc;
+    delete m_keyPressedFunc;
+    delete m_keyReleasedFunc;
 }
 
 void InputManager::SetMouseButton(e_MouseButton a_button, bool a_state)

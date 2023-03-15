@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 
 namespace FlareEngine.Mod
 {
@@ -38,7 +39,7 @@ namespace FlareEngine.Mod
             }
         }
 
-        private FlareAssembly()
+        FlareAssembly()
         {
 
         }
@@ -51,6 +52,72 @@ namespace FlareEngine.Mod
 
                 string assemblyPath = Path.Combine(a_path, "Assemblies");
                 string defPath = Path.Combine(a_path, "Defs");
+                string aboutPath = Path.Combine(a_path, "about.xml");
+
+                if (File.Exists(aboutPath))
+                {
+                    XmlDocument doc = new XmlDocument();
+                    doc.Load(aboutPath);
+
+                    if (doc.DocumentElement is XmlElement root)
+                    {
+                        string pathName = Path.GetFileName(a_path);
+
+                        string id = null;
+                        string name = pathName;
+                        string desciption = string.Empty;
+
+                        foreach (XmlNode node in root.ChildNodes)
+                        {
+                            if (node is XmlElement element)
+                            {
+                                switch (element.Name)
+                                {
+                                case "ID":
+                                {
+                                    id = element.InnerText;
+
+                                    break;
+                                }
+                                case "Name":
+                                {
+                                    name = element.InnerText;
+
+                                    break;
+                                }
+                                case "Description":
+                                {
+                                    desciption = element.InnerText;
+
+                                    break;
+                                }
+                                default:
+                                {
+                                    Logger.FlareError($"Invalid about element: {element.Name}");
+
+                                    break;
+                                }
+                                }
+                            }
+                        }
+
+                        if (string.IsNullOrWhiteSpace(id))
+                        {
+                            Logger.FlareError($"Invalid mod id in about: {aboutPath}");
+
+                            return null;
+                        }
+
+                        asm.m_assemblyInfo = new FlareAssemblyInfo(id, name, a_path, desciption);
+                    }
+                }
+                else
+                {
+                    Logger.FlareError($"No mod about: {a_path}");
+
+                    return null;
+                }
+
                 if (Directory.Exists(defPath))
                 {
                     DefLibrary.LoadDefs(defPath);
