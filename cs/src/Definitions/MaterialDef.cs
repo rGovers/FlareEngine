@@ -27,6 +27,9 @@ namespace FlareEngine.Definitions
 
         public PrimitiveMode PrimitiveMode = PrimitiveMode.Triangles;
 
+        [EditorTooltip("Enables color blending")]
+        public bool EnableColorBlending = false;
+
         public override void PostResolve()
         {
             base.PostResolve();

@@ -9,6 +9,7 @@
 #include "Profiler.h"
 #include "Rendering/RenderEngine.h"
 #include "Runtime/RuntimeManager.h"
+#include "Scribe.h"
 #include "Trace.h"
 
 static Application* Instance = nullptr;
@@ -107,7 +108,8 @@ Application::Application(Config* a_config)
 
     Profiler::Init(m_runtime);
     Logger::InitRuntime(m_runtime);
-    
+    Scribe::Init(m_runtime);
+
     m_inputManager = new InputManager(m_runtime);
 
     m_objectManager = new ObjectManager(m_runtime);
@@ -135,6 +137,8 @@ Application::~Application()
     delete m_config;
 
     Profiler::Destroy();
+
+    Scribe::Destroy();
 
     TRACE("Final Disposal");
     delete m_appWindow;

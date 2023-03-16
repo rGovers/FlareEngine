@@ -271,19 +271,23 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
         vk::SampleCountFlagBits::e1
     );
 
-    constexpr vk::PipelineColorBlendAttachmentState ColorBlendAttachment = vk::PipelineColorBlendAttachmentState
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment = vk::PipelineColorBlendAttachmentState
     (
         VK_FALSE,
         vk::BlendFactor::eOne,
-        vk::BlendFactor::eZero,
+        vk::BlendFactor::eOne,
         vk::BlendOp::eAdd,
         vk::BlendFactor::eOne,
-        vk::BlendFactor::eZero,
+        vk::BlendFactor::eOne,
         vk::BlendOp::eAdd,
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
     );
+    if (program.EnableColorBlending)
+    {
+        colorBlendAttachment.blendEnable = VK_TRUE;
+    }
 
-    const std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments = std::vector<vk::PipelineColorBlendAttachmentState>(a_textureCount, ColorBlendAttachment);
+    const std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments = std::vector<vk::PipelineColorBlendAttachmentState>(a_textureCount, colorBlendAttachment);
 
     const vk::PipelineColorBlendStateCreateInfo colorBlending = vk::PipelineColorBlendStateCreateInfo
     (

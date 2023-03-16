@@ -84,7 +84,7 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
 VULKANGRAPHICS_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION)
 
 // Gonna leave theses functions seperate as there is a bit to it
-FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode)
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode, uint32_t a_colorBlendingEnabled)
 {
     RenderProgram program;
     program.VertexShader = a_vertexShader;
@@ -92,6 +92,7 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), ui
     program.VertexStride = a_vertexStride;
     program.CullingMode = (e_CullMode)a_cullingMode;
     program.PrimitiveMode = (e_PrimitiveMode)a_primitiveMode;
+    program.EnableColorBlending = a_colorBlendingEnabled;
     program.Flags = 0;
 
     // Need to recreate the array
@@ -317,6 +318,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.PixelShader = GenerateFPixelShaderAddr(DIRECTIONALLIGHTPIXEL);
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;
@@ -340,6 +342,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.PixelShader = GenerateFPixelShaderAddr(POINTLIGHTPIXEL);
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;
@@ -363,6 +366,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
         program.PixelShader = GenerateFPixelShaderAddr(SPOTLIGHTPIXEL);
         program.CullingMode = CullMode_None;
         program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;

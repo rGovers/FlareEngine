@@ -5,9 +5,17 @@ namespace FlareEngine.Mod
 {
     public static class ModControl
     {
-        static FlareAssembly CoreAssembly;
+        public static FlareAssembly CoreAssembly
+        {
+            get;
+            private set;
+        }
 
-        static List<FlareAssembly> Assemblies;
+        public static List<FlareAssembly> Assemblies
+        {
+            get;
+            private set;
+        }
 
         internal static void Init(string a_workingDir)
         {

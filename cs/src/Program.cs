@@ -34,6 +34,7 @@ namespace FlareEngine
             ModControl.Init(workingDir);
 
             DefLibrary.ResolveDefs();
+            Scribe.SetLanguage("en-us");
 
             ModControl.InitAssemblies();
 

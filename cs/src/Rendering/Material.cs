@@ -16,10 +16,11 @@ namespace FlareEngine.Rendering
         public IntPtr VertexInputAttributes;
         public ushort ShaderBufferInputCount;
         public IntPtr ShaderBufferInputs;
-        CullMode CullingMode;
-        PrimitiveMode PrimitiveMode;
+        public CullMode CullingMode;
+        public PrimitiveMode PrimitiveMode;
+        public byte ColorBlendEnabled;
         IntPtr Data;
-        public byte Flags;
+        byte Flags;
     };
 
     public enum ShaderBufferType : ushort
@@ -86,7 +87,7 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateInternalProgram(InternalRenderProgram a_renderProgram);
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateProgram(uint a_vertexShader, uint a_pixelShader, ushort a_vertexStride, VertexInputAttribute[] a_attributes, ShaderBufferInput[] a_shaderInputs, uint a_cullMode, uint a_primitiveMode); 
+        extern static uint GenerateProgram(uint a_vertexShader, uint a_pixelShader, ushort a_vertexStride, VertexInputAttribute[] a_attributes, ShaderBufferInput[] a_shaderInputs, uint a_cullMode, uint a_primitiveMode, uint a_enableColorBlending); 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static RenderProgram GetProgramBuffer(uint a_addr); 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -147,9 +148,16 @@ namespace FlareEngine.Rendering
 
             RenderLayer = 0b1;
         }
-        public Material(VertexShader a_vertexShader, PixelShader a_pixelShader, ushort a_vertexStride, VertexInputAttribute[] a_attributes, ShaderBufferInput[] a_shaderInputs, CullMode a_cullMode = CullMode.Back, PrimitiveMode a_primitiveMode = PrimitiveMode.Triangles)
+        public Material(VertexShader a_vertexShader, PixelShader a_pixelShader, ushort a_vertexStride, VertexInputAttribute[] a_attributes, ShaderBufferInput[] a_shaderInputs, CullMode a_cullMode = CullMode.Back, PrimitiveMode a_primitiveMode = PrimitiveMode.Triangles, bool a_enableColorBlending = false)
         {
-            m_bufferAddr = GenerateProgram(a_vertexShader.InternalAddr, a_pixelShader.InternalAddr, a_vertexStride, a_attributes, a_shaderInputs, (uint)a_cullMode, (uint)a_primitiveMode);
+            if (a_enableColorBlending)
+            {
+                m_bufferAddr = GenerateProgram(a_vertexShader.InternalAddr, a_pixelShader.InternalAddr, a_vertexStride, a_attributes, a_shaderInputs, (uint)a_cullMode, (uint)a_primitiveMode, 1);
+            }
+            else
+            {
+                m_bufferAddr = GenerateProgram(a_vertexShader.InternalAddr, a_pixelShader.InternalAddr, a_vertexStride, a_attributes, a_shaderInputs, (uint)a_cullMode, (uint)a_primitiveMode, 0);
+            }
 
             RenderLayer = 0b1;
         }
@@ -185,7 +193,7 @@ namespace FlareEngine.Rendering
                 vertexInputAttributes = a_def.VertexAttributes.ToArray();
             }
 
-            return new Material(AssetLibrary.LoadVertexShader(a_def.VertexShaderPath), AssetLibrary.LoadPixelShader(a_def.PixelShaderPath), (ushort)Marshal.SizeOf(a_def.VertexType), vertexInputAttributes, shaderInput, a_def.CullingMode, a_def.PrimitiveMode)
+            return new Material(AssetLibrary.LoadVertexShader(a_def.VertexShaderPath), AssetLibrary.LoadPixelShader(a_def.PixelShaderPath), (ushort)Marshal.SizeOf(a_def.VertexType), vertexInputAttributes, shaderInput, a_def.CullingMode, a_def.PrimitiveMode, a_def.EnableColorBlending)
             {
                 m_def = a_def,
                 RenderLayer = a_def.RenderLayer

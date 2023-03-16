@@ -41,6 +41,7 @@ struct RenderProgram
     ShaderBufferInput* ShaderBufferInputs;
     e_CullMode CullingMode;
     e_PrimitiveMode PrimitiveMode;
+    unsigned char EnableColorBlending;
     void* Data;
     unsigned char Flags = 0;
 
