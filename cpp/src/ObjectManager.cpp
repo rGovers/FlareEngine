@@ -38,7 +38,7 @@ uint32_t ObjectManager::CreateTransformBuffer()
         const uint32_t add = m_freeTransforms.front();
         m_freeTransforms.pop();
 
-        m_transformBuffer[add] = Buffer;
+        m_transformBuffer.LockSet(add, Buffer);
 
         return add;
     }
@@ -59,7 +59,7 @@ void ObjectManager::SetTransformBuffer(uint32_t a_addr, const TransformBuffer& a
 {
     FLARE_ASSERT_MSG(a_addr < m_transformBuffer.Size(), "SetTransformBuffer out of bounds");
 
-    m_transformBuffer[a_addr] = a_buffer;
+    m_transformBuffer.LockSet(a_addr, a_buffer);
 }
 void ObjectManager::DestroyTransformBuffer(uint32_t a_addr)
 {

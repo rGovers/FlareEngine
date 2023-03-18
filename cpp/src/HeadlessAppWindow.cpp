@@ -184,28 +184,25 @@ HeadlessAppWindow::~HeadlessAppWindow()
 
     delete Logger::CallbackFunc;
     Logger::CallbackFunc = nullptr;
+    delete Profiler::CallbackFunc;
+    Profiler::CallbackFunc = nullptr;
 }
 
 void HeadlessAppWindow::PushMessageQueue()
 {
     if (!m_queuedMessages.Empty())
     {
-        std::mutex& l = m_queuedMessages.Lock();
+        TLockArray<PipeMessage> a = m_queuedMessages.ToLockArray();
 
-        l.lock();
-
-        const uint32_t size = m_queuedMessages.Size();
-        const PipeMessage* pipeMessages = m_queuedMessages.Data();
+        const uint32_t size = a.Size();
 
         for (uint32_t i = 0; i < size; ++i)
         {
-            PushMessage(pipeMessages[i]);
-            delete[] pipeMessages[i].Data;
+            PushMessage(a[i]);   
+            delete[] a[i].Data;
         }
 
         m_queuedMessages.UClear();
-        
-        l.unlock();
     }
 }
 
@@ -444,33 +441,36 @@ void HeadlessAppWindow::Update()
 #endif
     Profiler::StopFrame();
 
-    Profiler::StartFrame("Timing");
-    const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
-
-    m_delta = std::chrono::duration<double>(time - m_prevTime).count();
-    m_time += m_delta;
-
-    m_prevTime = time;
-
-    const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
-
-    PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
-    Profiler::StopFrame();
-
-    Profiler::StartFrame("Frame Data");
-    if (m_frameData != nullptr && m_unlockWindow)
     {
-        m_unlockWindow = false;
+        PROFILESTACK("Timing");
+        const std::chrono::time_point time = std::chrono::high_resolution_clock::now();
 
-        const std::lock_guard g = std::lock_guard(m_fLock);
-        
-        PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
+        m_delta = std::chrono::duration<double>(time - m_prevTime).count();
+        m_time += m_delta;
+
+        m_prevTime = time;
+
+        const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
+
+        PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
     }
-    Profiler::StopFrame();
 
-    Profiler::StartFrame("Messages");
-    PushMessageQueue();
-    Profiler::StopFrame();
+    {
+        PROFILESTACK("Frame Data");
+        if (m_frameData != nullptr && m_unlockWindow)
+        {
+            m_unlockWindow = false;
+
+            const std::lock_guard g = std::lock_guard(m_fLock);
+
+            PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
+        }
+    }
+
+    {
+        PROFILESTACK("Messages");
+        PushMessageQueue();
+    }
 }
 
 glm::ivec2 HeadlessAppWindow::GetSize() const
@@ -490,7 +490,7 @@ void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const
     (*(glm::dvec2*)msg.Data).x = a_delta;
     (*(glm::dvec2*)msg.Data).y = a_time;
     m_queuedMessages.Push(msg);
-    
+
     // TODO: Implement a better way of doing this 
     // Can end up ~32MiB which cannot keep up with a copy
     // Assuming I can do maths ~6GiB/s so yeah not upto par

@@ -188,7 +188,7 @@ public:
         return state;
     }
 
-    inline const unsigned char* ToData() const
+    inline unsigned char* ToData()
     {
         return m_state;
     }

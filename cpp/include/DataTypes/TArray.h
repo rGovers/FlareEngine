@@ -2,7 +2,10 @@
 
 #include <cstring>
 #include <mutex>
+#include <shared_mutex>
 #include <vector>
+
+#include "DataTypes/TLockArray.h"
 
 // When in doubt with memory issues write it C style with C++ features
 // Using C++ memory features was causing seg-faults and leaks so just done it C style and just manually call the deconstructor when I need to
@@ -11,9 +14,9 @@ template<typename T>
 class TArray
 {
 private:
-    std::mutex m_mutex;
-    uint32_t   m_size;
-    T*         m_data;
+    std::shared_mutex m_mutex;
+    uint32_t          m_size;
+    T*                m_data;
 
     inline void DestroyData()
     {
@@ -34,8 +37,8 @@ public:
         m_data(nullptr) { }
     TArray(const TArray& a_other)
     {
-        const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> otherG = std::unique_lock<std::shared_mutex>(a_other.m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         m_size = a_other.m_size;
         const uint32_t aSize = sizeof(T) * m_size;
@@ -44,8 +47,8 @@ public:
     }
     TArray(TArray&& a_other)
     {
-        const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> otherG = std::unique_lock<std::shared_mutex>(a_other.m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         m_size = a_other.m_size;
         m_data = a_other.m_data;
@@ -54,7 +57,7 @@ public:
     }
     TArray(const T* a_data, uint32_t a_size)
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         m_size = a_size;
         const uint32_t aSize = sizeof(T) * m_size;
@@ -67,7 +70,7 @@ public:
     }
     TArray(const T* a_start, const T* a_end)
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
         
         const uint32_t aSize = a_end - a_start;
         m_size = aSize / sizeof(T);
@@ -78,9 +81,9 @@ public:
             m_data[i] = a_start[i];
         }
     }
-    explicit TArray(const std::vector<T> a_vec)
+    explicit TArray(const std::vector<T>& a_vec)
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         m_size = (uint32_t)a_vec.size();
         const uint32_t aSize = sizeof(T) * m_size;
@@ -93,7 +96,7 @@ public:
     }
     ~TArray()
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         if (m_data != nullptr)
         {
@@ -105,8 +108,8 @@ public:
 
     TArray& operator =(const TArray& a_other) 
     {
-        const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> otherG = std::unique_lock<std::shared_mutex>(a_other.m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         if (m_data != nullptr)
         {
@@ -127,9 +130,9 @@ public:
         return *this;
     }
 
-    std::vector<T> ToVector()
+    std::vector<T> ToVector() 
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::shared_lock<std::shared_mutex> g = std::shared_lock<std::shared_mutex>(m_mutex);
 
         if (m_data == nullptr)
         {
@@ -138,8 +141,16 @@ public:
 
         return std::vector<T>(m_data, m_data + m_size);
     }
+    TLockArray<T> ToLockArray()
+    {
+        TLockArray<T> a = TLockArray<T>(m_mutex);
 
-    inline std::mutex& Lock()
+        a.SetData(m_data, m_size);
+
+        return a;
+    }
+
+    inline std::shared_mutex& Lock()
     {
         return m_mutex;
     }
@@ -156,16 +167,22 @@ public:
         return m_size <= 0;
     }
 
-    T& operator [](uint32_t a_index)
+    inline T& operator [](uint32_t a_index)
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::shared_lock<std::shared_mutex> g = std::shared_lock<std::shared_mutex>(m_mutex);
 
         return m_data[a_index];
+    }
+    inline void LockSet(uint32_t a_index, const T& a_value)
+    {
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
+
+        m_data[a_index] = a_value;
     }
 
     void Push(const T& a_data)
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         const uint32_t aSize = (m_size + 1) * sizeof(T);
         T* dat = (T*)malloc(aSize);
@@ -183,7 +200,7 @@ public:
     }
     T Pop()
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
         
         T dat = m_data[--m_size];
 
@@ -194,11 +211,15 @@ public:
 
         return dat;
     }
-    void Erase(uint32_t a_index)
+    inline void Erase(uint32_t a_index)
+    {
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
+
+        UErase(a_index);
+    }
+    void UErase(uint32_t a_index)
     {
         constexpr uint32_t Stride = sizeof(T);
-        
-        const std::lock_guard g = std::lock_guard(m_mutex);
 
         const uint32_t aSize = (m_size - 1) * Stride;
 
@@ -226,7 +247,7 @@ public:
     {
         constexpr uint32_t Stride = sizeof(T);
 
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
         const uint32_t diff = a_end - a_start;
 
@@ -256,16 +277,11 @@ public:
         m_data = dat;
     }
 
-    void Clear()
+    inline void Clear()
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock<std::shared_mutex> g = std::unique_lock<std::shared_mutex>(m_mutex);
 
-        DestroyData();
-
-        free(m_data);
-
-        m_size = 0;
-        m_data = nullptr;
+        UClear();
     }
     void UClear()
     {

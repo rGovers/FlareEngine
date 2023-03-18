@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 
@@ -8,7 +9,7 @@ template<typename T>
 class TStatic
 {
 private:
-    std::mutex                              m_mutex;
+    std::shared_mutex                       m_mutex;
     std::unordered_map<std::thread::id, T*> m_data;
 
 protected:
@@ -20,8 +21,8 @@ public:
     }
     TStatic(const TStatic& a_other)
     {
-        const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock otherG = std::unique_lock(a_other.m_mutex);
+        const std::unique_lock g = std::unique_lock(m_mutex);
 
         m_data = a_other.m_data;
     }
@@ -32,8 +33,8 @@ public:
 
     TStatic& operator =(const TStatic& a_other)
     {
-        const std::lock_guard otherG = std::lock_guard(a_other.m_mutex);
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock otherG = std::unique_lock(a_other.m_mutex);
+        const std::unique_lock g = std::unique_lock(m_mutex);
 
         for (auto iter = m_data.begin(); iter != m_data.end(); ++iter)
         {
@@ -50,14 +51,14 @@ public:
     {
         const std::thread::id id = std::this_thread::get_id();
 
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::shared_lock g = std::shared_lock(m_mutex);
         return *(m_data[id]);
     }
     inline T* operator->() 
     {
         const std::thread::id id = std::this_thread::get_id();
 
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::shared_lock g = std::shared_lock(m_mutex);
         return m_data[id];
     }
 
@@ -67,7 +68,7 @@ public:
 
         T* d = new T(a_data);
         
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock g = std::unique_lock(m_mutex);
 
         auto iter = m_data.find(id);
         if (iter != m_data.end())
@@ -92,23 +93,21 @@ public:
     {
         const std::thread::id id = std::this_thread::get_id();
 
-        T* dat = nullptr;
-
-        const std::lock_guard g = std::lock_guard(m_mutex);
-        auto iter = m_data.find(id);
+        const std::shared_lock g = std::shared_lock(m_mutex);
+        const auto iter = m_data.find(id);
         if (iter != m_data.end())
         {
-            dat = iter->second;
+            return iter->second;
         }
 
-        return dat;
+        return nullptr;
     }
 
     void Erase()
     {
         const std::thread::id id = std::this_thread::get_id();
 
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock g = std::unique_lock(m_mutex);
         auto iter = m_data.find(id);
         if (iter != m_data.end())
         {
@@ -120,7 +119,7 @@ public:
 
     void Clear()
     {
-        const std::lock_guard g = std::lock_guard(m_mutex);
+        const std::unique_lock g = std::unique_lock(m_mutex);
 
         for (auto iter = m_data.begin(); iter != m_data.end(); ++iter)
         {

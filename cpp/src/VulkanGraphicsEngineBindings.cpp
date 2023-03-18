@@ -205,17 +205,22 @@ uint32_t VulkanGraphicsEngineBindings::GenerateFVertexShaderAddr(const std::stri
 
     VulkanVertexShader* shader = VulkanVertexShader::CreateFromFShader(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = m_graphicsEngine->m_vertexShaders.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_vertexShaders[i] == nullptr)
+        TLockArray<VulkanVertexShader*> a = m_graphicsEngine->m_vertexShaders.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            m_graphicsEngine->m_vertexShaders[i] = shader;
-            
-            return i;
+            if (a[i] == nullptr)
+            {
+                a[i] = shader;
+
+                return i;
+            }
         }
     }
-
+    
     m_graphicsEngine->m_vertexShaders.Push(shader);
 
     return size;
@@ -226,14 +231,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateGLSLVertexShaderAddr(const std::s
 
     VulkanVertexShader* shader = VulkanVertexShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = m_graphicsEngine->m_vertexShaders.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_vertexShaders[i] == nullptr)
+        TLockArray<VulkanVertexShader*> a = m_graphicsEngine->m_vertexShaders.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            m_graphicsEngine->m_vertexShaders[i] = shader;
-            
-            return i;
+            if (a[i] == nullptr)
+            {
+                a[i] = shader;
+
+                return i;
+            }
         }
     }
 
@@ -243,11 +253,13 @@ uint32_t VulkanGraphicsEngineBindings::GenerateGLSLVertexShaderAddr(const std::s
 }
 void VulkanGraphicsEngineBindings::DestroyVertexShader(uint32_t a_addr) const
 {
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_vertexShaders.Size(), "DestroyVertexShader out of bounds")
-    FLARE_ASSERT_MSG(m_graphicsEngine->m_vertexShaders[a_addr] != nullptr, "DestroyVertexShader already destroyed")
+    TLockArray<VulkanVertexShader*> a = m_graphicsEngine->m_vertexShaders.ToLockArray();
 
-    delete m_graphicsEngine->m_vertexShaders[a_addr];
-    m_graphicsEngine->m_vertexShaders[a_addr] = nullptr;
+    FLARE_ASSERT_MSG(a_addr < a.Size(), "DestroyVertexShader out of bounds")
+    FLARE_ASSERT_MSG(a[a_addr] != nullptr, "DestroyVertexShader already destroyed")
+
+    delete a[a_addr];
+    a[a_addr] = nullptr;
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateFPixelShaderAddr(const std::string_view& a_str) const
@@ -256,14 +268,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateFPixelShaderAddr(const std::strin
 
     VulkanPixelShader* shader = VulkanPixelShader::CreateFromFShader(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_pixelShaders[i] == nullptr)
-        {
-            m_graphicsEngine->m_pixelShaders[i] = shader;
+        TLockArray<VulkanPixelShader*> a = m_graphicsEngine->m_pixelShaders.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i] == nullptr)
+            {
+                a[i] = shader;
+
+                return i;
+            }
         }
     }
 
@@ -277,14 +294,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateGLSLPixelShaderAddr(const std::st
 
     VulkanPixelShader* shader = VulkanPixelShader::CreateFromGLSL(m_graphicsEngine->m_vulkanEngine, a_str);
 
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_pixelShaders.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_pixelShaders[i] == nullptr)
-        {
-            m_graphicsEngine->m_pixelShaders[i] = shader;
+        TLockArray<VulkanPixelShader*> a = m_graphicsEngine->m_pixelShaders.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i] == nullptr)
+            {
+                a[i] = shader;
+
+                return i;
+            }
         }
     }
 
@@ -294,11 +316,13 @@ uint32_t VulkanGraphicsEngineBindings::GenerateGLSLPixelShaderAddr(const std::st
 }
 void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr) const
 {
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pixelShaders.Size(), "DestroyPixelShader out of bounds")
-    FLARE_ASSERT_MSG(m_graphicsEngine->m_pixelShaders[a_addr] != nullptr, "DestroyPixelShader already destroyed")
+    TLockArray<VulkanPixelShader*> a = m_graphicsEngine->m_pixelShaders.ToLockArray();
 
-    delete m_graphicsEngine->m_pixelShaders[a_addr];
-    m_graphicsEngine->m_pixelShaders[a_addr] = nullptr;
+    FLARE_ASSERT_MSG(a_addr < a.Size(), "DestroyPixelShader out of bounds")
+    FLARE_ASSERT_MSG(a[a_addr] != nullptr, "DestroyPixelShader already destroyed")
+
+    delete a[a_addr];
+    a[a_addr] = nullptr;
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const
@@ -396,24 +420,27 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_pr
     FLARE_ASSERT_MSG(a_program.PixelShader < m_graphicsEngine->m_pixelShaders.Size(), "GenerateShaderProgram PixelShader out of bounds")
     FLARE_ASSERT_MSG(a_program.VertexShader < m_graphicsEngine->m_vertexShaders.Size(), "GenerateShaderProgram VertexShader out of bounds")
 
+    uint32_t size = 0;
     TRACE("Creating Shader Program");
-
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_shaderPrograms.Size();
-    for (uint32_t i = 0; i < size; ++i)
     {
-        if (m_graphicsEngine->m_shaderPrograms[i].Flags & 0b1 << RenderProgram::FreeFlag)
+        TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            FLARE_ASSERT_MSG(m_graphicsEngine->m_shaderPrograms[i].Data == nullptr, "GenerateShaderProgram data not deleted");
+            if (a[i].Flags & 0b1 << RenderProgram::FreeFlag)
+            {
+                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateShaderProgram data not deleted");
 
-            m_graphicsEngine->m_shaderPrograms[i] = a_program;
-            m_graphicsEngine->m_shaderPrograms[i].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, i);
+                a[i] = a_program;
+                a[i].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, i);
 
-            return i;
+                return i;
+            }
         }
     }
+    
 
     TRACE("Allocating Shader Program");
-
     m_graphicsEngine->m_shaderPrograms.Push(a_program);
     m_graphicsEngine->m_shaderPrograms[size].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, size);
 
@@ -421,9 +448,11 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_pr
 }
 void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 {
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "DestroyShaderProgram out of bounds");
+    TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
 
-    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+    FLARE_ASSERT_MSG(a_addr < a.Size(), "DestroyShaderProgram out of bounds");
+
+    RenderProgram& program = a[a_addr];
     if (program.Flags & 0b1 << RenderProgram::DestroyFlag)
     {
         DestroyVertexShader(program.VertexShader);
@@ -439,14 +468,16 @@ void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 }
 void VulkanGraphicsEngineBindings::RenderProgramSetTexture(uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr)
 {
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "RenderProgramSetTexture material out of bounds");
-    FLARE_ASSERT_MSG(a_samplerAddr < m_graphicsEngine->m_textureSampler.Size(), "RenderProgramSetTexture sampler out of bounds");
+    TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
 
-    RenderProgram& program = m_graphicsEngine->m_shaderPrograms[a_addr];
+    FLARE_ASSERT_MSG(a_addr < a.Size(), "RenderProgramSetTexture material out of bounds");
+
+    const RenderProgram& program = a[a_addr];
 
     FLARE_ASSERT_MSG(program.Data != nullptr, "RenderProgramSetTexture invalid program");
 
     VulkanShaderData* data = (VulkanShaderData*)program.Data;
+    FLARE_ASSERT_MSG(a_samplerAddr < m_graphicsEngine->m_textureSampler.Size(), "RenderProgramSetTexture sampler out of bounds");
     data->SetTexture(a_shaderSlot, m_graphicsEngine->m_textureSampler[a_samplerAddr]);
 }
 RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
@@ -468,17 +499,23 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
 
     const CameraBuffer buff = CameraBuffer(a_transformAddr);
 
-    TRACE("Getting Camera Buffer");
-    const uint32_t size = m_graphicsEngine->m_cameraBuffers.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_cameraBuffers[i].TransformAddr == -1)
-        {
-            m_graphicsEngine->m_cameraBuffers[i] = buff;
+        TRACE("Getting Camera Buffer");
+        TLockArray<CameraBuffer> a = m_graphicsEngine->m_cameraBuffers.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].TransformAddr != -1)
+            {
+                a[i] = buff;
+
+                return i;
+            }
         }
     }
+    
 
     TRACE("Allocating Camera Buffer");
     m_graphicsEngine->m_cameraBuffers.Push(buff);
@@ -487,22 +524,10 @@ uint32_t VulkanGraphicsEngineBindings::GenerateCameraBuffer(uint32_t a_transform
 }
 void VulkanGraphicsEngineBindings::DestroyCameraBuffer(uint32_t a_addr) const
 {
-    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "DestroyCameraBuffer out of bounds")
-    m_graphicsEngine->m_cameraBuffers[a_addr].TransformAddr = -1;
+    TLockArray<CameraBuffer> a = m_graphicsEngine->m_cameraBuffers.ToLockArray();
 
-    uint32_t val = m_graphicsEngine->m_cameraBuffers[m_graphicsEngine->m_cameraBuffers.Size() - 1].TransformAddr;
-    while (val == -1)
-    {
-        TRACE("Destroying Camera Buffer");
-        m_graphicsEngine->m_cameraBuffers.Pop();
-
-        if (m_graphicsEngine->m_cameraBuffers.Empty())
-        {
-            break;
-        }
-
-        val = m_graphicsEngine->m_cameraBuffers[m_graphicsEngine->m_cameraBuffers.Size() - 1].TransformAddr;
-    }
+    FLARE_ASSERT_MSG(a_addr < a.Size(), "DestroyCameraBuffer out of bounds")
+    a[a_addr].TransformAddr = -1;
 }
 CameraBuffer VulkanGraphicsEngineBindings::GetCameraBuffer(uint32_t a_addr) const
 {
@@ -514,7 +539,7 @@ void VulkanGraphicsEngineBindings::SetCameraBuffer(uint32_t a_addr, const Camera
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_cameraBuffers.Size(), "SetCameraBuffer out of bounds")
 
-    m_graphicsEngine->m_cameraBuffers[a_addr] = a_buffer;
+    m_graphicsEngine->m_cameraBuffers.LockSet(a_addr, a_buffer);
 }
 glm::vec3 VulkanGraphicsEngineBindings::CameraScreenToWorld(uint32_t a_addr, const glm::vec3& a_screenPos, const glm::vec2& a_screenSize) const
 {
@@ -546,14 +571,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uin
 
     VulkanModel* model = new VulkanModel(m_graphicsEngine->m_vulkanEngine, a_vertexCount, a_vertices, a_vertexStride, a_indexCount, a_indices);
 
-    const uint32_t size = m_graphicsEngine->m_models.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_models[i] == nullptr)
-        {
-            m_graphicsEngine->m_models[i] = model;
+        TLockArray<VulkanModel*> a = m_graphicsEngine->m_models.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i] == nullptr)
+            {
+                a[i] = model;
+
+                return i;
+            }
         }
     }
 
@@ -565,25 +595,33 @@ uint32_t VulkanGraphicsEngineBindings::GenerateModel(const char* a_vertices, uin
 void VulkanGraphicsEngineBindings::DestroyModel(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_models.Size(), "DestroyModel out of bounds")
-    FLARE_ASSERT_MSG(m_graphicsEngine->m_models[a_addr] != nullptr, "DestroyModel already destroyed")
 
-    delete m_graphicsEngine->m_models[a_addr];
+    VulkanModel* model = m_graphicsEngine->m_models[a_addr];
+
+    FLARE_ASSERT_MSG(model != nullptr, "DestroyModel already destroyed")
+
     m_graphicsEngine->m_models[a_addr] = nullptr;
+    delete model;
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateMeshRenderBuffer(uint32_t a_materialAddr, uint32_t a_modelAddr, uint32_t a_transformAddr) const
 {
+    TRACE("Creating Render Buffer");
     const MeshRenderBuffer buffer = MeshRenderBuffer(a_materialAddr, a_modelAddr, a_transformAddr);
 
-    TRACE("Creating Render Buffer");
-    const uint32_t size = (uint32_t)m_graphicsEngine->m_renderBuffers.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_renderBuffers[i].MaterialAddr == -1)
-        {
-            m_graphicsEngine->m_renderBuffers[i] = buffer;
+        TLockArray<MeshRenderBuffer> a = m_graphicsEngine->m_renderBuffers.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].MaterialAddr == -1)
+            {
+                a[i] = buffer;
+
+                return i;
+            }
         }
     }
 
@@ -606,23 +644,20 @@ void VulkanGraphicsEngineBindings::GenerateRenderStack(uint32_t a_meshAddr) cons
     TRACE("Pushing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
-    std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
-    lock.lock();
-
-    const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
-    MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
-
-    for (uint32_t i = 0; i < size; ++i)
     {
-        if (renderStacks[i].Add(buffer))
-        {
-            lock.unlock();
+        TLockArray<MaterialRenderStack> a = m_graphicsEngine->m_renderStacks.ToLockArray();
 
-            return;
+        const uint32_t size = a.Size();
+
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].Add(buffer))
+            {
+                return;
+            }
         }
     }
-
-    lock.unlock();
+    
 
     TRACE("Allocating RenderStack");
     m_graphicsEngine->m_renderStacks.Push(buffer);
@@ -634,30 +669,24 @@ void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr) const
     TRACE("Removing RenderStack");
     const MeshRenderBuffer& buffer = m_graphicsEngine->m_renderBuffers[a_meshAddr];
 
-    std::mutex& lock = m_graphicsEngine->m_renderStacks.Lock();
-    lock.lock();
-
-    const uint32_t size = m_graphicsEngine->m_renderStacks.Size();
-    MaterialRenderStack* renderStacks = m_graphicsEngine->m_renderStacks.Data();
-
-    for (uint32_t i = 0; i < size; ++i)
     {
-        MaterialRenderStack& stack = renderStacks[i];
-        if (stack.Remove(buffer))
+        TLockArray<MaterialRenderStack> a = m_graphicsEngine->m_renderStacks.ToLockArray();
+
+        const uint32_t size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            lock.unlock();
-
-            if (stack.Empty())
+            if (a[i].Remove(buffer))
             {
-                TRACE("Destroying RenderStack");
-                m_graphicsEngine->m_renderStacks.Erase(i);
-            }
+                if (a[i].Empty())
+                {
+                    TRACE("Destroying RenderStack");
+                    m_graphicsEngine->m_renderStacks.UErase(i);
+                }
 
-            return;
+                return;
+            }
         }
     }
-
-    lock.unlock();
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const
@@ -674,18 +703,23 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_r
     sampler.AddressMode = a_addressMode;
     sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
 
-    const uint32_t size = m_graphicsEngine->m_textureSampler.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_textureSampler[i].TextureMode == TextureMode_Null)
+        TLockArray<TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            FLARE_ASSERT_MSG(m_graphicsEngine->m_textureSampler[i].Data == nullptr, "GenerateRenderTextureSampler null sampler with data")
+            if (a[i].TextureMode == TextureMode_Null)
+            {
+                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateRenderTextureSampler null sampler with data")
 
-            m_graphicsEngine->m_textureSampler[i] = sampler;
+                a[i] = sampler;
 
-            return i;
+                return i;
+            }
         }
-    }
+    }    
 
     m_graphicsEngine->m_textureSampler.Push(sampler);
 
@@ -703,16 +737,21 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureDepthSampler(uint32_
     sampler.AddressMode = a_addressMode;
     sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
 
-    const uint32_t size = m_graphicsEngine->m_textureSampler.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_textureSampler[i].TextureMode == TextureMode_Null)
+        TLockArray<TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
         {
-            FLARE_ASSERT_MSG(m_graphicsEngine->m_textureSampler[i].Data == nullptr, "GenerateRenderTextureDepthSampler null sampler with data")
+            if (a[i].TextureMode == TextureMode_Null)
+            {
+                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateRenderTextureDepthSampler null sampler with data")
 
-            m_graphicsEngine->m_textureSampler[i] = sampler;
+                a[i] = sampler;
 
-            return i;
+                return i;
+            }
         }
     }
 
@@ -724,11 +763,17 @@ void VulkanGraphicsEngineBindings::DestroyTextureSampler(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_textureSampler.Size(), "DestroyTextureSampler out of bounds");
     
-    m_graphicsEngine->m_textureSampler[a_addr].TextureMode = TextureMode_Null;
-    if (m_graphicsEngine->m_textureSampler[a_addr].Data != nullptr)
+    TextureSampler nullSampler;
+    nullSampler.TextureMode = TextureMode_Null;
+    nullSampler.Data = nullptr;
+
+    const TextureSampler sampler = m_graphicsEngine->m_textureSampler[a_addr];
+
+    m_graphicsEngine->m_textureSampler.LockSet(a_addr, nullSampler);
+
+    if (sampler.Data != nullptr)
     {
-        delete (VulkanTextureSampler*)m_graphicsEngine->m_textureSampler[a_addr].Data;
-        m_graphicsEngine->m_textureSampler[a_addr].Data = nullptr;
+        delete (VulkanTextureSampler*)sampler.Data;
     }
 }
 
@@ -742,14 +787,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTexture(uint32_t a_count, u
 
     VulkanRenderTexture* texture = new VulkanRenderTexture(engine, a_count, a_width, a_height, a_depthTexture, a_hdr);
 
-    const uint32_t size = m_graphicsEngine->m_renderTextures.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_renderTextures[i] == nullptr)
-        {
-            m_graphicsEngine->m_renderTextures[i] = texture;
+        TLockArray<VulkanRenderTexture*> a = m_graphicsEngine->m_renderTextures.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i] == nullptr)
+            {
+                a[i] = texture;
+
+                return i;
+            }
         }
     }
 
@@ -762,9 +812,11 @@ void VulkanGraphicsEngineBindings::DestroyRenderTexture(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_renderTextures.Size(), "DestroyRenderTexture out of bounds");
 
-    delete m_graphicsEngine->m_renderTextures[a_addr];
+    VulkanRenderTexture* tex = m_graphicsEngine->m_renderTextures[a_addr];
 
     m_graphicsEngine->m_renderTextures[a_addr] = nullptr;
+
+    delete tex;
 }
 uint32_t VulkanGraphicsEngineBindings::GetRenderTextureTextureCount(uint32_t a_addr) const
 {
@@ -815,14 +867,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateDirectionalLightBuffer(uint32_t a
 
     FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GenerateDirectionalLightBuffer no transform");
 
-    const uint32_t size = m_graphicsEngine->m_directionalLights.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_directionalLights[i].TransformAddr != -1)
-        {
-            m_graphicsEngine->m_directionalLights[i] = buffer;
+        TLockArray<DirectionalLightBuffer> a = m_graphicsEngine->m_directionalLights.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].TransformAddr != -1)
+            {
+                a[i] = buffer;
+
+                return i;
+            }
         }
     }
 
@@ -835,7 +892,7 @@ void VulkanGraphicsEngineBindings::SetDirectionalLightBuffer(uint32_t a_addr, co
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_directionalLights.Size(), "SetDirectionalLightBuffer out of bounds");
 
-    m_graphicsEngine->m_directionalLights[a_addr] = a_buffer;
+    m_graphicsEngine->m_directionalLights.LockSet(a_addr, a_buffer);
 }
 DirectionalLightBuffer VulkanGraphicsEngineBindings::GetDirectionalLightBuffer(uint32_t a_addr) const
 {
@@ -847,7 +904,7 @@ void VulkanGraphicsEngineBindings::DestroyDirectionalLightBuffer(uint32_t a_addr
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_directionalLights.Size(), "DestroyDirectionalLightBuffer out of bounds");
 
-    m_graphicsEngine->m_directionalLights[a_addr].TransformAddr = -1;
+    m_graphicsEngine->m_directionalLights.LockSet(a_addr, DirectionalLightBuffer(-1));
 }
 
 uint32_t VulkanGraphicsEngineBindings::GeneratePointLightBuffer(uint32_t a_transformAddr) const
@@ -856,14 +913,19 @@ uint32_t VulkanGraphicsEngineBindings::GeneratePointLightBuffer(uint32_t a_trans
 
     FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GeneratePointLightBuffer no transform");
 
-    const uint32_t size = m_graphicsEngine->m_pointLights.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_pointLights[i].TransformAddr != -1)
-        {
-            m_graphicsEngine->m_pointLights[i] = buffer;
+        TLockArray<PointLightBuffer> a = m_graphicsEngine->m_pointLights.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].TransformAddr != -1)
+            {
+                a[i] = buffer;
+
+                return i;
+            }
         }
     }
 
@@ -876,7 +938,7 @@ void VulkanGraphicsEngineBindings::SetPointLightBuffer(uint32_t a_addr, const Po
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "SetPointLightBuffer out of bounds");
 
-    m_graphicsEngine->m_pointLights[a_addr] = a_buffer;
+    m_graphicsEngine->m_pointLights.LockSet(a_addr, a_buffer);
 }
 PointLightBuffer VulkanGraphicsEngineBindings::GetPointLightBuffer(uint32_t a_addr) const
 {
@@ -888,7 +950,7 @@ void VulkanGraphicsEngineBindings::DestroyPointLightBuffer(uint32_t a_addr) cons
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_pointLights.Size(), "DestroyPointLightBuffer out of bounds");
 
-    m_graphicsEngine->m_pointLights[a_addr].TransformAddr = -1;
+    m_graphicsEngine->m_pointLights.LockSet(a_addr, PointLightBuffer(-1));
 }
 
 uint32_t VulkanGraphicsEngineBindings::GenerateSpotLightBuffer(uint32_t a_transformAddr) const
@@ -897,14 +959,19 @@ uint32_t VulkanGraphicsEngineBindings::GenerateSpotLightBuffer(uint32_t a_transf
 
     FLARE_ASSERT_MSG(buffer.TransformAddr != -1, "GenerateSpotLightBuffer no tranform");
 
-    const uint32_t size = m_graphicsEngine->m_spotLights.Size();
-    for (uint32_t i = 0; i < size; ++i)
+    uint32_t size = 0;
     {
-        if (m_graphicsEngine->m_spotLights[i].TransformAddr != -1)
-        {
-            m_graphicsEngine->m_spotLights[i] = buffer;
+        TLockArray<SpotLightBuffer> a = m_graphicsEngine->m_spotLights.ToLockArray();
 
-            return i;
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].TransformAddr != -1)
+            {
+                a[i] = buffer;
+
+                return i;
+            }
         }
     }
 
@@ -917,7 +984,7 @@ void VulkanGraphicsEngineBindings::SetSpotLightBuffer(uint32_t a_addr, const Spo
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_spotLights.Size(), "SetSpotLightBuffer out of bounds");
 
-    m_graphicsEngine->m_spotLights[a_addr] = a_buffer;
+    m_graphicsEngine->m_spotLights.LockSet(a_addr, a_buffer);
 }
 SpotLightBuffer VulkanGraphicsEngineBindings::GetSpotLightBuffer(uint32_t a_addr) const
 {
@@ -929,7 +996,7 @@ void VulkanGraphicsEngineBindings::DestroySpotLightBuffer(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_spotLights.Size(), "DestroySpotLightBuffer out of bounds");
 
-    m_graphicsEngine->m_spotLights[a_addr].TransformAddr = -1;
+    m_graphicsEngine->m_spotLights.LockSet(a_addr, SpotLightBuffer(-1));
 }
 
 void VulkanGraphicsEngineBindings::BindMaterial(uint32_t a_addr) const

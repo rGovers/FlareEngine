@@ -141,9 +141,12 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     }
 
     TRACE("Checking camera buffer health");
-    if (m_cameraBuffers.Size() != 0)
+    for (uint32_t i = 0; i < m_cameraBuffers.Size(); ++i)
     {
-        Logger::Warning("Leaked Camera Buffer");
+        if (m_cameraBuffers[i].TransformAddr != -1)
+        {
+            Logger::Warning("Camera was not destroyed");
+        }
     }
 
     TRACE("Checking shader program buffer health");
@@ -206,7 +209,7 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
     const uint64_t addr = (uint64_t)a_renderTexture | (uint64_t)a_pipeline << 32;
 
     {
-        const std::lock_guard g = std::lock_guard(m_pipeLock);
+        const std::shared_lock g = std::shared_lock(m_pipeLock);
         auto iter = m_pipelines.find(addr);
         if (iter != m_pipelines.end())
         {
@@ -230,7 +233,7 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
 
     VulkanPipeline* pipeline = new VulkanPipeline(m_vulkanEngine, this, pass, hasDepth, textureCount, a_pipeline);
     {
-        const std::lock_guard g = std::lock_guard(m_pipeLock);
+        const std::unique_lock g = std::unique_lock(m_pipeLock);
         m_pipelines.emplace(addr, pipeline);
     }
 

@@ -84,7 +84,7 @@ namespace FlareEngine.Maths
 
         public static Color FromColorCode(uint a_code)
         {
-            return new Color((byte)(a_code >> 0), (byte)(a_code >> 8), (byte)(a_code >> 16), (byte)(a_code >> 24));
+            return new Color((byte)(a_code >> 24), (byte)(a_code >> 16), (byte)(a_code >> 8), (byte)(a_code >> 0));
         }
 
         public Vector4 ToVector4()
