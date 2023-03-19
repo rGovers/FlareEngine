@@ -2,6 +2,7 @@
 
 #include "AppWindow/GLFWAppWindow.h"
 #include "AppWindow/HeadlessAppWindow.h"
+#include "AssetLibrary.h"
 #include "Config.h"
 #include "InputManager.h"
 #include "Logger.h"
@@ -106,9 +107,11 @@ Application::Application(Config* a_config)
 
     m_runtime = new RuntimeManager();
 
-    Profiler::Init(m_runtime);
     Logger::InitRuntime(m_runtime);
+    
+    Profiler::Init(m_runtime);
     Scribe::Init(m_runtime);
+    AssetLibrary::Init(m_runtime);
 
     m_inputManager = new InputManager(m_runtime);
 
@@ -118,8 +121,8 @@ Application::Application(Config* a_config)
 
     APPLICATION_BINDING_FUNCTION_TABLE(APPLICATION_RUNTIME_ATTACH);
 
-    m_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Application, GetMonitors), (void*)RUNTIME_FUNCTION_NAME(Application, GetMonitors));
-    m_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Application, SetFullscreenState), (void*)RUNTIME_FUNCTION_NAME(Application, SetFullscreenState));
+    BIND_FUNCTION(m_runtime, FlareEngine, Application, GetMonitors);
+    BIND_FUNCTION(m_runtime, FlareEngine, Application, SetFullscreenState);
 }
 Application::~Application()
 {
@@ -137,8 +140,8 @@ Application::~Application()
     delete m_config;
 
     Profiler::Destroy();
-
     Scribe::Destroy();
+    AssetLibrary::Destroy();
 
     TRACE("Final Disposal");
     delete m_appWindow;
@@ -156,12 +159,12 @@ void Application::Run(int32_t a_argc, char* a_argv[])
 
         {
             PROFILESTACK("Update");
-            Profiler::StartFrame("Window Update");
+            {
+                PROFILESTACK("Window Update");
 
-            m_inputManager->Update();
-            m_appWindow->Update();
-
-            Profiler::StopFrame();
+                m_inputManager->Update();
+                m_appWindow->Update();
+            }
 
             m_runtime->Update(m_appWindow->GetDelta(), m_appWindow->GetTime());
         }

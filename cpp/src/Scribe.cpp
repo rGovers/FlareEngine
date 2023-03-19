@@ -22,6 +22,16 @@ FLARE_MONO_EXPORT(MonoString*, RUNTIME_FUNCTION_NAME(Scribe, GetInternalLanguage
     return mono_string_new_wrapper(Scribe::GetCurrentLanguage().c_str());
 }
 
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Scribe, GetFontAddr), MonoString* a_key)
+{
+    char* key = mono_string_to_utf8(a_key);
+
+    const uint32_t ret = Scribe::GetFont(key);
+
+    mono_free(key);
+
+    return ret;
+}
 FLARE_MONO_EXPORT(MonoString*, RUNTIME_FUNCTION_NAME(Scribe, GetString), MonoString* a_key)
 {
     char* key = mono_string_to_utf8(a_key);
@@ -75,6 +85,14 @@ FLARE_MONO_EXPORT(MonoString*, RUNTIME_FUNCTION_NAME(Scribe, GetStringFormated),
     return mStr;
 }
 
+FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Scribe, SetFont), MonoString* a_key, uint32_t a_value)
+{
+    char* key = mono_string_to_utf8(a_key);
+
+    Scribe::SetFont(key, a_value);
+
+    mono_free(key);
+}
 FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Scribe, SetString), MonoString* a_key, MonoString* a_value)
 {
     char* key = mono_string_to_utf8(a_key);
@@ -112,12 +130,17 @@ void Scribe::Init(RuntimeManager* a_runtime)
     {
         Instance = new Scribe();
 
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, SetInternalLanguage), (void*)RUNTIME_FUNCTION_NAME(Scribe, SetInternalLanguage));
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, GetInternalLanguage), (void*)RUNTIME_FUNCTION_NAME(Scribe, GetInternalLanguage));
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, GetString), (void*)RUNTIME_FUNCTION_NAME(Scribe, GetString));
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, GetStringFormated), (void*)RUNTIME_FUNCTION_NAME(Scribe, GetStringFormated));
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, SetString), (void*)RUNTIME_FUNCTION_NAME(Scribe, SetString));
-        a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine, Scribe, Exists), (void*)RUNTIME_FUNCTION_NAME(Scribe, Exists));
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, SetInternalLanguage);
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, GetInternalLanguage);
+
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, GetFontAddr);
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, GetString);
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, GetStringFormated);
+
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, SetFont);
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, SetString);
+
+        BIND_FUNCTION(a_runtime, FlareEngine, Scribe, Exists);
     }
 }
 void Scribe::Destroy()
@@ -129,21 +152,18 @@ void Scribe::Destroy()
     }
 }
 
-void Scribe::SetString(const std::string_view& a_key, const std::u32string_view& a_string)
+uint32_t Scribe::GetFont(const std::string_view& a_key)
 {
     FLARE_ASSERT(Instance != nullptr);
 
     const std::string key = std::string(a_key);
 
-    const auto iter = Instance->m_strings.find(key);
-    if (iter != Instance->m_strings.end())
+    if (Instance->m_fonts.Exists(key))
     {
-        iter->second = std::u32string(a_string);
-
-        return;
+        return Instance->m_fonts[key];
     }
 
-    Instance->m_strings.emplace(key, std::u32string(a_string));
+    return -1;
 }
 
 std::u32string Scribe::GetString(const std::string_view& a_key)
@@ -152,10 +172,9 @@ std::u32string Scribe::GetString(const std::string_view& a_key)
         
     const std::string key = std::string(a_key);
 
-    const auto iter = Instance->m_strings.find(key);
-    if (iter != Instance->m_strings.end())
+    if (Instance->m_strings.Exists(key))
     {
-        return iter->second;
+        return Instance->m_strings[key];
     }
 
     return converter.from_bytes(key);

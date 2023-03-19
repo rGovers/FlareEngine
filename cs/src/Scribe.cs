@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Xml;
 using FlareEngine.Mod;
+using FlareEngine.Rendering.UI;
 
 namespace FlareEngine
 {
@@ -16,9 +17,13 @@ namespace FlareEngine
         public static extern string GetString(string a_key);
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern string GetStringFormated(string a_key, string[] a_args);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        static extern uint GetFontAddr(string a_key);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void SetString(string a_key, string a_value);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        static extern void SetFont(string a_key, uint a_value);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint Exists(string a_key);
@@ -44,6 +49,7 @@ namespace FlareEngine
             if (doc.DocumentElement is XmlElement root)
             {
                 string language = "default";
+                string fontpath = null;
                 foreach (XmlAttribute att in root.Attributes)
                 {
                     switch (att.Name)
@@ -54,6 +60,12 @@ namespace FlareEngine
 
                         break;
                     }
+                    case "Font":
+                    {
+                        fontpath = att.Value;
+
+                        break;
+                    }
                     default:
                     {
                         Logger.FlareWarning($"Invalid attribute in scribe file: {att.Name} at {a_path}");
@@ -61,6 +73,12 @@ namespace FlareEngine
                         break;
                     }
                     }
+                }
+                
+                Font font = null;
+                if (!string.IsNullOrWhiteSpace(fontpath))
+                {
+                    font = AssetLibrary.LoadFont(fontpath);
                 }
 
                 if (language.ToLower() == "default")
@@ -79,6 +97,10 @@ namespace FlareEngine
                                 }
 
                                 SetString(name, e.InnerText);
+                                if (font != null)
+                                {
+                                    SetFont(name, font.BufferAddr);
+                                }
                             }
                         }
                         else
@@ -101,6 +123,10 @@ namespace FlareEngine
                             }
 
                             SetString(name, text);
+                            if (font != null)
+                            {
+                                SetFont(name, font.BufferAddr);
+                            }
                         }
                         else
                         {
@@ -139,6 +165,15 @@ namespace FlareEngine
             {
                 LoadDirectory(Path.Combine(a.AssemblyInfo.Path, "Scribe"));
             }
+        }
+        
+        public static void SetFont(string a_key, Font a_font)
+        {
+            SetFont(a_key, a_font.BufferAddr);
+        }
+        public static Font GetFont(string a_key)
+        {
+            return Font.GetFont(GetFontAddr(a_key));
         }
     }
 }

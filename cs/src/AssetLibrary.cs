@@ -1,6 +1,7 @@
 using FlareEngine.Definitions;
 using FlareEngine.Mod;
 using FlareEngine.Rendering;
+using FlareEngine.Rendering.UI;
 using System.Collections.Generic;
 
 namespace FlareEngine
@@ -11,6 +12,7 @@ namespace FlareEngine
         static Dictionary<string, Material>     Materials;
         static Dictionary<string, VertexShader> VertexShaders;
         static Dictionary<string, PixelShader>  PixelShaders;
+        static Dictionary<string, Font>         Fonts;
 
         internal static void Init(string a_workingDir)
         {
@@ -20,6 +22,8 @@ namespace FlareEngine
 
             VertexShaders = new Dictionary<string, VertexShader>();
             PixelShaders = new Dictionary<string, PixelShader>();
+
+            Fonts = new Dictionary<string, Font>();
         }
 
         public static void ClearAssets()
@@ -41,6 +45,12 @@ namespace FlareEngine
                 mat.Dispose();
             }
             Materials.Clear();
+
+            foreach (Font font in Fonts.Values)
+            {
+                font.Dispose();
+            }
+            Fonts.Clear();
         }
 
         public static VertexShader LoadVertexShader(string a_path)
@@ -96,6 +106,31 @@ namespace FlareEngine
             PixelShaders.Add(a_path, shader);
 
             return shader;
+        }
+        public static Font LoadFont(string a_path)
+        {
+            if (Fonts.ContainsKey(a_path))
+            {
+                return Fonts[a_path];
+            }
+
+            string filepath = ModControl.GetAssetPath(a_path);
+            if (string.IsNullOrEmpty(filepath))
+            {
+                Logger.FlareError($"Cannot find filepath: {a_path}");
+
+                return null;
+            }
+
+            Font font = Font.LoadFont(filepath);
+            if (font == null)
+            {
+                Logger.FlareError($"Error loading Font: {a_path} at {filepath}");
+            }
+
+            Fonts.Add(a_path, font);
+
+            return font;
         }
 
         public static Material GetMaterial(MaterialDef a_def)

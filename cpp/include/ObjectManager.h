@@ -26,11 +26,6 @@ public:
     ObjectManager(RuntimeManager* a_runtime);
     ~ObjectManager();
 
-    inline std::vector<TransformBuffer> ToVector() 
-    {
-        return m_transformBuffer.ToVector();
-    }
-
     uint32_t CreateTransformBuffer();
     TransformBuffer GetTransformBuffer(uint32_t a_addr);
     void SetTransformBuffer(uint32_t a_addr, const TransformBuffer& a_buffer);
