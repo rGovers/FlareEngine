@@ -49,7 +49,7 @@ private:
 
     VulkanRenderEngineBackend*                    m_vulkanEngine;
 
-    std::mutex                                    m_pipeLock;
+    std::shared_mutex                             m_pipeLock;
     std::unordered_map<uint64_t, VulkanPipeline*> m_pipelines;
 
     TStatic<VulkanRenderCommand>                  m_renderCommands;
