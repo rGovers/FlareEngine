@@ -107,6 +107,32 @@ namespace FlareEngine.Definitions
 
                     break;
                 }
+                case short val:
+                {
+                    if (short.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(short), a_datObj, a_data);
+                    }
+
+                    break;
+                }
+                case ushort val:
+                {
+                    if (ushort.TryParse(a_datObj.Text, out val))
+                    {
+                        field.SetValue(a_obj, val);
+                    }
+                    else
+                    {
+                        DefError(typeof(ushort), a_datObj, a_data);
+                    }
+
+                    break;
+                }
                 case uint val:
                 {
                     if (uint.TryParse(a_datObj.Text, out val))
@@ -379,7 +405,7 @@ namespace FlareEngine.Definitions
                 bool found = false;
                 foreach (DefData dat in a_dataList)
                 {
-                    if (dat.Name == a_data.Name)
+                    if (dat.Name == a_data.Parent)
                     {
                         if (!SetDefData(a_def, dat, a_dataList))
                         {

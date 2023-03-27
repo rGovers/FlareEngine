@@ -8,16 +8,13 @@ namespace FlareEngine
 {
     public static class AssetLibrary
     {
-        static string                           WorkingDir;
         static Dictionary<string, Material>     Materials;
         static Dictionary<string, VertexShader> VertexShaders;
         static Dictionary<string, PixelShader>  PixelShaders;
         static Dictionary<string, Font>         Fonts;
 
-        internal static void Init(string a_workingDir)
+        internal static void Init()
         {
-            WorkingDir = a_workingDir;
-
             Materials = new Dictionary<string, Material>();
 
             VertexShaders = new Dictionary<string, VertexShader>();

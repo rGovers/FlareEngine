@@ -32,6 +32,12 @@ namespace FlareEngine
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern static Monitor[] GetMonitors();
 
+        public static string WorkingDirectory
+        {
+            get;
+            internal set;
+        }
+
         public static uint Width
         {
             get

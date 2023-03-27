@@ -17,17 +17,25 @@ namespace FlareEngine.Mod
             private set;
         }
 
-        internal static void Init(string a_workingDir)
+        internal static void Init()
         {
             Assemblies = new List<FlareAssembly>();
 
-            if (!string.IsNullOrWhiteSpace(a_workingDir))
+            bool working = !string.IsNullOrWhiteSpace(Application.WorkingDirectory);
+
+            if (working)
             {
-                CoreAssembly = FlareAssembly.GetFlareAssembly(Path.Combine(a_workingDir, "Core"));
+                CoreAssembly = FlareAssembly.GetFlareAssembly(Path.Combine(Application.WorkingDirectory, "Core"));
             }
-            else
+
+            if (CoreAssembly == null)
             {
                 CoreAssembly = FlareAssembly.GetFlareAssembly(Path.Combine(Directory.GetCurrentDirectory(), "Core"));       
+            }
+
+            if (CoreAssembly == null)
+            {
+                Logger.FlareError("Failed to load core assembly");
             }
         }
 
@@ -83,9 +91,9 @@ namespace FlareEngine.Mod
                 return a_path;
             }
 
-            foreach (FlareAssembly asm in Assemblies)
+            for (int i = Assemblies.Count - 1; i >= 0; --i)
             {
-                string mPath = Path.Combine(asm.AssemblyInfo.Path, "Assets", a_path);
+                string mPath = Path.Combine(Assemblies[i].AssemblyInfo.Path, "Assets", a_path);
                 if (File.Exists(mPath))
                 {
                     return mPath;

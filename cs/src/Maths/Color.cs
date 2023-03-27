@@ -48,7 +48,7 @@ namespace FlareEngine.Maths
         }
         public static bool operator !=(Color a_lhs, Color a_rhs)
         {
-            return a_lhs.R != a_rhs.R || a_lhs.G != a_rhs.G || a_lhs.B != a_rhs.B || a_lhs.A == a_rhs.A;
+            return a_lhs.R != a_rhs.R || a_lhs.G != a_rhs.G || a_lhs.B != a_rhs.B || a_lhs.A != a_rhs.A;
         }
 
         public override int GetHashCode()

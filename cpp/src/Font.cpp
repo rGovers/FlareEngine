@@ -24,6 +24,8 @@ Font::Font(const std::string_view& a_path)
         file.close();
 
         FLARE_ASSERT_R(stbtt_InitFont(&m_fontInfo, dat, 0) != 0);
+
+        delete[] dat;
     }
     else
     {

@@ -12,13 +12,13 @@ namespace FlareEngine
         {
             Logger.Message("FlareCS: Started");
 
-            string workingDir = null;
+            Application.WorkingDirectory = string.Empty;
 
             foreach (string arg in a_args)
             {
                 if (arg.StartsWith(WorkingDirArg))
                 {
-                    workingDir = arg.Substring(WorkingDirArg.Length + 1);
+                    Application.WorkingDirectory = arg.Substring(WorkingDirArg.Length + 1);
                 }
             }
 
@@ -28,10 +28,10 @@ namespace FlareEngine
 
             RenderPipeline.Init(new DefaultRenderPipeline());
 
-            AssetLibrary.Init(workingDir);
+            AssetLibrary.Init();
             DefLibrary.Init();
 
-            ModControl.Init(workingDir);
+            ModControl.Init();
 
             DefLibrary.ResolveDefs();
             Scribe.SetLanguage("en-us");
