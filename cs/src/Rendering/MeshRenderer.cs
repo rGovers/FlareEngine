@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
 {
-    public class MeshRenderer : Component, IDisposable
+    public class MeshRenderer : Component, IDestroy
     {
         bool     m_disposed = false;
 
@@ -25,6 +25,14 @@ namespace FlareEngine.Rendering
         extern static void GenerateRenderStack(uint a_addr); 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern static void DestroyRenderStack(uint a_addr); 
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_disposed;
+            }
+        }
 
         public MeshRendererDef MeshRendererDef
         {

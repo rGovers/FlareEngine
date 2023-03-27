@@ -57,15 +57,22 @@ namespace FlareEngine.Rendering
         public ushort Offset;
     };
 
-    public class Model : IDisposable
+    public class Model : IDestroy
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern static uint GenerateModel(Array a_vertices, uint[] a_indices, ushort a_vertexSize); 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern static void DestroyModel(uint a_addr);
 
-        bool m_disposed = false;
-        uint m_bufferAddr;
+        uint m_bufferAddr = uint.MaxValue;
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint InternalAddr
         {
@@ -75,7 +82,7 @@ namespace FlareEngine.Rendering
             }
         }
 
-        private Model()
+        Model()
         {
 
         }
@@ -98,7 +105,7 @@ namespace FlareEngine.Rendering
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -109,7 +116,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareWarning("Model Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

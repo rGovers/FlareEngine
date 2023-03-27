@@ -5,9 +5,15 @@ namespace FlareEngine.Rendering
 {
     public class MultiRenderTexture : IRenderTexture
     {
-        bool          m_disposed = false;
+        uint m_bufferAddr = uint.MaxValue;
 
-        readonly uint m_bufferAddr;
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint BufferAddr
         {
@@ -79,7 +85,7 @@ namespace FlareEngine.Rendering
         }
         protected virtual void Dispose(bool a_disposing)
         {
-            if (!m_disposed)
+            if (m_bufferAddr != uint.MaxValue)
             {
                 if (a_disposing)
                 {
@@ -92,7 +98,7 @@ namespace FlareEngine.Rendering
                     Logger.Error("FlareCS: MultiRenderTexture Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

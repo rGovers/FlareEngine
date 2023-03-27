@@ -27,25 +27,37 @@ namespace FlareEngine
         {
             foreach (VertexShader vShader in VertexShaders.Values)
             {
-                vShader.Dispose();
+                if (!vShader.IsDisposed)
+                {
+                    vShader.Dispose();
+                }
             }
             VertexShaders.Clear();
 
             foreach (PixelShader pShader in PixelShaders.Values)
             {
-                pShader.Dispose();
+                if (!pShader.IsDisposed)
+                {
+                    pShader.Dispose();
+                }
             }
             PixelShaders.Clear();
 
             foreach (Material mat in Materials.Values)
             {
-                mat.Dispose();
+                if (!mat.IsDisposed)
+                {
+                    mat.Dispose();
+                }
             }
             Materials.Clear();
 
             foreach (Font font in Fonts.Values)
             {
-                font.Dispose();
+                if (!font.IsDisposed)
+                {
+                    font.Dispose();
+                }
             }
             Fonts.Clear();
         }
@@ -54,7 +66,11 @@ namespace FlareEngine
         {
             if (VertexShaders.ContainsKey(a_path))
             {
-                return VertexShaders[a_path];
+                VertexShader vShader = VertexShaders[a_path];
+                if (!vShader.IsDisposed)
+                {
+                    return vShader;
+                }
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -81,7 +97,11 @@ namespace FlareEngine
         {
             if (PixelShaders.ContainsKey(a_path))
             {
-                return PixelShaders[a_path];
+                PixelShader pShader = PixelShaders[a_path];
+                if (!pShader.IsDisposed)
+                {
+                    return pShader;
+                }
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -108,7 +128,11 @@ namespace FlareEngine
         {
             if (Fonts.ContainsKey(a_path))
             {
-                return Fonts[a_path];
+                Font f = Fonts[a_path];
+                if (!f.IsDisposed)
+                {
+                    return f;
+                }
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -142,7 +166,11 @@ namespace FlareEngine
             string str = $"[{a_def.VertexShaderPath}] [{a_def.PixelShaderPath}]";
             if (Materials.ContainsKey(str))
             {
-                return Materials[str];
+                Material m = Materials[str];
+                if (!m.IsDisposed)
+                {
+                    return m;
+                }
             }
 
             Material mat = Material.FromDef(a_def);

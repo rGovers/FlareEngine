@@ -22,8 +22,7 @@ namespace FlareEngine.Rendering
     {
         static Dictionary<uint, Camera> BufferLookup = new Dictionary<uint, Camera>();
 
-        bool          m_disposed = false;
-        readonly uint m_bufferAddr;
+        uint m_bufferAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateBuffer(uint a_transformAddr);
@@ -200,7 +199,7 @@ namespace FlareEngine.Rendering
         {
             base.Dispose(a_disposing);
 
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -222,7 +221,7 @@ namespace FlareEngine.Rendering
                     Logger.Error("FlareCS: Camera Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

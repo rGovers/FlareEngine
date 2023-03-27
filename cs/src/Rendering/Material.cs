@@ -72,17 +72,15 @@ namespace FlareEngine.Rendering
         public ushort Set;
     };
 
-    public class Material : IDisposable
+    public class Material : IDestroy
     {
         public static Material DirectionalLightMaterial = null;
         public static Material PointLightMaterial = null;
         public static Material SpotLightMaterial = null;
 
-        MaterialDef   m_def = null;
+        MaterialDef m_def = null;
 
-        bool          m_disposed = false;
-
-        readonly uint m_bufferAddr;
+        uint        m_bufferAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateInternalProgram(InternalRenderProgram a_renderProgram);
@@ -96,6 +94,14 @@ namespace FlareEngine.Rendering
         extern static void DestroyProgram(uint a_addr); 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void SetTexture(uint a_addr, uint a_shaderSlot, uint a_samplerAddr);
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint InternalAddr
         {
@@ -209,7 +215,7 @@ namespace FlareEngine.Rendering
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -220,7 +226,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareWarning("Material Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {
@@ -232,5 +238,4 @@ namespace FlareEngine.Rendering
         {
             Dispose(false);
         }
-    };
-}
+    }}

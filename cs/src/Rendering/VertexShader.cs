@@ -4,10 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
 {
-    public class VertexShader : IDisposable
+    public class VertexShader : IDestroy
     {
-        bool          m_disposed = false;
-        readonly uint m_internalAddr;
+        uint m_internalAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateGLSLShader(string a_shader); 
@@ -15,6 +14,14 @@ namespace FlareEngine.Rendering
         extern static uint GenerateFShader(string a_shader);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_internalAddr == uint.MaxValue;
+            }
+        }
 
         internal uint InternalAddr
         {
@@ -27,13 +34,6 @@ namespace FlareEngine.Rendering
         VertexShader(uint a_addr)
         {   
             m_internalAddr = a_addr;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-
-            GC.SuppressFinalize(this);
         }
 
         public static VertexShader LoadVertexShader(string a_path)
@@ -64,11 +64,32 @@ namespace FlareEngine.Rendering
             }
 
             return null;
-        }        
+        }
+
+        public override bool Equals(object a_obj)
+        {
+            if (a_obj == null && m_internalAddr == uint.MaxValue)
+            {
+                return true;
+            }
+
+            return base.Equals(a_obj);
+        }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+
+            GC.SuppressFinalize(this);
+        }
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_internalAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -79,7 +100,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareWarning("VertexShader Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_internalAddr = uint.MaxValue;
             }
             else
             {

@@ -17,7 +17,7 @@ namespace FlareEngine.Rendering.Lighting
         public float Radius;
     }
 
-    public class SpotLight : Light, IDisposable
+    public class SpotLight : Light, IDestroy
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateBuffer(uint a_transformAddr);
@@ -28,8 +28,15 @@ namespace FlareEngine.Rendering.Lighting
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyBuffer(uint a_addr);
 
-        bool m_disposed = false;
-        uint m_bufferAddr;
+        uint m_bufferAddr = uint.MaxValue;
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         public override LightType LightType
         {
@@ -223,7 +230,7 @@ namespace FlareEngine.Rendering.Lighting
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -234,7 +241,7 @@ namespace FlareEngine.Rendering.Lighting
                     Logger.FlareWarning("SpotLight Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

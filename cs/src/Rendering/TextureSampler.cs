@@ -15,7 +15,7 @@ namespace FlareEngine.Rendering
         ClampToEdge = 2
     };
 
-    public class TextureSampler : IDisposable
+    public class TextureSampler : IDestroy
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateRenderTextureSampler(uint a_renderTexture, uint a_textureIndex, uint a_filter, uint a_addressMode);
@@ -24,9 +24,15 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroySampler(uint a_addr);
 
-        bool          m_disposed = false;
+        uint m_bufferAddr = uint.MaxValue;
 
-        readonly uint m_bufferAddr;
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint BufferAddr
         {
@@ -83,6 +89,20 @@ namespace FlareEngine.Rendering
             return new TextureSampler(GenerateRenderTextureDepthSampler(RenderTextureCmd.GetTextureAddr(a_renderTexture), (uint)a_filter, (uint)a_addressMode));
         }
 
+        public override bool Equals(object a_obj)
+        {
+            if (a_obj == null && m_bufferAddr == uint.MaxValue)
+            {
+                return true;
+            }
+
+            return base.Equals(a_obj);
+        }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -92,7 +112,7 @@ namespace FlareEngine.Rendering
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -103,7 +123,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareWarning("TextureSampler Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

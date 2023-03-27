@@ -4,10 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
 {
-    public class PixelShader : IDisposable
+    public class PixelShader : IDestroy
     {
-        bool          m_disposed = false;
-        readonly uint m_internalAddr;
+        uint m_internalAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateGLSLShader(string a_shader); 
@@ -15,6 +14,14 @@ namespace FlareEngine.Rendering
         extern static uint GenerateFShader(string a_shader);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_internalAddr == uint.MaxValue;
+            }
+        }
 
         internal uint InternalAddr
         {
@@ -27,13 +34,6 @@ namespace FlareEngine.Rendering
         PixelShader(uint a_addr)
         {
             m_internalAddr = a_addr;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-
-            GC.SuppressFinalize(this);
         }
 
         public static PixelShader LoadPixelShader(string a_path)
@@ -67,9 +67,16 @@ namespace FlareEngine.Rendering
             return null;
         }
 
+        public void Dispose()
+        {
+            Dispose(true);
+
+            GC.SuppressFinalize(this);
+        }
+
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_internalAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -80,7 +87,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareMessage("PixelShader Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_internalAddr = uint.MaxValue;
             }
             else
             {

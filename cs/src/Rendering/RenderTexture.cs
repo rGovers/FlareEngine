@@ -4,8 +4,15 @@ namespace FlareEngine.Rendering
 {
     public class RenderTexture : IRenderTexture
     {
-        bool          m_disposed = false;
-        readonly uint m_bufferAddr;
+        uint m_bufferAddr = uint.MaxValue;
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint BufferAddr
         {
@@ -58,6 +65,20 @@ namespace FlareEngine.Rendering
             RenderTextureCmd.PushRenderTexture(m_bufferAddr, this);
         }
 
+        public override bool Equals(object a_obj)
+        {
+            if (a_obj == null && m_bufferAddr == uint.MaxValue)
+            {
+                return true;
+            }
+
+            return base.Equals(a_obj);
+        }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -67,7 +88,7 @@ namespace FlareEngine.Rendering
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if (!m_disposed)
+            if (m_bufferAddr != uint.MaxValue)
             {
                 if (a_disposing)
                 {
@@ -80,7 +101,7 @@ namespace FlareEngine.Rendering
                     Logger.FlareError("RenderTexture Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

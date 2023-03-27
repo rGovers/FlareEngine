@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering.UI
 {
-    public class Font : IDisposable
+    public class Font : IDestroy
     {
         static Dictionary<uint, Font> BufferLookup = new Dictionary<uint, Font>();
 
@@ -14,6 +14,14 @@ namespace FlareEngine.Rendering.UI
         extern static uint DestroyFont(uint a_addr);
 
         uint m_bufferAddr = uint.MaxValue;
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint BufferAddr
         {

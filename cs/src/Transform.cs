@@ -16,11 +16,9 @@ namespace FlareEngine
         public Vector3 Scale;
     }
 
-    public class Transform : IDisposable
-    {
-        bool            m_disposed = false;
-           
-        uint            m_bufferAddr;
+    public class Transform : IDestroy
+    {      
+        uint            m_bufferAddr = uint.MaxValue;
       
         GameObject      m_object;
 
@@ -35,6 +33,14 @@ namespace FlareEngine
         extern static void SetTransformBuffer(uint a_addr, TransformBuffer a_buffer);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern static void DestroyTransformBuffer(uint a_addr); 
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_bufferAddr == uint.MaxValue;
+            }
+        }
 
         internal uint InternalAddr
         {
@@ -141,6 +147,7 @@ namespace FlareEngine
 
             m_bufferAddr = GenerateTransformBuffer();
         }
+
         public void Dispose()
         {
             Dispose(true);
@@ -150,7 +157,7 @@ namespace FlareEngine
 
         protected virtual void Dispose(bool a_disposing)
         {
-            if(!m_disposed)
+            if(m_bufferAddr != uint.MaxValue)
             {
                 if(a_disposing)
                 {
@@ -161,7 +168,7 @@ namespace FlareEngine
                     Logger.Error("FlareCS: Transform Failed to Dispose");
                 }
 
-                m_disposed = true;
+                m_bufferAddr = uint.MaxValue;
             }
             else
             {

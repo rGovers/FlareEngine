@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace FlareEngine
 {
-    public class GameObject : IDisposable
+    public class GameObject : IDestroy
     {
         static List<Scriptable> ScriptableComps = new List<Scriptable>();
         static List<GameObject> Objs = new List<GameObject>();
@@ -19,6 +19,14 @@ namespace FlareEngine
         bool            m_disposed = false;
 
         Transform       m_transform;
+
+        public bool IsDisposed
+        {
+            get
+            {
+                return m_disposed;
+            }
+        }
 
         public GameObjectDef Def
         {
@@ -69,61 +77,6 @@ namespace FlareEngine
             m_transform = new Transform(this);
 
             m_components = new List<Component>();
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool a_disposing)
-        {
-            if(!m_disposed)
-            {
-                if(a_disposing)
-                {
-                    m_transform.Dispose();
-                    m_transform = null;   
-
-                    Objs.Remove(this);
-
-                    if (!string.IsNullOrWhiteSpace(m_tag) && ObjDictionary.ContainsKey(m_tag))
-                    {
-                        ObjDictionary.Remove(m_tag);
-                    }
-
-                    foreach (Component comp in m_components)
-                    {
-                        if (comp is Scriptable script)
-                        {
-                            ScriptableComps.Remove(script);
-                        }
-
-                        if (comp is IDisposable val)
-                        {
-                            val.Dispose();
-                        }
-                    }
-                    m_components.Clear();
-                }
-                else
-                {
-                    Logger.FlareWarning("GameObject Failed to Dispose");
-                }
-
-                m_disposed = true;
-            }
-            else
-            {
-                Logger.FlareError("GameObject Multiple Dispose");
-            }
-        }
-
-        ~GameObject()
-        {
-            Dispose(false);
         }
 
         internal static void UpdateObjects()
@@ -249,9 +202,19 @@ namespace FlareEngine
                 {
                     RemoveComponent(comp);
 
-                    if (comp is IDisposable val)
+                    if (comp is IDestroy dest)
                     {
-                        val.Dispose();
+                        if (!dest.IsDisposed)
+                        {
+                            dest.Dispose();
+                        }
+
+                        return;
+                    }
+
+                    if (comp is IDisposable disp)
+                    {
+                        disp.Dispose();
                     }
 
                     return;
@@ -314,6 +277,71 @@ namespace FlareEngine
             obj.Init();
 
             return obj;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool a_disposing)
+        {
+            if(!m_disposed)
+            {
+                if(a_disposing)
+                {
+                    m_transform.Dispose();
+                    m_transform = null;   
+
+                    Objs.Remove(this);
+
+                    if (!string.IsNullOrWhiteSpace(m_tag) && ObjDictionary.ContainsKey(m_tag))
+                    {
+                        ObjDictionary.Remove(m_tag);
+                    }
+
+                    foreach (Component comp in m_components)
+                    {
+                        if (comp is Scriptable script)
+                        {
+                            ScriptableComps.Remove(script);
+                        }
+
+                        if (comp is IDestroy dest)
+                        {
+                            if (!dest.IsDisposed)
+                            {
+                                dest.Dispose();
+                            }
+
+                            continue;
+                        }
+
+                        if (comp is IDisposable disp)
+                        {
+                            disp.Dispose();
+                        }
+                    }
+                    m_components.Clear();
+                }
+                else
+                {
+                    Logger.FlareWarning("GameObject Failed to Dispose");
+                }
+
+                m_disposed = true;
+            }
+            else
+            {
+                Logger.FlareError("GameObject Multiple Dispose");
+            }
+        }
+
+        ~GameObject()
+        {
+            Dispose(false);
         }
     }
 }

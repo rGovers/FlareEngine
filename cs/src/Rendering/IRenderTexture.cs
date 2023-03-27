@@ -1,8 +1,6 @@
-using System;
-
 namespace FlareEngine.Rendering
 {
-    public interface IRenderTexture : IDisposable
+    public interface IRenderTexture : IDestroy
     {
         uint Width
         {
