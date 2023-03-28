@@ -6,6 +6,7 @@
 #include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
 #include "Shaders/SpotLightPixel.h"
+#include "Rendering/IO/OBJLoader.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
@@ -174,6 +175,23 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Model, GenerateModel), MonoArr
 
     return addr;
 }
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Model, GenerateFromFile), MonoString* a_path)
+{
+    char* str = mono_string_to_utf8(a_path);
+
+    uint32_t addr = -1;
+
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+    if (OBJLoader_LoadFile(str, &vertices, &indices))
+    {
+        addr = Engine->GenerateModel((const char*)vertices.data(), (uint32_t)vertices.size(), indices.data(), (uint32_t)indices.size(), sizeof(Vertex));
+    }
+
+    mono_free(str);
+
+    return addr;
+}
 FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Model, DestroyModel), uint32_t a_addr)
 {
     Engine->DestroyModel(a_addr);
@@ -188,11 +206,12 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
     TRACE("Binding Vulkan functions to C#");
     VULKANGRAPHICS_BINDING_FUNCTION_TABLE(VULKANGRAPHICS_RUNTIME_ATTACH)
 
-    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, GenerateProgram), (void*)RUNTIME_FUNCTION_NAME(Material, GenerateProgram));
-    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Material, DestroyProgram), (void*)RUNTIME_FUNCTION_NAME(Material, DestroyProgram));
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, GenerateProgram);
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, DestroyProgram);
 
-    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Model, GenerateModel), (void*)RUNTIME_FUNCTION_NAME(Model, GenerateModel));
-    a_runtime->BindFunction(RUNTIME_FUNCTION_STRING(FlareEngine.Rendering, Model, DestroyModel), (void*)RUNTIME_FUNCTION_NAME(Model, DestroyModel));
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateModel);
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateFromFile);
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, DestroyModel);
 }
 VulkanGraphicsEngineBindings::~VulkanGraphicsEngineBindings()
 {

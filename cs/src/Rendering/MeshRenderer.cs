@@ -128,6 +128,10 @@ namespace FlareEngine.Rendering
             if (def != null)
             {   
                 Material = AssetLibrary.GetMaterial(def.MaterialDef);
+                if (!string.IsNullOrWhiteSpace(def.ModelPath))
+                {
+                    Model = AssetLibrary.LoadModel(def.ModelPath);
+                }   
             }
         }
 

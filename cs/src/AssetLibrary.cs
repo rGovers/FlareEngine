@@ -11,6 +11,9 @@ namespace FlareEngine
         static Dictionary<string, Material>     Materials;
         static Dictionary<string, VertexShader> VertexShaders;
         static Dictionary<string, PixelShader>  PixelShaders;
+     
+        static Dictionary<string, Model>        Models;
+     
         static Dictionary<string, Font>         Fonts;
 
         internal static void Init()
@@ -19,6 +22,8 @@ namespace FlareEngine
 
             VertexShaders = new Dictionary<string, VertexShader>();
             PixelShaders = new Dictionary<string, PixelShader>();
+
+            Models = new Dictionary<string, Model>();
 
             Fonts = new Dictionary<string, Font>();
         }
@@ -52,6 +57,15 @@ namespace FlareEngine
             }
             Materials.Clear();
 
+            foreach (Model model in Models.Values)
+            {
+                if (!model.IsDisposed)
+                {
+                    model.Dispose();
+                }
+            }
+            Models.Clear();
+
             foreach (Font font in Fonts.Values)
             {
                 if (!font.IsDisposed)
@@ -71,6 +85,8 @@ namespace FlareEngine
                 {
                     return vShader;
                 }
+
+                VertexShaders.Remove(a_path);
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -102,6 +118,8 @@ namespace FlareEngine
                 {
                     return pShader;
                 }
+
+                PixelShaders.Remove(a_path);
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -133,6 +151,8 @@ namespace FlareEngine
                 {
                     return f;
                 }
+
+                Fonts.Remove(a_path);
             }
 
             string filepath = ModControl.GetAssetPath(a_path);
@@ -147,11 +167,47 @@ namespace FlareEngine
             if (font == null)
             {
                 Logger.FlareError($"Error loading Font: {a_path} at {filepath}");
+
+                return null;
             }
 
             Fonts.Add(a_path, font);
 
             return font;
+        }
+
+        public static Model LoadModel(string a_path)
+        {
+            if (Models.ContainsKey(a_path))
+            {
+                Model m = Models[a_path];
+                if (!m.IsDisposed)
+                {
+                    return m;
+                }
+
+                Models.Remove(a_path);
+            }
+
+            string filepath = ModControl.GetAssetPath(a_path);
+            if (string.IsNullOrEmpty(filepath))
+            {
+                Logger.FlareError($"Cannot find filepath: {a_path}");
+
+                return null;
+            }
+
+            Model model = Model.LoadModel(filepath);
+            if (model == null)
+            {
+                Logger.FlareError($"Error loading Modle: {a_path} at {filepath}");
+
+                return null;
+            }
+
+            Models.Add(a_path, model);
+
+            return model;
         }
 
         public static Material GetMaterial(MaterialDef a_def)
@@ -171,6 +227,8 @@ namespace FlareEngine
                 {
                     return m;
                 }
+
+                Materials.Remove(str);
             }
 
             Material mat = Material.FromDef(a_def);

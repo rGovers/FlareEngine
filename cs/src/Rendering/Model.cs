@@ -59,9 +59,11 @@ namespace FlareEngine.Rendering
 
     public class Model : IDestroy
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateModel(Array a_vertices, uint[] a_indices, ushort a_vertexSize); 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GenerateFromFile(string a_path);
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyModel(uint a_addr);
 
         uint m_bufferAddr = uint.MaxValue;
@@ -82,18 +84,27 @@ namespace FlareEngine.Rendering
             }
         }
 
-        Model()
+        Model(uint a_addr)
         {
-
+            m_bufferAddr = a_addr;
         }
 
         public static Model CreateModel<T>(T[] a_vertices, uint[] a_indices) where T : struct 
         {
-            Model model = new Model();
+            return new Model(GenerateModel(a_vertices, a_indices, (ushort)Marshal.SizeOf<T>()));
+        }
 
-            model.m_bufferAddr = GenerateModel(a_vertices, a_indices, (ushort)Marshal.SizeOf<T>());
+        public static Model LoadModel(string a_path)
+        {
+            uint addr = GenerateFromFile(a_path);
+            if (addr != uint.MaxValue)
+            {
+                return new Model(addr);
+            }
 
-            return model;
+            Logger.FlareError($"Model Failed to load: {a_path}");
+
+            return null;
         }
 
         public void Dispose()

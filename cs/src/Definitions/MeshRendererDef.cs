@@ -10,6 +10,11 @@ namespace FlareEngine.Definitions
         [EditorTooltip("The material to use for rendering.")]
         public MaterialDef MaterialDef = null;
 
+        public MeshRendererDef()
+        {
+            ComponentType = typeof(MeshRenderer);
+        }
+
         public override void PostResolve()
         {
             base.PostResolve();
@@ -21,7 +26,7 @@ namespace FlareEngine.Definitions
                 return;
             }
 
-            if (string.IsNullOrEmpty(ModelPath))
+            if (string.IsNullOrWhiteSpace(ModelPath))
             {
                 Logger.Warning("FlareCS: Component Def Invalid ModelPath");
             }
