@@ -8,15 +8,15 @@
 #include "Logger.h"
 #include "Trace.h"
 
-enum e_FaceMode
+enum e_OBJFaceMode
 {
-    FaceMode_Position,
-    FaceMode_PositionNormal,
-    FaceMode_PositionTexCoords,
-    FaceMode_PositionNormalTexcoords
+    OBJFaceMode_Position,
+    OBJFaceMode_PositionNormal,
+    OBJFaceMode_PositionTexCoords,
+    OBJFaceMode_PositionNormalTexcoords
 };
 
-struct IndexMap
+struct OBJIndexMap
 {
     uint32_t PositionIndex;
     uint32_t NormalIndex;
@@ -49,7 +49,7 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
             std::vector<glm::vec3> normals;
             std::vector<glm::vec2> texcoords;
 
-            std::vector<IndexMap> indices;
+            std::vector<OBJIndexMap> indices;
 
             const char* s = dat;
             while (s - dat < size)
@@ -273,25 +273,25 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
                         ++s;
                     } 
 
-                    e_FaceMode faceMode;
+                    e_OBJFaceMode faceMode;
                     if (sl[0] != nullptr && sl[1] != nullptr)
                     {
                         if (sl[0] + 1 == sl[1])
                         {
-                            faceMode = FaceMode_PositionNormal;
+                            faceMode = OBJFaceMode_PositionNormal;
                         }
                         else
                         {
-                            faceMode = FaceMode_PositionNormalTexcoords;
+                            faceMode = OBJFaceMode_PositionNormalTexcoords;
                         }
                     }
                     else if (sl[0] != nullptr)
                     {
-                        faceMode = FaceMode_PositionTexCoords;
+                        faceMode = OBJFaceMode_PositionTexCoords;
                     }
                     else
                     {
-                        faceMode = FaceMode_Position;
+                        faceMode = OBJFaceMode_Position;
                     }
 
                     const char* iB = iA + 1;
@@ -346,11 +346,11 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
                         indMap[4] = nullptr;
                     }
 
-                    IndexMap tIndices[4];
+                    OBJIndexMap tIndices[4];
 
                     switch (faceMode)
                     {
-                    case FaceMode_Position:
+                    case OBJFaceMode_Position:
                     {
                         for (int i = 0; i < indexCount; ++i)
                         {
@@ -364,7 +364,7 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
 
                         break;
                     }
-                    case FaceMode_PositionTexCoords:
+                    case OBJFaceMode_PositionTexCoords:
                     {
                         for (int i = 0; i < indexCount; ++i)
                         {
@@ -384,7 +384,7 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
 
                         break;
                     }
-                    case FaceMode_PositionNormalTexcoords:
+                    case OBJFaceMode_PositionNormalTexcoords:
                     {
                         for (int i = 0; i < indexCount; ++i)
                         {
@@ -410,7 +410,7 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
 
                         break;
                     }
-                    case FaceMode_PositionNormal:
+                    case OBJFaceMode_PositionNormal:
                     {
                         for (int i = 0; i < indexCount; ++i)
                         {
@@ -438,7 +438,6 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
                     }
                     }
 
-
                     indices.emplace_back(tIndices[0]);
                     indices.emplace_back(tIndices[1]);
                     indices.emplace_back(tIndices[2]);
@@ -459,8 +458,8 @@ Exit:;
 
             std::unordered_map<uint64_t, uint32_t> indexMap;
 
-            for (const IndexMap& iMap : indices)
-            {
+            for (const OBJIndexMap& iMap : indices)
+            { 
                 // https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function
                 const uint64_t abH = ((uint64_t)iMap.PositionIndex + iMap.NormalIndex) * ((uint64_t)iMap.PositionIndex + iMap.NormalIndex + 1) / 2 + iMap.NormalIndex;
                 const uint64_t h = ((abH + iMap.TexCoordsIndex) * (abH + iMap.TexCoordsIndex + 1) / 2 + iMap.TexCoordsIndex);
@@ -477,10 +476,8 @@ Exit:;
 
                     indexMap.emplace(h, index);
 
-                    Vertex v;
-
                     FLARE_ASSERT(iMap.PositionIndex - 1 < positions.size());
-                    v.Position = positions[iMap.PositionIndex - 1];
+                    Vertex v = Vertex(positions[iMap.PositionIndex - 1]);
                     
                     if (iMap.NormalIndex != -1)
                     {
@@ -493,8 +490,6 @@ Exit:;
                         FLARE_ASSERT(iMap.TexCoordsIndex - 1 < texcoords.size());
                         v.TexCoords = texcoords[iMap.TexCoordsIndex - 1];
                     }
-
-                    v.Color = glm::vec4(1.0f);
 
                     a_vertices->emplace_back(v);
                 }

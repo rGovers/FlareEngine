@@ -2,12 +2,14 @@
 
 #include <stdio.h>
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(FLARENATIVE_ENABLE_TRACE)
 #define FLARENATIVE_ENABLE_TRACE
 #endif
 
+#ifndef TRACE
 #ifdef FLARENATIVE_ENABLE_TRACE
 #define TRACE(str) printf("FlareEngine: %s \n", str)
 #else
 #define TRACE(str) void(0)
+#endif
 #endif

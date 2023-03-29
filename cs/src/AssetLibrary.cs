@@ -200,7 +200,7 @@ namespace FlareEngine
             Model model = Model.LoadModel(filepath);
             if (model == null)
             {
-                Logger.FlareError($"Error loading Modle: {a_path} at {filepath}");
+                Logger.FlareError($"Error loading Model: {a_path} at {filepath}");
 
                 return null;
             }

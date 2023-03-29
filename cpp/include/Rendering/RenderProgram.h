@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "Rendering/ShaderBufferInput.h"
-#include "Rendering/VertexInputAttrib.h"
+#include "Rendering/Vertices.h"
 
 enum e_InternalRenderProgram : uint16_t
 {
