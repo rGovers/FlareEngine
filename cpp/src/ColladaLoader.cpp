@@ -48,11 +48,15 @@ struct ColladaData
 struct ColladaSource
 {
     std::string ID;
-    std::string Name;
     ColladaData Data;
     ColladaAccessor Accessor;
 };
 
+struct ColladaTriangles
+{
+    std::vector<ColladaInput> Inputs;
+    std::vector<uint32_t> P;
+};
 struct ColladaPolylist
 {
     std::vector<ColladaInput> Inputs;
@@ -65,12 +69,12 @@ struct ColladaMesh
     std::vector<ColladaSource> Sources;
     std::vector<ColladaInput> Vertices;
     ColladaPolylist Polylist;
+    ColladaTriangles Triangles;
 };
 
 struct ColladaGeometry
 {
     std::string ID;
-    std::string Name;
     ColladaMesh Mesh;
 };
 
@@ -85,8 +89,14 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
         if (strcmp(name, "source") == 0)
         {
             ColladaSource s;
-            s.ID = std::string(sourceElement->Attribute("id"));
-            s.Name = std::string(sourceElement->Attribute("name"));
+            for (const tinyxml2::XMLAttribute* att = sourceElement->FirstAttribute(); att != nullptr; att = att->Next())
+            {
+                const char* name = att->Name();
+                if (strcmp(name, "id") == 0)
+                {
+                    s.ID = att->Value();
+                }
+            }
         
             for (const tinyxml2::XMLElement* sDataElement = sourceElement->FirstChildElement(); sDataElement != nullptr; sDataElement = sDataElement->NextSiblingElement())
             {
@@ -95,7 +105,14 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
                 if (strcmp(name, "float_array") == 0)
                 {
                     ColladaData d;
-                    d.ID = std::string(sDataElement->Attribute("id"));
+                    for (const tinyxml2::XMLAttribute* att = sDataElement->FirstAttribute(); att != nullptr; att = att->Next())
+                    {
+                        const char* name = att->Name();
+                        if (strcmp(name, "id") == 0)
+                        {
+                            d.ID = att->Value();
+                        }
+                    }
                     d.Type = ColladaSourceDataType_Float;
 
                     const uint32_t count = (uint32_t)sDataElement->Int64Attribute("count");
@@ -139,10 +156,26 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
                     FLARE_ASSERT(accessorElement != nullptr);
 
                     ColladaAccessor a;
-                    a.Source = std::string(accessorElement->Attribute("source"));
-                    a.Count = (uint32_t)accessorElement->Int64Attribute("count");
-                    a.Stride = (uint32_t)accessorElement->IntAttribute("stride");
-                    a.Count = (uint32_t)accessorElement->IntAttribute("offset");
+                    for (const tinyxml2::XMLAttribute* att = accessorElement->FirstAttribute(); att != nullptr; att = att->Next())
+                    {
+                        const char* name = att->Name();
+                        if (strcmp(name, "source") == 0)
+                        {
+                            a.Source = att->Value();
+                        }
+                        else if (strcmp(name, "count") == 0)
+                        {
+                            a.Count = (uint32_t)att->Int64Value();
+                        }
+                        else if (strcmp(name, "stride") == 0)
+                        {
+                            a.Stride = (uint32_t)att->IntValue();
+                        }
+                        else if (strcmp(name, "offset") == 0)
+                        {
+                            a.Offset = (uint32_t)att->IntValue();
+                        }
+                    }
 
                     for (const tinyxml2::XMLElement* paramElement = accessorElement->FirstChildElement(); paramElement != nullptr; paramElement = paramElement->NextSiblingElement())
                     {
@@ -150,13 +183,22 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
                         if (strcmp(name, "param") == 0)
                         {
                             ColladaParam p;
-                            p.Name = std::string(paramElement->Attribute("name"));
                             p.Type = ColladaSourceDataType_Null;
-
-                            const char* type = paramElement->Attribute("type");
-                            if (strcmp(type, "float") == 0)
+                            for (const tinyxml2::XMLAttribute* att = paramElement->FirstAttribute(); att != nullptr; att = att->Next())
                             {
-                                p.Type = ColladaSourceDataType_Float;
+                                const char* name = att->Name();
+                                if (strcmp(name, "name") == 0)
+                                {
+                                    p.Name = att->Value();
+                                }
+                                else if (strcmp(name, "type") == 0)
+                                {
+                                    const char* type = att->Value();
+                                    if (strcmp(type, "float") == 0)
+                                    {
+                                        p.Type = ColladaSourceDataType_Float;
+                                    }
+                                }   
                             }
 
                             a.Params.emplace_back(p);
@@ -174,12 +216,85 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
             for (const tinyxml2::XMLElement* inputElement = sourceElement->FirstChildElement(); inputElement != nullptr; inputElement = inputElement->NextSiblingElement())
             {
                 ColladaInput i;
-                i.Semantic = std::string(inputElement->Attribute("semantic"));
-                i.Source = std::string(inputElement->Attribute("source"));
-                i.Offset = (uint32_t)inputElement->IntAttribute("offset");
+                for (const tinyxml2::XMLAttribute* att = inputElement->FirstAttribute(); att != nullptr; att = att->Next())
+                {
+                    const char* name = att->Name();
+                    if (strcmp(name, "semantic") == 0)
+                    {
+                        i.Semantic = att->Value();
+                    }
+                    else if (strcmp(name, "source") == 0)
+                    {
+                        i.Source = att->Value();
+                    }
+                    else if (strcmp(name, "offset") == 0)
+                    {
+                        i.Offset = (uint32_t)att->IntValue();
+                    }
+                }
 
                 mesh.Vertices.emplace_back(i);
             }
+        }
+        else if (strcmp(name, "triangles") == 0)
+        {
+            ColladaTriangles t;
+
+            for (const tinyxml2::XMLElement* element = sourceElement->FirstChildElement(); element != nullptr; element = element->NextSiblingElement())
+            {
+                const char* name = element->Value();
+                if (strcmp(name, "input") == 0)
+                {
+                    ColladaInput i;
+                    for (const tinyxml2::XMLAttribute* att = element->FirstAttribute(); att != nullptr; att = att->Next())
+                    {
+                        const char* name = att->Name();
+                        if (strcmp(name, "semantic") == 0)
+                        {
+                            i.Semantic = att->Value();
+                        }
+                        else if (strcmp(name, "source") == 0)
+                        {
+                            i.Source = att->Value();
+                        }
+                        else if (strcmp(name, "offset") == 0)
+                        {
+                            i.Offset = (uint32_t)att->IntValue();
+                        }
+                    }
+
+                    t.Inputs.emplace_back(i);
+                }
+                else if (strcmp(name, "p") == 0)
+                {
+                    const char* data = element->GetText();
+                    const char* s = data;
+                    while (*s != 0)
+                    {
+                        while (*s == ' ')
+                        {
+                            ++s;
+                        }
+                        
+                        if (*s == 0)
+                        {
+                            break;
+                        }
+
+                        const char* next = s + 1;
+                        while (*next != ' ' && *next != 0)
+                        {
+                            ++next;
+                        }
+
+                        t.P.emplace_back((uint32_t)std::stoll(std::string(s, next - s)));
+
+                        s = next;
+                    }
+                }
+            }
+
+            mesh.Triangles = t;
         }
         else if (strcmp(name, "polylist") == 0)
         {
@@ -191,9 +306,22 @@ ColladaMesh LoadMesh(const tinyxml2::XMLElement* a_meshElement)
                 if (strcmp(name, "input") == 0)
                 {
                     ColladaInput i;
-                    i.Semantic = std::string(element->Attribute("semantic"));
-                    i.Source = std::string(element->Attribute("source"));
-                    i.Offset = (uint32_t)element->IntAttribute("offset");
+                    for (const tinyxml2::XMLAttribute* att = element->FirstAttribute(); att != nullptr; att = att->Next())
+                    {
+                        const char* name = att->Name();
+                        if (strcmp(name, "semantic") == 0)
+                        {
+                            i.Semantic = att->Value();
+                        }
+                        else if (strcmp(name, "source") == 0)
+                        {
+                            i.Source = att->Value();
+                        }
+                        else if (strcmp(name, "offset") == 0)
+                        {
+                            i.Offset = (uint32_t)att->IntValue();
+                        }
+                    }
 
                     p.Inputs.emplace_back(i);
                 }
@@ -269,8 +397,14 @@ std::vector<ColladaGeometry> LoadGeometry(const tinyxml2::XMLElement* a_libraryE
         if (strcmp(geomElement->Value(), "geometry") == 0)
         {
             ColladaGeometry g;
-            g.ID = std::string(geomElement->Attribute("id"));
-            g.Name = std::string(geomElement->Attribute("name"));
+            for (const tinyxml2::XMLAttribute* att = geomElement->FirstAttribute(); att != nullptr; att = att->Next())
+            {
+                const char* name = att->Name();
+                if (strcmp(name, "id") == 0)
+                {
+                    g.ID = att->Value();
+                }
+            }
 
             const tinyxml2::XMLElement* meshElement = geomElement->FirstChildElement("mesh");
             FLARE_ASSERT(meshElement != nullptr);
@@ -368,128 +502,120 @@ bool ColladaLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Ver
 
             for (const ColladaGeometry& g : geometry)
             {
-                ColladaInput posInput;
-                ColladaInput normalInput;
-                ColladaInput texcoordInput;
-
-                for (const ColladaInput& pI : g.Mesh.Polylist.Inputs)
+                if (!g.Mesh.Triangles.P.empty())
                 {
-                    if (pI.Semantic == "POSITION")
+                    ColladaInput posInput;
+                    ColladaInput normalInput;
+                    ColladaInput texcoordInput;
+
+                    for (const ColladaInput& tI : g.Mesh.Triangles.Inputs)
                     {
-                        posInput = pI;
-                    }
-                    else if (pI.Semantic == "NORMAL")
-                    {
-                        normalInput = pI;
-                    }
-                    else if (pI.Semantic == "TEXCOORD")
-                    {
-                        texcoordInput = pI;
-                    }
-                    else if (pI.Semantic == "VERTEX")
-                    {
-                        for (const ColladaInput& vI : g.Mesh.Vertices)
+                        if (tI.Semantic == "POSITION")
                         {
-                            if (vI.Semantic == "POSITION")
+                            posInput = tI;
+                        }
+                        else if (tI.Semantic == "NORMAL")
+                        {
+                            normalInput = tI;
+                        }
+                        else if (tI.Semantic == "TEXCOORD")
+                        {
+                            texcoordInput = tI;
+                        }
+                        else if (tI.Semantic == "VERTEX")
+                        {
+                            for (const ColladaInput& vI : g.Mesh.Vertices)
                             {
-                                posInput = vI;
-                                posInput.Offset = vI.Offset;
-                            }
-                            else if (vI.Semantic == "NORMAL")
-                            {
-                                normalInput = vI;
-                                normalInput.Offset = vI.Offset;
-                            }
-                            else if (vI.Semantic == "TEXCOORD")
-                            {
-                                texcoordInput = vI;
-                                texcoordInput.Offset = vI.Offset;
+                                if (vI.Semantic == "POSITION")
+                                {
+                                    posInput = vI;
+                                    posInput.Offset = tI.Offset;
+                                }
+                                else if (vI.Semantic == "NORMAL")
+                                {
+                                    normalInput = vI;
+                                    normalInput.Offset = tI.Offset;
+                                }
+                                else if (vI.Semantic == "TEXCOORD")
+                                {
+                                    texcoordInput = vI;
+                                    texcoordInput.Offset = tI.Offset;
+                                }
                             }
                         }
                     }
-                }
 
-                ColladaSource posSource;
-                ColladaSource normalSource;
-                ColladaSource texcoordSource;
+                    ColladaSource posSource;
+                    ColladaSource normalSource;
+                    ColladaSource texcoordSource;
 
-                for (const ColladaSource& d : g.Mesh.Sources)
-                {
-                    const std::string idStr = "#" + d.ID;
-                    if (idStr == posInput.Source)
+                    for (const ColladaSource& d : g.Mesh.Sources)
                     {
-                        posSource = d;
-                    }
-                    else if (idStr == normalInput.Source)
-                    {
-                        normalSource = d;
-                    }
-                    else if (idStr == texcoordInput.Source)
-                    {
-                        texcoordSource = d;
-                    }
-                }
-
-                uint32_t index = 0;
-                const uint32_t count = (uint32_t)g.Mesh.Polylist.Inputs.size();
-
-                int posVCount;
-                int normVCount;
-                int texVCount;
-
-                int* posOffset = ColladaLoader_GetOffsets(posSource, &posVCount);
-                int* normalOffset = ColladaLoader_GetOffsets(normalSource, &normVCount);
-                int* texcoordOffset = ColladaLoader_GetOffsets(texcoordSource, &texVCount);
-
-                std::unordered_map<uint64_t, uint32_t> indexMap;
-
-                for (uint32_t vCount : g.Mesh.Polylist.VCount)
-                {
-                    uint32_t posIndices[4];
-                    uint32_t normalIndices[4];
-                    uint32_t texcoordIndices[4];
-
-                    for (int i = 0; i < vCount; ++i)
-                    {
-                        // Flip faces so back culling work correctly
-                        const uint32_t iIndex = index + ((vCount - 1) - i) * count;
-
-                        posIndices[i] = g.Mesh.Polylist.P[iIndex + posInput.Offset];
-                        normalIndices[i] = g.Mesh.Polylist.P[iIndex + normalInput.Offset];
-                        texcoordIndices[i] = g.Mesh.Polylist.P[iIndex + texcoordInput.Offset];
-                    }
-
-                    switch (vCount)
-                    {
-                    case 3:
-                    {
-                        for (int i = 0; i < 3; ++i)
+                        const std::string idStr = "#" + d.ID;
+                        if (idStr == posInput.Source)
                         {
+                            posSource = d;
+                        }
+                        else if (idStr == normalInput.Source)
+                        {
+                            normalSource = d;
+                        }
+                        else if (idStr == texcoordInput.Source)
+                        {
+                            texcoordSource = d;
+                        }
+                    }
+
+                    int posVCount;
+                    int normVCount;
+                    int texVCount;
+
+                    int* posOffset = ColladaLoader_GetOffsets(posSource, &posVCount);
+                    int* normalOffset = ColladaLoader_GetOffsets(normalSource, &normVCount);
+                    int* texcoordOffset = ColladaLoader_GetOffsets(texcoordSource, &texVCount);
+
+                    std::unordered_map<uint64_t, uint32_t> indexMap;
+
+                    const uint32_t cIndexCount = (uint32_t)g.Mesh.Triangles.P.size();
+                    const uint32_t cIndexStride = (uint32_t)g.Mesh.Triangles.Inputs.size();
+                    const uint32_t cNext = cIndexStride * 3;
+
+                    for (uint32_t i = 0; i < cIndexCount; i += cNext)
+                    {
+                        for (int j = 0; j < 3; ++j)
+                        {
+                            const uint32_t index = i + (2 - j) * cIndexStride;
+
+                            const uint32_t posIndex = g.Mesh.Triangles.P[index + posInput.Offset];
+                            const uint32_t normIndex = g.Mesh.Triangles.P[index + normalInput.Offset];
+                            const uint32_t texIndex = g.Mesh.Triangles.P[index + texcoordInput.Offset];
+
                             // https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function
-                            const uint64_t abH = ((uint64_t)posIndices[i] + normalIndices[i]) * ((uint64_t)posIndices[i] + normalIndices[i] + 1) / 2 + normalIndices[i];
-                            const uint64_t h = (abH + texcoordIndices[i]) * (abH + texcoordIndices[i] + 1) / 2 + texcoordIndices[i];
+                            const uint64_t abH = ((uint64_t)posIndex + normIndex) * ((uint64_t)posIndex + normIndex + 1) / 2 + normIndex;
+                            const uint64_t h = (abH + texIndex) * (abH + texIndex + 1) / 2 + texIndex;
 
                             const auto iter = indexMap.find(h);
                             if (iter != indexMap.end())
                             {
                                 a_indices->emplace_back(iter->second);
                             }
-                            else
+                            else 
                             {
-                                const uint32_t vIndex = (uint32_t)a_vertices->size();
+                                const uint32_t index = (uint32_t)a_vertices->size();
 
-                                a_indices->emplace_back(vIndex);
+                                a_indices->emplace_back(index);
+                                indexMap.emplace(h, index);
 
                                 Vertex v = Vertex();
                                 for (int j = 0; j < posVCount; ++j)
                                 {
                                     if (posOffset[j] == 1)
                                     {
-                                        v.Position[posOffset[j]] = -((float*)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                        v.Position[posOffset[j]] = -((float *)posSource.Data.Data)[(posIndex * posSource.Accessor.Stride) + j] * scale;
                                     }
                                     else
                                     {
-                                        v.Position[posOffset[j]] = ((float*)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                        v.Position[posOffset[j]] = ((float *)posSource.Data.Data)[(posIndex * posSource.Accessor.Stride) + j] * scale;
                                     }
                                 }
 
@@ -497,41 +623,200 @@ bool ColladaLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Ver
                                 {
                                     if (normalOffset[j] == 1)
                                     {
-                                        v.Normal[normalOffset[j]] = -((float*)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                        v.Normal[normalOffset[j]] = -((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
                                     }
                                     else
                                     {
-                                        v.Normal[normalOffset[j]] = ((float*)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                        v.Normal[normalOffset[j]] = ((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
                                     }
                                 }
 
                                 for (int j = 0; j < texVCount; ++j)
                                 {
-                                    v.TexCoords[texcoordOffset[j]] = ((float*)texcoordSource.Data.Data)[(texcoordIndices[i] * texcoordSource.Accessor.Stride) + j];
+                                    v.TexCoords[texcoordOffset[j]] = ((float *)texcoordSource.Data.Data)[(texIndex * texcoordSource.Accessor.Stride) + j];
                                 }
 
                                 a_vertices->emplace_back(v);
+                            }
+                        }                        
+                    }
 
-                                indexMap.emplace(h, vIndex);
+                    delete[] posOffset;
+                    delete[] normalOffset;
+                    delete[] texcoordOffset;
+                }
+                else
+                {
+                    ColladaInput posInput;
+                    ColladaInput normalInput;
+                    ColladaInput texcoordInput;
+
+                    for (const ColladaInput& pI : g.Mesh.Polylist.Inputs)
+                    {
+                        if (pI.Semantic == "POSITION")
+                        {
+                            posInput = pI;
+                        }
+                        else if (pI.Semantic == "NORMAL")
+                        {
+                            normalInput = pI;
+                        }
+                        else if (pI.Semantic == "TEXCOORD")
+                        {
+                            texcoordInput = pI;
+                        }
+                        else if (pI.Semantic == "VERTEX")
+                        {
+                            for (const ColladaInput& vI : g.Mesh.Vertices)
+                            {
+                                if (vI.Semantic == "POSITION")
+                                {
+                                    posInput = vI;
+                                    posInput.Offset = pI.Offset;
+                                }
+                                else if (vI.Semantic == "NORMAL")
+                                {
+                                    normalInput = vI;
+                                    normalInput.Offset = pI.Offset;
+                                }
+                                else if (vI.Semantic == "TEXCOORD")
+                                {
+                                    texcoordInput = vI;
+                                    texcoordInput.Offset = pI.Offset;
+                                }
                             }
                         }
-
-                        break;
                     }
-                    case 4:
+
+                    ColladaSource posSource;
+                    ColladaSource normalSource;
+                    ColladaSource texcoordSource;
+
+                    for (const ColladaSource& d : g.Mesh.Sources)
                     {
-                        // TODO: Implement quads
-
-                        break;
+                        const std::string idStr = "#" + d.ID;
+                        if (idStr == posInput.Source)
+                        {
+                            posSource = d;
+                        }
+                        else if (idStr == normalInput.Source)
+                        {
+                            normalSource = d;
+                        }
+                        else if (idStr == texcoordInput.Source)
+                        {
+                            texcoordSource = d;
+                        }
                     }
+
+                    int posVCount;
+                    int normVCount;
+                    int texVCount;
+
+                    int* posOffset = ColladaLoader_GetOffsets(posSource, &posVCount);
+                    int* normalOffset = ColladaLoader_GetOffsets(normalSource, &normVCount);
+                    int* texcoordOffset = ColladaLoader_GetOffsets(texcoordSource, &texVCount);
+
+                    std::unordered_map<uint64_t, uint32_t> indexMap;
+
+                    uint32_t index = 0;
+                    const uint32_t count = (uint32_t)g.Mesh.Polylist.Inputs.size();
+                    for (uint32_t vCount : g.Mesh.Polylist.VCount)
+                    {
+                        uint32_t posIndices[4];
+                        uint32_t normalIndices[4];
+                        uint32_t texcoordIndices[4];
+
+                        for (int i = 0; i < vCount; ++i)
+                        {
+                            // Flip faces so back culling work correctly
+                            const uint32_t iIndex = index + ((vCount - 1) - i) * count;
+
+                            posIndices[i] = g.Mesh.Polylist.P[iIndex + posInput.Offset];
+                            normalIndices[i] = g.Mesh.Polylist.P[iIndex + normalInput.Offset];
+                            texcoordIndices[i] = g.Mesh.Polylist.P[iIndex + texcoordInput.Offset];
+                        }
+
+                        switch (vCount)
+                        {
+                        case 3:
+                        {
+                            for (int i = 0; i < 3; ++i)
+                            {
+                                // https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function
+                                const uint64_t abH = ((uint64_t)posIndices[i] + normalIndices[i]) * ((uint64_t)posIndices[i] + normalIndices[i] + 1) / 2 + normalIndices[i];
+                                const uint64_t h = (abH + texcoordIndices[i]) * (abH + texcoordIndices[i] + 1) / 2 + texcoordIndices[i];
+
+                                const auto iter = indexMap.find(h);
+                                if (iter != indexMap.end())
+                                {
+                                    a_indices->emplace_back(iter->second);
+                                }
+                                else
+                                {
+                                    const uint32_t vIndex = (uint32_t)a_vertices->size();
+
+                                    a_indices->emplace_back(vIndex);
+
+                                    Vertex v = Vertex();
+                                    for (int j = 0; j < posVCount; ++j)
+                                    {
+                                        if (posOffset[j] == 1)
+                                        {
+                                            v.Position[posOffset[j]] = -((float *)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                        }
+                                        else
+                                        {
+                                            v.Position[posOffset[j]] = ((float *)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                        }
+                                    }
+
+                                    for (int j = 0; j < normVCount; ++j)
+                                    {
+                                        if (normalOffset[j] == 1)
+                                        {
+                                            v.Normal[normalOffset[j]] = -((float *)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                        }
+                                        else
+                                        {
+                                            v.Normal[normalOffset[j]] = ((float *)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                        }
+                                    }
+
+                                    for (int j = 0; j < texVCount; ++j)
+                                    {
+                                        v.TexCoords[texcoordOffset[j]] = ((float *)texcoordSource.Data.Data)[(texcoordIndices[i] * texcoordSource.Accessor.Stride) + j];
+                                    }
+
+                                    a_vertices->emplace_back(v);
+
+                                    indexMap.emplace(h, vIndex);
+                                }
+                            }
+
+                            break;
+                        }
+                        case 4:
+                        {
+                            // TODO: Implement quads
+
+                            break;
+                        }
+                        default:
+                        {
+                            // TODO: Implement polys
+
+                            break;
+                        }
+                        }
+
+                        index += count * vCount;
                     }
 
-                    index += count * vCount;
+                    delete[] posOffset;
+                    delete[] normalOffset;
+                    delete[] texcoordOffset;
                 }
-
-                delete[] posOffset;
-                delete[] normalOffset;
-                delete[] texcoordOffset;
             }
 
             for (const ColladaGeometry& g : geometry)
