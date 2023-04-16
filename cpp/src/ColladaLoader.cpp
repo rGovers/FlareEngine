@@ -455,7 +455,7 @@ bool ColladaLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Ver
     {
         TRACE("Loading Collada Model");
         tinyxml2::XMLDocument doc = tinyxml2::XMLDocument();
-        if (doc.LoadFile(a_path.c_str()) == tinyxml2::XML_SUCCESS)
+        if (doc.LoadFile(a_path.string().c_str()) == tinyxml2::XML_SUCCESS)
         {
             const tinyxml2::XMLElement* rootElement = doc.RootElement();
 

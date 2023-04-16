@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <glslang/SPIRV/GlslangToSpv.h>
+#include <SPIRV/GlslangToSpv.h>
 #include <glslang/Include/ResourceLimits.h>
 
 std::string GLSL_fromFShader(const std::string_view& a_str);

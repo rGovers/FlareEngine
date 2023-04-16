@@ -71,10 +71,17 @@ FileToHeader(
     VARIABLE_NAME "SpotLightPixel"
 )
 
+if (MINGW)
+    include_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/crossbuild/include/mono-2.0/")
+    link_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/crossbuild/lib/")
+else()
+    include_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/include/mono-2.0/")
+    link_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/lib/")
+endif()
+
 include_directories("${PROJECT_SOURCE_DIR}/Shared/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-glfw/include/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-glm/"
-                    "${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/include/mono-2.0/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-stb/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-tinyxml2/"
                     "${PROJECT_SOURCE_DIR}/include/"
@@ -96,8 +103,6 @@ if (NOT TARGET glfw)
 endif()
 add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glslang")
 
-link_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/lib/")
-
 add_executable(FlareNative ${SOURCES})
 target_link_libraries(FlareNative glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES})
 
@@ -114,11 +119,15 @@ endif()
 
 if (WIN32)
     target_link_libraries(FlareNative wsock32 ws2_32)
-endif()
 
-if (MSVC)
-    target_link_libraries(FlareNative mono-2.0-sgen)
-    set_property(TARGET FlareNative PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+    if (MSVC)    
+        target_link_libraries(FlareNative mono-2.0-sgen)
+        set_property(TARGET FlareNative PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+    else()
+        target_link_libraries(FlareNative monosgen-2.0)
+
+        target_link_libraries(FlareNative -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic)
+    endif()
 else()
     target_link_libraries(FlareNative mono-2.0)
 endif()

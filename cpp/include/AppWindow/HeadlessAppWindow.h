@@ -2,12 +2,6 @@
 
 #include "AppWindow/AppWindow.h"
 
-#if WIN32
-#include <WinSock2.h>
-#include <Windows.h>
-#include <afunix.h>
-#endif
-
 #include <chrono>
 #include <cstdint>
 #include <mutex>
@@ -16,6 +10,7 @@
 #include "Logger.h"
 #include "PipeMessage.h"
 #include "Profiler.h"
+#include "WindowsHeaders.h"
 
 class HeadlessAppWindow : public AppWindow
 {

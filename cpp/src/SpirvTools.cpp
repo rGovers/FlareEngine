@@ -1,7 +1,5 @@
 #include "Rendering/SpirvTools.h"
 
-#include <glslang/SPIRV/GlslangToSpv.h>
-
 #include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/ShaderBuffers.h"
