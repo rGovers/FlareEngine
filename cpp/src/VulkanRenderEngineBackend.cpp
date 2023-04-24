@@ -92,6 +92,8 @@ static bool CheckDeviceExtensionSupport(const vk::PhysicalDevice& a_device, cons
 
 static bool IsDeviceSuitable(const vk::Instance& a_instance, const vk::PhysicalDevice& a_device, const std::vector<const char*>& a_extensions, AppWindow* a_window)
 {
+    // TODO: Improve device selection
+    // Fix issue with laptops and multi gpu
     if (!CheckDeviceExtensionSupport(a_device, a_extensions))
     {
         return false;

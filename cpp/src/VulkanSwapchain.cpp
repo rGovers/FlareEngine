@@ -519,7 +519,7 @@ bool VulkanSwapchain::StartFrame(const vk::Semaphore& a_semaphore, const vk::Fen
         case vk::Result::eSuccess:
         case vk::Result::eSuboptimalKHR:
         {
-            if (size != m_size)
+            if (size != m_size && size.x > 0 && size.y > 0)
             {
                 Destroy();
                 Init(size);

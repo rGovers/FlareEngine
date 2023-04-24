@@ -38,24 +38,20 @@ Profiler::~Profiler()
 
 void Profiler::Init(RuntimeManager* a_runtimeManager)
 {
-#ifdef FLARENATIVE_ENABLE_PROFILER
     TRACE("Initializing Profiler");
     if (Instance == nullptr)
     {
         Instance = new Profiler(a_runtimeManager);
     }
-#endif
 }
 void Profiler::Destroy()
 {
-#ifdef FLARENATIVE_ENABLE_PROFILER
     TRACE("Destroying Profiler");
     if (Instance != nullptr)
     {
         delete Instance;
         Instance = nullptr;
     }
-#endif
 }
 
 void Profiler::Start(const std::string_view& a_name)

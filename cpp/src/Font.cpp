@@ -18,12 +18,14 @@ Font::Font(const std::string_view& a_path)
         file.clear();
         file.seekg(0, std::ios::beg);
 
+        FLARE_ASSERT_R(size != 0);
+
         unsigned char* dat = new unsigned char[size];
         file.read((char*)dat, size);
 
         file.close();
 
-        FLARE_ASSERT_R(stbtt_InitFont(&m_fontInfo, dat, 0) != 0);
+        // FLARE_ASSERT_R(stbtt_InitFont(&m_fontInfo, dat, 0) != 0);
 
         delete[] dat;
     }

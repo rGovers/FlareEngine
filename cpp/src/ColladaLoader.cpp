@@ -1,5 +1,6 @@
 #include "Rendering/IO/ColladaLoader.h"
 
+#include <string>
 #include <tinyxml2.h>
 
 #include "FlareAssert.h"

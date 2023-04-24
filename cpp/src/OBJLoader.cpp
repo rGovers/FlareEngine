@@ -1,6 +1,7 @@
 #include "Rendering/IO/OBJLoader.h"
 
 #include <fstream>
+#include <string>
 #include <string.h>
 #include <unordered_map>
 
@@ -81,7 +82,7 @@ bool OBJLoader_LoadFile(const std::filesystem::path& a_path, std::vector<Vertex>
                     ++spc;
                 }
                 
-                const uint32_t len = spc - s;
+                const uint32_t len = (uint32_t)(spc - s);
 
                 if (len == VertexPositionStr.size() && strncmp(s, VertexPositionStr.data(), VertexPositionStr.size()) == 0)
                 {

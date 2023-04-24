@@ -24,7 +24,7 @@ bool MaterialRenderStack::Add(const MeshRenderBuffer& a_renderBuffer)
         return false;
     }
 
-    const uint32_t bufferSize = m_modelBuffers.size();
+    const uint32_t bufferSize = (uint32_t)m_modelBuffers.size();
     for (uint32_t i = 0; i < bufferSize; ++i)
     {
         if (m_modelBuffers[i].ModelAddr == a_renderBuffer.ModelAddr)

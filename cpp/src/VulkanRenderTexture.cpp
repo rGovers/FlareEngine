@@ -1,5 +1,6 @@
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 
+#include "FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
@@ -344,7 +345,7 @@ void VulkanRenderTexture::Init(uint32_t a_width, uint32_t a_height)
         1
     );
 
-    device.createFramebuffer(&fbCreateInfo, nullptr, &m_frameBuffer);
+    FLARE_ASSERT_R(device.createFramebuffer(&fbCreateInfo, nullptr, &m_frameBuffer) == vk::Result::eSuccess);
 }
 void VulkanRenderTexture::Destroy()
 {
