@@ -1,8 +1,51 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Xml;
 
 namespace FlareEngine.Maths
 {
+    public static class Vector3Extensions
+    {
+        public static Vector3 ToVector3(this XmlElement a_element)
+        {
+            return ToVector3(a_element, Vector3.Zero);
+        }
+        public static Vector3 ToVector3(this XmlElement a_element, Vector3 a_default)
+        {
+            Vector3 vec = a_default;
+
+            foreach (XmlElement element in a_element)
+            {
+                switch (element.Name)
+                {
+                case "X":
+                case "S":
+                {
+                    vec.X = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Y":
+                case "T":
+                {
+                    vec.Y = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Z":
+                case "U":
+                {
+                    vec.Z = float.Parse(element.InnerText);
+
+                    break;
+                }
+                }
+            }
+
+            return vec;
+        }
+    }
+
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Vector3
     {
@@ -122,6 +165,66 @@ namespace FlareEngine.Maths
             }
         }
 #endregion
+
+        public float this[int a_key]
+        {
+            get
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    return X;
+                }
+                case 1:
+                {
+                    return Y;
+                }
+                case 2:
+                {
+                    return Z;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector3 index");
+
+                    break;
+                }
+                }
+
+                return float.NaN;
+            }
+            set
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    X = value;
+                    
+                    break;
+                }
+                case 1:
+                {
+                    Y = value;
+
+                    break;
+                }
+                case 2:
+                {
+                    Z = value;
+
+                    break;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector3 index");
+
+                    break;
+                }
+                }
+            }
+        }
 
         public Vector3(float a_val)
         {

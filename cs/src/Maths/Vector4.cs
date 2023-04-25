@@ -1,8 +1,58 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Xml;
 
 namespace FlareEngine.Maths
 {
+    public static class Vector4Extensions
+    {
+        public static Vector4 ToVector4(this XmlElement a_element)
+        {
+            return ToVector4(a_element, Vector4.Zero);
+        }
+        public static Vector4 ToVector4(this XmlElement a_element, Vector4 a_default)
+        {
+            Vector4 vec = a_default;
+
+            foreach (XmlElement element in a_element)
+            {
+                switch (element.Name)
+                {
+                case "X":
+                case "R":
+                {
+                    vec.X = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Y":
+                case "G":
+                {
+                    vec.Y = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Z":
+                case "B":
+                {
+                    vec.Z = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "W":
+                case "A":
+                {
+                    vec.W = float.Parse(element.InnerText);
+
+                    break;
+                }
+                }
+            }
+
+            return vec;
+        }
+    }
+
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Vector4
     {
@@ -777,6 +827,76 @@ namespace FlareEngine.Maths
 #endregion
 #endregion
         
+        public float this[int a_key]
+        {
+            get
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    return X;
+                }
+                case 1:
+                {
+                    return Y;
+                }
+                case 2:
+                {
+                    return Z;
+                }
+                case 3:
+                {
+                    return W;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector4 index");
+
+                    break;
+                }
+                }
+
+                return float.NaN;
+            }
+            set
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    X = value;
+                    
+                    break;
+                }
+                case 1:
+                {
+                    Y = value;
+
+                    break;
+                }
+                case 2:
+                {
+                    Z = value;
+
+                    break;
+                }
+                case 3:
+                {
+                    W = value;
+
+                    break;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector4 index");
+
+                    break;
+                }
+                }
+            }
+        }
+
         public Vector4(float a_val)
         {
             X = a_val;

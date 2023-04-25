@@ -1,8 +1,54 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Xml;
 
 namespace FlareEngine.Maths
 {
+    public static class QuaternionExtensions
+    {
+        public static Quaternion ToQuaternion(this XmlElement a_element)
+        {
+            return ToQuaternion(a_element, Quaternion.Identity);
+        }
+        public static Quaternion ToQuaternion(this XmlElement a_element, Quaternion a_default)
+        {
+            Quaternion quat = a_default;
+
+            foreach (XmlElement element in a_element)
+            {
+                switch (element.Name)
+                {
+                case "X":
+                {
+                    quat.X = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Y":
+                {
+                    quat.Y = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Z":
+                {
+                    quat.Z = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "W":
+                {
+                    quat.W = float.Parse(element.InnerText);
+
+                    break;
+                }
+                }
+            }
+
+            return quat;
+        }
+    }
+
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Quaternion
     {
@@ -114,6 +160,32 @@ namespace FlareEngine.Maths
             float mag = a_quat.Magnitude;
 
             return new Quaternion(a_quat.X / mag, a_quat.Y / mag, a_quat.Z / mag, a_quat.W / mag);
+        }
+
+        public Matrix4 ToMatrix()
+        {
+            float sqX = X * X;
+            float sqY = Y * Y;
+            float sqZ = Z * Z;
+            float sqW = W * W;
+
+            float inv = 1.0f / (sqX + sqY + sqZ + sqW);
+
+            float v1 = X * Y;
+            float v2 = Z * W;
+
+            float p1 = 2.0f * (v1 + v2) * inv;
+            float p2 = 2.0f * (v1 - v2) * inv;
+
+            Matrix4 mat = new Matrix4
+            (
+                (sqX - sqY - sqZ + sqW), p2,                             p1,                             0.0f,
+                p1,                      (-sqX + sqY - sqZ + sqW) * inv, p2,                             0.0f,
+                p2,                      p1,                             (-sqX - sqY + sqZ + sqW) * inv, 0.0f,
+                0.0f,                    0.0f,                           0.0f,                           1.0f
+            );
+
+            return mat;
         }
 
         public override string ToString()

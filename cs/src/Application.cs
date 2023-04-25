@@ -23,6 +23,8 @@ namespace FlareEngine
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GetHeadlessState();
         [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GetEditorState();
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void SetFullscreenState(Monitor a_monitor, uint a_state, uint a_width, uint a_height);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -58,6 +60,14 @@ namespace FlareEngine
             get
             {
                 return GetHeadlessState() != 0;
+            }
+        }
+
+        public static bool IsEditor
+        {
+            get
+            {
+                return GetEditorState() != 0;
             }
         }
 

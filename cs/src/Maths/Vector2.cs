@@ -1,8 +1,44 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Xml;
 
 namespace FlareEngine.Maths
 {
+    public static class Vector2Extensions
+    {
+        public static Vector2 ToVector2(this XmlElement a_element)
+        {
+            return ToVector2(a_element, Vector2.Zero);
+        }
+        public static Vector2 ToVector2(this XmlElement a_element, Vector2 a_default)
+        {
+            Vector2 vec = a_default;
+
+            foreach (XmlElement element in a_element)
+            {
+                switch (element.Name)
+                {
+                case "X":
+                case "S":
+                {
+                    vec.X = float.Parse(element.InnerText);
+
+                    break;
+                }
+                case "Y":
+                case "T":
+                {
+                    vec.Y = float.Parse(element.InnerText);
+
+                    break;
+                }
+                }
+            }
+
+            return vec;
+        }
+    }
+
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Vector2
     {
@@ -22,6 +58,56 @@ namespace FlareEngine.Maths
         public static readonly Vector2 Up = new Vector2(0.0f, 1.0f);
         public static readonly Vector2 Down = new Vector2(0.0f, -1.0f);
 #endregion
+
+        public float this[int a_key]
+        {
+            get
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    return X;
+                }
+                case 1:
+                {
+                    return Y;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector2 index");
+
+                    break;
+                }
+                }
+
+                return float.NaN;
+            }
+            set
+            {
+                switch (a_key)
+                {
+                case 0:
+                {
+                    X = value;
+                    
+                    break;
+                }
+                case 1:
+                {
+                    Y = value;
+
+                    break;
+                }
+                default:
+                {
+                    Logger.FlareError("Invalid Vector2 index");
+
+                    break;
+                }
+                }
+            }
+        }
 
         public Vector2(float a_val)
         {

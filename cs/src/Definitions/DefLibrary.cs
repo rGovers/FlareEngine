@@ -1,4 +1,5 @@
 using FlareEngine.Maths;
+using FlareEngine.Mod;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -298,17 +299,17 @@ namespace FlareEngine.Definitions
             }
         }
 
-        static DefData GetDefData(string a_path, XmlElement root)
+        internal static DefData GetDefData(string a_path, XmlElement a_root)
         {
             DefData data;
-            data.Type = root.Name;
+            data.Type = a_root.Name;
             data.Path = a_path;
             data.Name = string.Empty;
             data.Parent = string.Empty;
             data.Abstract = false;
             data.DefDataObjects = new List<DefDataObject>();
 
-            foreach (XmlAttribute att in root.Attributes)
+            foreach (XmlAttribute att in a_root.Attributes)
             {
                 switch (att.Name)
                 {
@@ -333,29 +334,26 @@ namespace FlareEngine.Definitions
                     }
                     else
                     {
-                        Logger.Error($"FlareCS: Error parsing Abstract value: {att.Value} : {a_path}");
+                        Logger.FlareError($"Error parsing Abstract value: {att.Value} : {a_path}");
                     }
 
                     break;
                 }
                 default:
                 {
-                    Logger.Error($"FlareCS: Invalid Def Attribute: {att.Name} : {a_path}");
+                    Logger.FlareError($"Invalid Def Attribute: {att.Name} : {a_path}");
 
                     break;
                 }
                 }
             }
 
-            foreach (XmlNode node in root.ChildNodes)
+            foreach (XmlElement element in a_root.ChildNodes)
             {
-                if (node is XmlElement element)
+                DefDataObject? dataObject = GetData(element);
+                if (dataObject != null)
                 {
-                    DefDataObject? dataObject = GetData(element);
-                    if (dataObject != null)
-                    {
-                        data.DefDataObjects.Add(dataObject.Value);
-                    }
+                    data.DefDataObjects.Add(dataObject.Value);
                 }
             }
 
@@ -398,7 +396,7 @@ namespace FlareEngine.Definitions
             }
         }
 
-        static bool SetDefData(Def a_def, DefData a_data, List<DefData> a_dataList)
+        static bool SetDefData(Def a_def, DefData a_data, IEnumerable<DefData> a_dataList)
         {
             if (!string.IsNullOrWhiteSpace(a_data.Parent))
             {
@@ -420,7 +418,7 @@ namespace FlareEngine.Definitions
 
                 if (!found)
                 {
-                    Logger.Error($"FlareCS: Cannot find def parent: {a_data.Parent}, {a_data.Name} : {a_data.Path}");
+                    Logger.FlareError($"Cannot find def parent: {a_data.Parent}, {a_data.Name} : {a_data.Path}");
 
                     return false;
                 }
@@ -436,7 +434,7 @@ namespace FlareEngine.Definitions
             return true;
         }
 
-        static Def CreateDef(DefData a_data, List<DefData> a_dataList)
+        static Def CreateDef(DefData a_data, IEnumerable<DefData> a_dataList)
         {
             Type type = Type.GetType(a_data.Type, false, false);
             if (type == null)
@@ -470,12 +468,12 @@ namespace FlareEngine.Definitions
                 }
                 else
                 {   
-                    Logger.Error($"FlareCS: Error creating Def: {a_data.Type}, {a_data.Name} : {a_data.Path}");
+                    Logger.FlareError($"Error creating Def: {a_data.Type}, {a_data.Name} : {a_data.Path}");
                 }
             }
             else
             {
-                Logger.Error($"FlareCS: Invalid Def Type: {a_data.Type}, {a_data.Name} : {a_data.Path}");
+                Logger.FlareError($"Invalid Def Type: {a_data.Type}, {a_data.Name} : {a_data.Path}");
             }
 
             return null;
@@ -493,31 +491,39 @@ namespace FlareEngine.Definitions
             m_defLookup.Clear();
         }
 
+        internal static void LoadDefs(IEnumerable<DefData> a_data)
+        {
+            foreach (DefData dat in a_data)
+            {
+                if (dat.Abstract)
+                {
+                    continue;
+                }
+
+                Def def = CreateDef(dat, a_data);
+                if (def != null)
+                {
+                    m_defs.Add(def);
+                    m_defLookup.Add(def.DefName, def);
+                }
+                else
+                {
+                    Logger.FlareError("Invalid def");
+                }
+            }
+        }
         public static void LoadDefs(string a_path)
         {
             if (Directory.Exists(a_path))
             {
-                Logger.Message("FlareCS: Loading Defs");
+                Logger.FlareMessage("Loading Defs");
 
                 List<DefData> defData = new List<DefData>();
                 LoadDefData(a_path, ref defData);
 
-                Logger.Message("FlareCS: Building DefTable");
+                Logger.FlareMessage("Building DefTable");
 
-                foreach (DefData dat in defData)
-                {
-                    if (dat.Abstract)
-                    {
-                        continue;
-                    }
-
-                    Def def = CreateDef(dat, defData); 
-                    if (def != null)
-                    {
-                        m_defs.Add(def);
-                        m_defLookup.Add(def.DefName, def);
-                    }
-                }
+                LoadDefs(defData);
             }
         }
 
@@ -648,6 +654,33 @@ namespace FlareEngine.Definitions
             }
         }
 
+        static void RefreshDefTables(FlareAssembly a_asm)
+        {
+            foreach (Assembly asm in a_asm.Assemblies)
+            {
+                foreach (Type t in asm.GetTypes())
+                {
+                    if (t.GetCustomAttribute<DefTableAttribute>() != null)
+                    {
+                        FieldInfo[] fields = t.GetFields(BindingFlags.Public | BindingFlags.Static);
+                        foreach (FieldInfo f in fields)
+                        {
+                            Def d = GetDef(f.Name);
+
+                            if (d != null)
+                            {
+                                f.SetValue(null, d);
+                            }
+                            else
+                            {
+                                Logger.FlareError("DefTable Invalid Def");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         public static void ResolveDefs()
         {
             foreach (Def def in m_defs)
@@ -658,6 +691,16 @@ namespace FlareEngine.Definitions
             foreach (Def def in m_defs)
             {
                 def.PostResolve();
+            }
+
+            if (!Application.IsEditor)
+            {
+                RefreshDefTables(ModControl.CoreAssembly);
+
+                foreach (FlareAssembly fasm in ModControl.Assemblies)
+                {
+                    RefreshDefTables(fasm);
+                }
             }
         }
 

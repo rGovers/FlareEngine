@@ -1,7 +1,53 @@
 using System.Runtime.InteropServices;
+using System.Xml;
 
 namespace FlareEngine.Maths
 {
+    public static class ColorExtensions
+    {
+        public static Color ToColor(this XmlElement a_element)
+        {
+            return ToColor(a_element, Color.White);
+        }
+        public static Color ToColor(this XmlElement a_element, Color a_default)
+        {
+            Color color = a_default;
+
+            foreach (XmlElement element in a_element)
+            {
+                switch (element.Name)
+                {
+                case "R":
+                {
+                    color.R = byte.Parse(element.InnerText);
+
+                    break;
+                }
+                case "G":
+                {
+                    color.G = byte.Parse(element.InnerText);
+
+                    break;
+                }
+                case "B":
+                {
+                    color.B = byte.Parse(element.InnerText);
+
+                    break;
+                }
+                case "A":
+                {
+                    color.A = byte.Parse(element.InnerText);
+
+                    break;
+                }
+                }
+            }
+
+            return color;
+        }
+    }
+
     [StructLayout(LayoutKind.Explicit, Pack = 0)]
     public struct Color
     {

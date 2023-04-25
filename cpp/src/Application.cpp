@@ -32,6 +32,7 @@ struct Monitor
     F(void, FlareEngine, Application, Resize, { Instance->Resize(a_width, a_height); }, uint32_t a_width, uint32_t a_height) \
     \
     F(uint32_t, FlareEngine, Application, GetHeadlessState, { return (uint32_t)Instance->IsHeadless(); }) \
+    F(uint32_t, FlareEngine, Application, GetEditorState, { return 0; }) \
     \
     F(void, FlareEngine, Application, Close, { Instance->Close(); }) 
 
