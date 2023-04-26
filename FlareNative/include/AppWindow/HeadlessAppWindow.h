@@ -45,7 +45,7 @@ private:
 
     std::mutex                                     m_fLock;
 
-    TArray<PipeMessage>                            m_queuedMessages;
+    TArray<FlareBase::PipeMessage>                 m_queuedMessages;
 
     char*                                          m_frameData;
 
@@ -59,8 +59,8 @@ private:
 
     void PushMessageQueue();
 
-    PipeMessage ReceiveMessage() const;
-    void PushMessage(const PipeMessage& a_msg) const;
+    FlareBase::PipeMessage ReceiveMessage() const;
+    void PushMessage(const FlareBase::PipeMessage& a_msg) const;
 
     void MessageCallback(const std::string_view& a_message, e_LoggerMessageType a_type);
     void ProfilerCallback(const Profiler::PData& a_profilerData);

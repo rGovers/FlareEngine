@@ -92,11 +92,11 @@ constexpr static vk::PrimitiveTopology GetPrimitiveMode(e_PrimitiveMode a_mode)
     return vk::PrimitiveTopology::eTriangleList;
 }
 
-constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib) 
+constexpr static vk::Format GetFormat(const FlareBase::VertexInputAttrib& a_attrib) 
 {
     switch (a_attrib.Type)
     {
-    case VertexType_Float:
+    case FlareBase::VertexType_Float:
     {
         switch (a_attrib.Count)
         {
@@ -120,7 +120,7 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
 
         break;
     }
-    case VertexType_Int:
+    case FlareBase::VertexType_Int:
     {
         switch (a_attrib.Count)
         {
@@ -144,7 +144,7 @@ constexpr static vk::Format GetFormat(const VertexInputAttrib& a_attrib)
 
         break;
     }
-    case VertexType_UInt:
+    case FlareBase::VertexType_UInt:
     {
         switch (a_attrib.Count)
         {
@@ -209,7 +209,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     std::vector<vk::VertexInputAttributeDescription> attributeDescription = std::vector<vk::VertexInputAttributeDescription>(program.VertexInputCount);
     for (uint16_t i = 0; i < program.VertexInputCount; ++i)
     {
-        const VertexInputAttrib& attrib = program.VertexAttribs[i];
+        const FlareBase::VertexInputAttrib& attrib = program.VertexAttribs[i];
         attributeDescription[i].binding = 0;
         attributeDescription[i].location = attrib.Location;
         attributeDescription[i].offset = attrib.Offset;

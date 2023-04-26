@@ -36,7 +36,7 @@ if (ENABLE_PROFILER)
     add_compile_definitions(FLARENATIVE_ENABLE_PROFILER)
 endif()
 if (ENABLE_ASSERT)
-    add_compile_definitions(FLARENATIVE_ENABLE_ASSERT)
+    add_compile_definitions(FLARE_ENABLE_ASSERT)
 endif()
 
 add_compile_definitions(GLM_FORCE_QUAT_DATA_XYZW)
@@ -79,12 +79,12 @@ else()
     link_directories("${PROJECT_SOURCE_DIR}/../deps/flare-mono/build/lib/")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/Shared/"
+include_directories("${PROJECT_SOURCE_DIR}/include/"
+                    "${PROJECT_SOURCE_DIR}/../FlareBase/include/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-glfw/include/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-glm/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-stb/"
                     "${PROJECT_SOURCE_DIR}/../deps/flare-tinyxml2/"
-                    "${PROJECT_SOURCE_DIR}/include/"
                     "${PROJECT_SOURCE_DIR}/lib/glslang/"
                     "${PROJECT_SOURCE_DIR}/lib/VulkanMemoryAllocator/include/"
                     ${Vulkan_INCLUDE_DIRS})
@@ -101,10 +101,13 @@ set(ENABLE_CTEST OFF)
 if (NOT TARGET glfw)
     add_subdirectory("${PROJECT_SOURCE_DIR}/../deps/flare-glfw/" "build/glfw")
 endif()
+if (NOT TARGET FlareBase)
+    add_subdirectory("${PROJECT_SOURCE_DIR}/../FlareBase" "build/FlareBase")
+endif()
 add_subdirectory("${PROJECT_SOURCE_DIR}/lib/glslang")
 
 add_executable(FlareNative ${SOURCES})
-target_link_libraries(FlareNative glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES})
+target_link_libraries(FlareNative FlareBase glfw glslang SPIRV ${GLFW_LIBRARIES} ${Vulkan_LIBRARIES})
 
 if (OUTPUT_BIN)
     set_target_properties(FlareNative

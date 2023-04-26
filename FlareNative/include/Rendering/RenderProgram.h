@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "Rendering/ShaderBufferInput.h"
-#include "Rendering/Vertices.h"
+#include "Vertices.h"
 
 enum e_InternalRenderProgram : uint16_t
 {
@@ -36,7 +36,7 @@ struct RenderProgram
     uint32_t RenderLayer;
     uint16_t VertexStride;
     uint16_t VertexInputCount;
-    VertexInputAttrib* VertexAttribs;
+    FlareBase::VertexInputAttrib* VertexAttribs;
     uint16_t ShaderBufferInputCount;
     ShaderBufferInput* ShaderBufferInputs;
     e_CullMode CullingMode;

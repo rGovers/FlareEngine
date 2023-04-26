@@ -11,13 +11,13 @@ static InputManager* Instance = nullptr;
 #define INPUTMANAGER_BINDING_FUNCTION_TABLE(F) \
     F(glm::vec2, FlareEngine, Input, GetCursorPos, { return Instance->GetCursorPos(); }) \
     \
-    F(uint32_t, FlareEngine, Input, GetMouseDownState, { return (uint32_t)Instance->IsMouseDown((e_MouseButton)a_button); }, uint32_t a_button) \
-    F(uint32_t, FlareEngine, Input, GetMousePressedState, { return (uint32_t)Instance->IsMousePressed((e_MouseButton)a_button); }, uint32_t a_button) \
-    F(uint32_t, FlareEngine, Input, GetMouseReleasedState, { return (uint32_t)Instance->IsMouseReleased((e_MouseButton)a_button); }, uint32_t a_button) \
+    F(uint32_t, FlareEngine, Input, GetMouseDownState, { return (uint32_t)Instance->IsMouseDown((FlareBase::e_MouseButton)a_button); }, uint32_t a_button) \
+    F(uint32_t, FlareEngine, Input, GetMousePressedState, { return (uint32_t)Instance->IsMousePressed((FlareBase::e_MouseButton)a_button); }, uint32_t a_button) \
+    F(uint32_t, FlareEngine, Input, GetMouseReleasedState, { return (uint32_t)Instance->IsMouseReleased((FlareBase::e_MouseButton)a_button); }, uint32_t a_button) \
     \
-    F(uint32_t, FlareEngine, Input, GetKeyDownState, { return (uint32_t)Instance->IsKeyDown((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
-    F(uint32_t, FlareEngine, Input, GetKeyPressedState, { return (uint32_t)Instance->IsKeyPressed((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
-    F(uint32_t, FlareEngine, Input, GetKeyReleasedState, { return (uint32_t)Instance->IsKeyReleased((e_KeyCode)a_keyCode); }, uint32_t a_keyCode) 
+    F(uint32_t, FlareEngine, Input, GetKeyDownState, { return (uint32_t)Instance->IsKeyDown((FlareBase::e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
+    F(uint32_t, FlareEngine, Input, GetKeyPressedState, { return (uint32_t)Instance->IsKeyPressed((FlareBase::e_KeyCode)a_keyCode); }, uint32_t a_keyCode) \
+    F(uint32_t, FlareEngine, Input, GetKeyReleasedState, { return (uint32_t)Instance->IsKeyReleased((FlareBase::e_KeyCode)a_keyCode); }, uint32_t a_keyCode) 
 
 INPUTMANAGER_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION);
 
@@ -45,7 +45,7 @@ InputManager::~InputManager()
     delete m_keyReleasedFunc;
 }
 
-void InputManager::SetMouseButton(e_MouseButton a_button, bool a_state)
+void InputManager::SetMouseButton(FlareBase::e_MouseButton a_button, bool a_state)
 {
     const uint32_t buttonIndex = a_button * 2 + 0;
     const uint32_t prevButtonIndex = a_button * 2 + 1;
@@ -92,7 +92,7 @@ void InputManager::SetMouseButton(e_MouseButton a_button, bool a_state)
     }
 }
 
-void InputManager::SetKeyboardKey(e_KeyCode a_keyCode, bool a_state)
+void InputManager::SetKeyboardKey(FlareBase::e_KeyCode a_keyCode, bool a_state)
 {
     const bool prevState = m_curKeyState.IsKeyDown(a_keyCode);
 
@@ -127,7 +127,7 @@ void InputManager::SetKeyboardKey(e_KeyCode a_keyCode, bool a_state)
 void InputManager::Update()
 {
     // Required for frame events can get multiple press and release events cause majority of time engine runs faster then editor 
-    for (uint32_t i = 0; i < MouseButton_Last; ++i)
+    for (uint32_t i = 0; i < FlareBase::MouseButton_Last; ++i)
     {
         if (m_mouseButton & 0b1 << (i * 2))
         {

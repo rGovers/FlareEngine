@@ -2,10 +2,10 @@
 
 mkdir crossBuild
 cd crossBuild
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-O3 -DGENERATE_CONFIG=ON -DCMAKE_TOOLCHAIN_FILE=../toolchains/WinCross.cmake ../cpp/
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-O3 -DGENERATE_CONFIG=ON -DCMAKE_TOOLCHAIN_FILE=../toolchains/WinCross.cmake ../FlareNative/
 make -j6
 
-../deps/flare-mono/build/bin/xbuild ../cs/FlareCS.csproj /p:Configuration=Release
+../deps/flare-mono/build/bin/xbuild ../FlareCS/FlareCS.csproj /p:Configuration=Release
 
 cd ../bin
 

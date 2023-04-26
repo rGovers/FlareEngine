@@ -1,13 +1,13 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
+#include "ColladaLoader.h"
 #include "FlareAssert.h"
 #include "ObjectManager.h"
+#include "OBJLoader.h"
 #include "Shaders/DirectionalLightPixel.h"
 #include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
 #include "Shaders/SpotLightPixel.h"
-#include "Rendering/IO/ColladaLoader.h"
-#include "Rendering/IO/OBJLoader.h"
 #include "Rendering/RenderEngine.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanModel.h"
@@ -103,11 +103,11 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), ui
     if (a_vertexInputAttribs != nullptr)
     {
         program.VertexInputCount = (uint16_t)mono_array_length(a_vertexInputAttribs);
-        program.VertexAttribs = new VertexInputAttrib[program.VertexInputCount];
+        program.VertexAttribs = new FlareBase::VertexInputAttrib[program.VertexInputCount];
 
         for (uint16_t i = 0; i < program.VertexInputCount; ++i)
         {
-            program.VertexAttribs[i] = mono_array_get(a_vertexInputAttribs, VertexInputAttrib, i);
+            program.VertexAttribs[i] = mono_array_get(a_vertexInputAttribs, FlareBase::VertexInputAttrib, i);
         }
     }
     else
@@ -182,22 +182,22 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Model, GenerateFromFile), Mono
 
     uint32_t addr = -1;
 
-    std::vector<Vertex> vertices;
+    std::vector<FlareBase::Vertex> vertices;
     std::vector<uint32_t> indices;
     const std::filesystem::path p = std::filesystem::path(str);
 
     if (p.extension() == ".obj")
     {
-        if (OBJLoader_LoadFile(p, &vertices, &indices))
+        if (FlareBase::OBJLoader_LoadFile(p, &vertices, &indices))
         {
-            addr = Engine->GenerateModel((const char*)vertices.data(), (uint32_t)vertices.size(), indices.data(), (uint32_t)indices.size(), sizeof(Vertex));
+            addr = Engine->GenerateModel((const char*)vertices.data(), (uint32_t)vertices.size(), indices.data(), (uint32_t)indices.size(), sizeof(FlareBase::Vertex));
         }
     }
     else if (p.extension() == ".dae")
     {
-        if (ColladaLoader_LoadFile(p, &vertices, &indices))
+        if (FlareBase::ColladaLoader_LoadFile(p, &vertices, &indices))
         {
-            addr = Engine->GenerateModel((const char*)vertices.data(), (uint32_t)vertices.size(), indices.data(), (uint32_t)indices.size(), sizeof(Vertex));
+            addr = Engine->GenerateModel((const char*)vertices.data(), (uint32_t)vertices.size(), indices.data(), (uint32_t)indices.size(), sizeof(FlareBase::Vertex));
         }
     }
     else

@@ -192,13 +192,13 @@ void GLFWAppWindow::Update()
 
         inputManager->SetCursorPos((glm::vec2)cPos);
         
-        inputManager->SetMouseButton(MouseButton_Left, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT));
-        inputManager->SetMouseButton(MouseButton_Middle, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_MIDDLE));
-        inputManager->SetMouseButton(MouseButton_Right, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_RIGHT));
+        inputManager->SetMouseButton(FlareBase::MouseButton_Left, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT));
+        inputManager->SetMouseButton(FlareBase::MouseButton_Middle, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_MIDDLE));
+        inputManager->SetMouseButton(FlareBase::MouseButton_Right, glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_RIGHT));
 
-        for (unsigned int i = 0; i < KeyCode_Last; ++i)
+        for (unsigned int i = 0; i < FlareBase::KeyCode_Last; ++i)
         {
-            inputManager->SetKeyboardKey((e_KeyCode)i, glfwGetKey(m_window, GLFWKeyTable[i]) == GLFW_PRESS);
+            inputManager->SetKeyboardKey((FlareBase::e_KeyCode)i, glfwGetKey(m_window, GLFWKeyTable[i]) == GLFW_PRESS);
         }
     }  
 }

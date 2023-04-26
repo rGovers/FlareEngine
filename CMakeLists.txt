@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 
-add_subdirectory("cpp/")
+add_subdirectory("FlareNative/")
 
 project(FlareCS VERSION 0.1 LANGUAGES CSharp)
 
 include(CSharpUtilities)
 
-file(GLOB_RECURSE SOURCES "cs/src/*.cs")
+file(GLOB_RECURSE SOURCES "FlareCS/src/*.cs")
 
 add_executable(FlareCS ${SOURCES})
 

@@ -14,11 +14,11 @@
 #include <unistd.h>
 #endif
 
-#include <cassert>
 #include <filesystem>
 #include <string>
 
 #include "Application.h"
+#include "FlareAssert.h"
 #include "InputManager.h"
 #include "Profiler.h"
 #include "Trace.h"
@@ -34,8 +34,8 @@ void HeadlessAppWindow::MessageCallback(const std::string_view& a_message, e_Log
     constexpr uint32_t TypeSize = sizeof(e_LoggerMessageType);
     const uint32_t size = strSize + TypeSize;
 
-    PipeMessage msg;
-    msg.Type = PipeMessageType_Message;
+    FlareBase::PipeMessage msg;
+    msg.Type = FlareBase::PipeMessageType_Message;
     msg.Length = size;
     msg.Data = new char[size];
     memcpy(msg.Data, &a_type, TypeSize);
@@ -47,8 +47,8 @@ void HeadlessAppWindow::ProfilerCallback(const Profiler::PData& a_profilerData)
 {
     constexpr uint32_t ScopeSize = sizeof(ProfileScope);
 
-    PipeMessage msg;
-    msg.Type = PipeMessageType_ProfileScope;
+    FlareBase::PipeMessage msg;
+    msg.Type = FlareBase::PipeMessageType_ProfileScope;
     msg.Length = ScopeSize;
     msg.Data = new char[ScopeSize];
 
@@ -98,18 +98,14 @@ HeadlessAppWindow::HeadlessAppWindow(Application* a_app) : AppWindow(a_app)
 
 #if WIN32
     WSADATA wsaData = { };
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-    {
-        Logger::Error("Failed to start WSA");
-        assert(0);
-    }
+    FLARE_ASSERT_MSG_R(WSAStartup(MAKEWORD(2, 2), &wsaData) == 0, "Failed to start WSA");
 
     m_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (m_sock == INVALID_SOCKET)
     {
         Logger::Error("Failed creating IPC");
         perror("socket");
-        assert(0);
+        FLARE_ASSERT(0);
     }
 
     sockaddr_un addr;
@@ -121,11 +117,11 @@ HeadlessAppWindow::HeadlessAppWindow(Application* a_app) : AppWindow(a_app)
     {
         Logger::Error("FlareEngine: Failed to connect to IPC");
         perror("connect");
-        assert(0);
+        FLARE_ASSERT(0);
     }
 #else
     m_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    assert(m_sock >= 0);
+    FLARE_ASSERT_R(m_sock >= 0);
 
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
@@ -136,11 +132,11 @@ HeadlessAppWindow::HeadlessAppWindow(Application* a_app) : AppWindow(a_app)
     {
         Logger::Error("FlareEngine: Failed to connect to IPC");
         perror("connect");
-        assert(0);
+        FLARE_ASSERT(0);
     }
 #endif
 
-    const PipeMessage msg = ReceiveMessage();
+    const FlareBase::PipeMessage msg = ReceiveMessage();
     const glm::ivec2 size = *(glm::ivec2*)msg.Data;
 
     m_width = (uint32_t)size.x;
@@ -160,7 +156,7 @@ HeadlessAppWindow::~HeadlessAppWindow()
 
     PushMessageQueue();
 
-    PushMessage({ PipeMessageType_Close });
+    PushMessage({ FlareBase::PipeMessageType_Close });
 
 #if WIN32
     if (m_sock != INVALID_SOCKET)
@@ -192,13 +188,14 @@ void HeadlessAppWindow::PushMessageQueue()
 {
     if (!m_queuedMessages.Empty())
     {
-        TLockArray<PipeMessage> a = m_queuedMessages.ToLockArray();
+        TLockArray<FlareBase::PipeMessage> a = m_queuedMessages.ToLockArray();
 
         const uint32_t size = a.Size();
 
         for (uint32_t i = 0; i < size; ++i)
         {
             PushMessage(a[i]);   
+
             delete[] a[i].Data;
         }
 
@@ -206,12 +203,12 @@ void HeadlessAppWindow::PushMessageQueue()
     }
 }
 
-PipeMessage HeadlessAppWindow::ReceiveMessage() const
+FlareBase::PipeMessage HeadlessAppWindow::ReceiveMessage() const
 {
-    PipeMessage msg;
+    FlareBase::PipeMessage msg;
 #if WIN32
-    const int size = recv(m_sock, (char*)&msg, PipeMessage::Size, 0);
-    if (size >= PipeMessage::Size)
+    const int size = recv(m_sock, (char*)&msg, FlareBase::PipeMessage::Size, 0);
+    if (size >= FlareBase::PipeMessage::Size)
     {
         if (msg.Length <= 0)
         {
@@ -233,8 +230,8 @@ PipeMessage HeadlessAppWindow::ReceiveMessage() const
         return msg;
     }
 #else
-    const uint32_t size = (uint32_t)read(m_sock, &msg, PipeMessage::Size);
-    if (size >= PipeMessage::Size)
+    const uint32_t size = (uint32_t)read(m_sock, &msg, FlareBase::PipeMessage::Size);
+    if (size >= FlareBase::PipeMessage::Size)
     {
         if (msg.Length <= 0)
         {
@@ -257,21 +254,21 @@ PipeMessage HeadlessAppWindow::ReceiveMessage() const
     }
 #endif
     
-    return PipeMessage();
+    return FlareBase::PipeMessage();
 }
-void HeadlessAppWindow::PushMessage(const PipeMessage& a_message) const
+void HeadlessAppWindow::PushMessage(const FlareBase::PipeMessage& a_message) const
 {
-    assert(a_message.Type != PipeMessageType_Null);
+    FLARE_ASSERT(a_message.Type != FlareBase::PipeMessageType_Null);
 
 #if WIN32
     // TODO: CRITICAL: Find a better way of handling messages seems to be 2-3 orders of magnitude slower on Windows
-    send(m_sock, (const char*)&a_message, PipeMessage::Size, 0);
+    send(m_sock, (const char*)&a_message, FlareBase::PipeMessage::Size, 0);
     if (a_message.Data != nullptr)
     {
         send(m_sock, a_message.Data, (int)a_message.Length, 0);
     }
 #else
-    write(m_sock, &a_message, PipeMessage::Size);
+    write(m_sock, &a_message, FlareBase::PipeMessage::Size);
     if (a_message.Data != nullptr)
     {
         write(m_sock, a_message.Data, a_message.Length);
@@ -297,23 +294,23 @@ bool HeadlessAppWindow::PollMessage()
 {
     bool ret = true;
 
-    const PipeMessage msg = ReceiveMessage();
+    const FlareBase::PipeMessage msg = ReceiveMessage();
 
     switch (msg.Type)
     {
-    case PipeMessageType_Close:
+    case FlareBase::PipeMessageType_Close:
     {
         m_close = true;
 
         break;
     }
-    case PipeMessageType_UnlockFrame:
+    case FlareBase::PipeMessageType_UnlockFrame:
     {
         m_unlockWindow = true;
 
         break;
     }
-    case PipeMessageType_Resize:
+    case FlareBase::PipeMessageType_Resize:
     {
         const std::lock_guard g = std::lock_guard(m_fLock);
         const glm::ivec2 size = *(glm::ivec2*)msg.Data;
@@ -329,7 +326,7 @@ bool HeadlessAppWindow::PollMessage()
 
         break;
     }
-    case PipeMessageType_CursorPos:
+    case FlareBase::PipeMessageType_CursorPos:
     {
         const Application* app = GetApplication();
         
@@ -339,7 +336,7 @@ bool HeadlessAppWindow::PollMessage()
 
         break;
     }
-    case PipeMessageType_MouseState:
+    case FlareBase::PipeMessageType_MouseState:
     {
         const Application* app = GetApplication();
 
@@ -347,30 +344,30 @@ bool HeadlessAppWindow::PollMessage()
         
         const unsigned char mouseState = *(unsigned char*)msg.Data;
 
-        inputManager->SetMouseButton(MouseButton_Left, mouseState & 0b1 << MouseButton_Left);
-        inputManager->SetMouseButton(MouseButton_Middle, mouseState & 0b1 << MouseButton_Middle);
-        inputManager->SetMouseButton(MouseButton_Right, mouseState & 0b1 << MouseButton_Right);
+        inputManager->SetMouseButton(FlareBase::MouseButton_Left, mouseState & 0b1 << FlareBase::MouseButton_Left);
+        inputManager->SetMouseButton(FlareBase::MouseButton_Middle, mouseState & 0b1 << FlareBase::MouseButton_Middle);
+        inputManager->SetMouseButton(FlareBase::MouseButton_Right, mouseState & 0b1 << FlareBase::MouseButton_Right);
 
         break;
     }
-    case PipeMessageType_KeyboardState:
+    case FlareBase::PipeMessageType_KeyboardState:
     {
         const Application* app = GetApplication();
 
         InputManager* inputManager = app->GetInputManager();
 
-        const KeyboardState state = KeyboardState::FromData((unsigned char*)msg.Data);
+        const FlareBase::KeyboardState state = FlareBase::KeyboardState::FromData((unsigned char*)msg.Data);
 
-        for (unsigned int i = 0; i < KeyCode_Last; ++i)
+        for (unsigned int i = 0; i < FlareBase::KeyCode_Last; ++i)
         {
-            const e_KeyCode keyCode = (e_KeyCode)i;
+            const FlareBase::e_KeyCode keyCode = (FlareBase::e_KeyCode)i;
 
             inputManager->SetKeyboardKey(keyCode, state.IsKeyDown(keyCode));
         }
 
         break;
     }
-    case PipeMessageType_Null:
+    case FlareBase::PipeMessageType_Null:
     {
         Logger::Warning("Engine: Null Message");
 
@@ -452,7 +449,7 @@ void HeadlessAppWindow::Update()
 
         const glm::dvec2 tVec = glm::vec2(m_delta, m_time);
 
-        PushMessage({ PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
+        PushMessage({ FlareBase::PipeMessageType_UpdateData, sizeof(glm::dvec2), (char*)&tVec});
     }
 
     {
@@ -463,7 +460,7 @@ void HeadlessAppWindow::Update()
 
             const std::lock_guard g = std::lock_guard(m_fLock);
 
-            PushMessage({ PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
+            PushMessage({ FlareBase::PipeMessageType_PushFrame, m_width * m_height * 4, m_frameData });
         }
     }
 
@@ -483,8 +480,8 @@ void HeadlessAppWindow::PushFrameData(uint32_t a_width, uint32_t a_height, const
     PROFILESTACK("Frame Data");
     constexpr int Size = sizeof(glm::dvec2);
 
-    PipeMessage msg;
-    msg.Type = PipeMessageType_FrameData;
+    FlareBase::PipeMessage msg;
+    msg.Type = FlareBase::PipeMessageType_FrameData;
     msg.Length = Size;
     msg.Data = new char[Size];
     (*(glm::dvec2*)msg.Data).x = a_delta;
