@@ -28,8 +28,10 @@ namespace FlareEngine.Definitions
 
     public static class DefLibrary
     {
+        static List<Def>               m_sceneDefs;
         static List<Def>               m_defs;
 
+        static Dictionary<string, Def> m_sceneLookup;
         static Dictionary<string, Def> m_defLookup;
 
         static void DefError(Type a_type, DefDataObject a_datObj, DefData a_data)
@@ -181,7 +183,7 @@ namespace FlareEngine.Definitions
                     {
                         Def def = new Def()
                         {
-                            DefName = a_datObj.Name
+                            DefName = a_datObj.Text
                         };
                         
                         field.SetValue(a_obj, def);
@@ -224,23 +226,45 @@ namespace FlareEngine.Definitions
                         int count = a_datObj.Children.Count;
                         Array a = Array.CreateInstance(elementType, a_datObj.Children.Count);
 
-                        for (int i = 0; i < count; ++i)
+                        if (elementType == typeof(Def) || elementType.IsSubclassOf(typeof(Def)))
                         {
-                            DefDataObject dataObj = a_datObj.Children[i];
-                            object arrayObj = Activator.CreateInstance(elementType);
-                            if (dataObj.Name == "lv")
+                            for (int i = 0; i < count; ++i)
                             {
-                                foreach (DefDataObject objVal in dataObj.Children)
+                                DefDataObject dataObj = a_datObj.Children[i];
+
+                                if (dataObj.Name == "lv")
                                 {
-                                    LoadDefVariables(arrayObj, objVal, a_data);
+                                    Def def = Activator.CreateInstance(elementType) as Def;
+                                    def.DefName = dataObj.Text;
+
+                                    a.SetValue(def, i);
+                                }
+                                else
+                                {
+                                    DefError(fieldType, a_datObj, a_data);
                                 }
                             }
-                            else
+                        }
+                        else
+                        {
+                            for (int i = 0; i < count; ++i)
                             {
-                                DefError(fieldType, a_datObj, a_data);
-                            }
+                                DefDataObject dataObj = a_datObj.Children[i];
+                                object arrayObj = Activator.CreateInstance(elementType);
+                                if (dataObj.Name == "lv")
+                                {
+                                    foreach (DefDataObject objVal in dataObj.Children)
+                                    {
+                                        LoadDefVariables(arrayObj, objVal, a_data);
+                                    }
+                                }
+                                else
+                                {
+                                    DefError(fieldType, a_datObj, a_data);
+                                }
 
-                            a.SetValue(arrayObj, i);
+                                a.SetValue(arrayObj, i);
+                            }
                         }
 
                         field.SetValue(a_obj, a);
@@ -255,22 +279,42 @@ namespace FlareEngine.Definitions
                             obj = Activator.CreateInstance(fieldType);
                         } 
 
-                        foreach (DefDataObject datObj in a_datObj.Children)
+                        if (genericType == typeof(Def) || genericType.IsSubclassOf(typeof(Def)))
                         {
-                            if (datObj.Name == "lv")
+                            foreach (DefDataObject datObj in a_datObj.Children)
                             {
-                                object listObj = Activator.CreateInstance(genericType);
-
-                                foreach (DefDataObject objVal in datObj.Children)
+                                if (datObj.Name == "lv")
                                 {
-                                    LoadDefVariables(listObj, objVal, a_data);
+                                    Def def = Activator.CreateInstance(genericType) as Def;
+                                    def.DefName = datObj.Text;
+
+                                    methodInfo.Invoke(obj, new object[] { def });
                                 }
-                                
-                                methodInfo.Invoke(obj, new object[] { listObj });
+                                else
+                                {
+                                    DefError(fieldType, a_datObj, a_data);
+                                }
                             }
-                            else
+                        }
+                        else
+                        {
+                            foreach (DefDataObject datObj in a_datObj.Children)
                             {
-                                DefError(fieldType, a_datObj, a_data);
+                                if (datObj.Name == "lv")
+                                {
+                                    object listObj = Activator.CreateInstance(genericType);
+
+                                    foreach (DefDataObject objVal in datObj.Children)
+                                    {
+                                        LoadDefVariables(listObj, objVal, a_data);
+                                    }
+
+                                    methodInfo.Invoke(obj, new object[] { listObj });
+                                }
+                                else
+                                {
+                                    DefError(fieldType, a_datObj, a_data);
+                                }
                             }
                         }
 
@@ -348,12 +392,15 @@ namespace FlareEngine.Definitions
                 }
             }
 
-            foreach (XmlElement element in a_root.ChildNodes)
+            foreach (XmlNode node in a_root.ChildNodes)
             {
-                DefDataObject? dataObject = GetData(element);
-                if (dataObject != null)
+                if (node is XmlElement element)
                 {
-                    data.DefDataObjects.Add(dataObject.Value);
+                    DefDataObject? dataObject = GetData(element);
+                    if (dataObject != null)
+                    {
+                        data.DefDataObjects.Add(dataObject.Value);
+                    }
                 }
             }
 
@@ -483,6 +530,8 @@ namespace FlareEngine.Definitions
         {
             m_defs = new List<Def>();
             m_defLookup = new Dictionary<string, Def>();
+            m_sceneDefs = new List<Def>();
+            m_sceneLookup = new Dictionary<string, Def>();
         }
 
         public static void Clear()
@@ -491,7 +540,7 @@ namespace FlareEngine.Definitions
             m_defLookup.Clear();
         }
 
-        internal static void LoadDefs(IEnumerable<DefData> a_data)
+        static void LoadDefs(IEnumerable<DefData> a_data)
         {
             foreach (DefData dat in a_data)
             {
@@ -512,6 +561,34 @@ namespace FlareEngine.Definitions
                 }
             }
         }
+        internal static void LoadSceneDefs(IEnumerable<DefData> a_data)
+        {
+            foreach (DefData dat in a_data)
+            {
+                if (dat.Abstract)
+                {
+                    continue;
+                }
+
+                Def def = CreateDef(dat, a_data);
+                if (def != null)
+                {
+                    m_sceneDefs.Add(def);
+                    m_sceneLookup.Add(def.DefName, def);
+                }
+                else
+                {
+                    Logger.FlareError("Invalid scene def");
+                }
+            }
+        }
+
+        public static void FlushSceneDefs()
+        {
+            m_sceneDefs.Clear();
+            m_sceneLookup.Clear();
+        }
+
         public static void LoadDefs(string a_path)
         {
             if (Directory.Exists(a_path))
@@ -577,7 +654,7 @@ namespace FlareEngine.Definitions
         {
             if (a_obj == null)
             {
-                Logger.Warning("FlareCS: ResolveDefs: Null Object");
+                Logger.FlareWarning("ResolveDefs: Null Object");
 
                 return;
             }
@@ -606,7 +683,7 @@ namespace FlareEngine.Definitions
                         }
                         else
                         {
-                            Logger.Error($"FlareCS: Error resolving Def: {stub.DefName}");
+                            Logger.FlareError($"Error resolving Def: {stub.DefName}");
                         }
                     }
                 }
@@ -627,6 +704,13 @@ namespace FlareEngine.Definitions
                             {
                                 if (obj is Def stub)
                                 {
+                                    if (string.IsNullOrEmpty(stub.DefName))
+                                    {
+                                        Logger.FlareError("Invalid def stub");
+
+                                        continue;
+                                    }
+
                                     methodInfo.Invoke(list, new object[] { GetDef(stub.DefName) });
                                 }
                             }
@@ -703,10 +787,30 @@ namespace FlareEngine.Definitions
                 }
             }
         }
+        public static void ResolveSceneDefs()
+        {
+            foreach (Def def in m_sceneDefs)
+            {
+                ResolveDefs(def);
+            }
+
+            foreach (Def def in m_defs)
+            {
+                def.PostResolve();
+            }
+        }
 
         public static List<T> GetDefs<T>() where T : Def
         {
             List<T> defs = new List<T>();
+            
+            foreach (Def sDef in m_sceneDefs)
+            {
+                if (sDef is T t)
+                {
+                    defs.Add(t);
+                }
+            }
             
             foreach (Def def in m_defs)
             {
@@ -720,11 +824,19 @@ namespace FlareEngine.Definitions
         }
         public static List<Def> GetDefs()
         {
-            return m_defs;
+            List<Def> defs = new List<Def>(m_defs);
+            defs.AddRange(m_sceneDefs);
+
+            return defs;
         }
 
         public static Def GetDef(string a_name)
         {
+            if (m_sceneLookup.ContainsKey(a_name))
+            {
+                return m_sceneLookup[a_name];
+            }
+
             if (m_defLookup.ContainsKey(a_name))
             {
                 return m_defLookup[a_name];
@@ -736,12 +848,21 @@ namespace FlareEngine.Definitions
         }
         public static T GetDef<T>(string a_name) where T : Def
         {
+            if (m_sceneLookup.ContainsKey(a_name))
+            {
+                T def = m_sceneLookup[a_name] as T;
+                if (def != null)
+                {
+                    return def;
+                }
+            }
+
             if (m_defLookup.ContainsKey(a_name))
             {
-                Def def = m_defLookup[a_name];
-                if (def is T t)
+                T def = m_defLookup[a_name] as T;
+                if (def != null)
                 {
-                    return t;
+                    return def;
                 }
             }
 

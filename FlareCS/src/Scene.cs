@@ -64,6 +64,9 @@ namespace FlareEngine
                 if (element.Name == "GameObject")
                 {
                     SceneObject obj = new SceneObject();
+                    obj.Translation = Vector3.Zero;
+                    obj.Rotation = Quaternion.Identity;
+                    obj.Scale = Vector3.One;
 
                     foreach (XmlElement oElement in element.ChildNodes)
                     {
@@ -139,9 +142,9 @@ namespace FlareEngine
                 data.Add(DefLibrary.GetDefData("[Scene]", element));
             }
 
-            DefLibrary.LoadDefs(data);
+            DefLibrary.LoadSceneDefs(data);
 
-            DefLibrary.ResolveDefs();
+            DefLibrary.ResolveSceneDefs();
         }
 
         public Scene(XmlDocument a_doc)
