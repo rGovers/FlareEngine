@@ -62,9 +62,14 @@ namespace FlareEngine.Maths
 
         public static readonly Color White = Color.FromColorCode(0xffffffff);
         public static readonly Color Black = Color.FromColorCode(0x000000ff);
+
         public static readonly Color Red = Color.FromColorCode(0xff0000ff);
         public static readonly Color Green = Color.FromColorCode(0x00ff00ff);
         public static readonly Color Blue = Color.FromColorCode(0x0000ffff); 
+
+        public static readonly Color Yellow = Color.FromColorCode(0xffff00ff);
+        public static readonly Color Magenta = Color.FromColorCode(0xff00ffff);
+        public static readonly Color Aqua = Color.FromColorCode(0x00ffffff);
 
         public Color(byte a_val)
         {

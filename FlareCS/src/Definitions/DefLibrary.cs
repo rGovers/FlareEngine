@@ -2,6 +2,7 @@ using FlareEngine.Maths;
 using FlareEngine.Mod;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -28,15 +29,15 @@ namespace FlareEngine.Definitions
 
     public static class DefLibrary
     {
-        static List<Def>               m_sceneDefs;
-        static List<Def>               m_defs;
+        static ConcurrentBag<Def>                s_sceneDefs;
+        static ConcurrentBag<Def>                s_defs;
 
-        static Dictionary<string, Def> m_sceneLookup;
-        static Dictionary<string, Def> m_defLookup;
+        static ConcurrentDictionary<string, Def> s_sceneLookup;
+        static ConcurrentDictionary<string, Def> s_defLookup;
 
         static void DefError(Type a_type, DefDataObject a_datObj, DefData a_data)
         {
-            Logger.Error($"FlareCS: Cannot Parse Def {a_type.ToString()}: {a_datObj.Name}, {a_data.Name} : {a_data.Path}");
+            Logger.FlareError($"Cannot Parse Def {a_type.ToString()}: {a_datObj.Name}, {a_data.Name} : {a_data.Path}");
         }
 
         static DefDataObject? GetData(XmlElement a_element)
@@ -64,7 +65,7 @@ namespace FlareEngine.Definitions
 
             if (string.IsNullOrWhiteSpace(dataObj.Text) && dataObj.Children.Count <= 0)
             {
-                Logger.Error($"FlareCS: Invalid Def DataObject: {dataObj.Name}");
+                Logger.FlareError($"Invalid Def DataObject: {dataObj.Name}");
 
                 return null;
             }
@@ -181,11 +182,9 @@ namespace FlareEngine.Definitions
 
                     if (fieldType == typeof(Def) || fieldType.IsSubclassOf(typeof(Def)))
                     {
-                        Def def = new Def()
-                        {
-                            DefName = a_datObj.Text
-                        };
-                        
+                        Def def = Activator.CreateInstance(fieldType) as Def;
+                        def.DefName = a_datObj.Text;
+
                         field.SetValue(a_obj, def);
                     }
                     else if (fieldType == typeof(string))
@@ -339,7 +338,7 @@ namespace FlareEngine.Definitions
             }
             else
             {
-                Logger.Error($"FlareCS: Invalid Def Field: {a_datObj.Name}, {a_data.Name} : {a_data.Parent}");
+                Logger.FlareError($"Invalid Def Field: {a_datObj.Name}, {a_data.Name} : {a_data.Parent}");
             }
         }
 
@@ -430,7 +429,7 @@ namespace FlareEngine.Definitions
                         }
                         else
                         {
-                            Logger.Error($"FlareCS: Error parsing unamed Def: {a_path}");
+                            Logger.FlareError($"Error parsing unamed Def: {a_path}");
                         }
                     }
                 }
@@ -492,9 +491,9 @@ namespace FlareEngine.Definitions
             if (type != null)
             {
                 Def defObj = null;
-                if (m_defLookup.ContainsKey(a_data.Name))
+                if (s_defLookup.ContainsKey(a_data.Name))
                 {
-                    defObj = m_defLookup[a_data.Name];
+                    defObj = s_defLookup[a_data.Name];
                 }
                 else
                 {
@@ -528,16 +527,18 @@ namespace FlareEngine.Definitions
 
         internal static void Init()
         {
-            m_defs = new List<Def>();
-            m_defLookup = new Dictionary<string, Def>();
-            m_sceneDefs = new List<Def>();
-            m_sceneLookup = new Dictionary<string, Def>();
+            s_defs = new ConcurrentBag<Def>();
+            s_defLookup = new ConcurrentDictionary<string, Def>();
+            s_sceneDefs = new ConcurrentBag<Def>();
+            s_sceneLookup = new ConcurrentDictionary<string, Def>();
         }
 
         public static void Clear()
         {
-            m_defs.Clear();
-            m_defLookup.Clear();
+            FlushSceneDefs();
+
+            s_defs = new ConcurrentBag<Def>();
+            s_defLookup.Clear();
         }
 
         static void LoadDefs(IEnumerable<DefData> a_data)
@@ -552,8 +553,8 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, a_data);
                 if (def != null)
                 {
-                    m_defs.Add(def);
-                    m_defLookup.Add(def.DefName, def);
+                    s_defs.Add(def);
+                    s_defLookup.TryAdd(def.DefName, def);
                 }
                 else
                 {
@@ -573,8 +574,8 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, a_data);
                 if (def != null)
                 {
-                    m_sceneDefs.Add(def);
-                    m_sceneLookup.Add(def.DefName, def);
+                    s_sceneDefs.Add(def);
+                    s_sceneLookup.TryAdd(def.DefName, def);
                 }
                 else
                 {
@@ -585,8 +586,8 @@ namespace FlareEngine.Definitions
 
         public static void FlushSceneDefs()
         {
-            m_sceneDefs.Clear();
-            m_sceneLookup.Clear();
+            s_sceneDefs = new ConcurrentBag<Def>();
+            s_sceneLookup.Clear();
         }
 
         public static void LoadDefs(string a_path)
@@ -644,8 +645,8 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, defData);
                 if (def != null)
                 {
-                    m_defs.Add(def);
-                    m_defLookup.Add(def.DefName, def);
+                    s_defs.Add(def);
+                    s_defLookup.TryAdd(def.DefName, def);
                 }
             }
         }   
@@ -767,12 +768,12 @@ namespace FlareEngine.Definitions
 
         public static void ResolveDefs()
         {
-            foreach (Def def in m_defs)
+            foreach (Def def in s_defs)
             {
                 ResolveDefs(def);
             }
 
-            foreach (Def def in m_defs)
+            foreach (Def def in s_defs)
             {
                 def.PostResolve();
             }
@@ -789,12 +790,12 @@ namespace FlareEngine.Definitions
         }
         public static void ResolveSceneDefs()
         {
-            foreach (Def def in m_sceneDefs)
+            foreach (Def def in s_sceneDefs)
             {
                 ResolveDefs(def);
             }
 
-            foreach (Def def in m_defs)
+            foreach (Def def in s_sceneDefs)
             {
                 def.PostResolve();
             }
@@ -804,7 +805,7 @@ namespace FlareEngine.Definitions
         {
             List<T> defs = new List<T>();
             
-            foreach (Def sDef in m_sceneDefs)
+            foreach (Def sDef in s_sceneDefs)
             {
                 if (sDef is T t)
                 {
@@ -812,7 +813,7 @@ namespace FlareEngine.Definitions
                 }
             }
             
-            foreach (Def def in m_defs)
+            foreach (Def def in s_defs)
             {
                 if (def is T t)
                 {
@@ -824,49 +825,49 @@ namespace FlareEngine.Definitions
         }
         public static List<Def> GetDefs()
         {
-            List<Def> defs = new List<Def>(m_defs);
-            defs.AddRange(m_sceneDefs);
+            List<Def> defs = new List<Def>(s_defs);
+            defs.AddRange(s_sceneDefs);
 
             return defs;
         }
 
         public static Def GetDef(string a_name)
         {
-            if (m_sceneLookup.ContainsKey(a_name))
+            if (s_sceneLookup.ContainsKey(a_name))
             {
-                return m_sceneLookup[a_name];
+                return s_sceneLookup[a_name];
             }
 
-            if (m_defLookup.ContainsKey(a_name))
+            if (s_defLookup.ContainsKey(a_name))
             {
-                return m_defLookup[a_name];
+                return s_defLookup[a_name];
             }
 
-            Logger.Warning($"FlareCS: Cannot find def of name: {a_name}");
+            Logger.FlareWarning($"Cannot find def of name: {a_name}");
 
             return null;
         }
         public static T GetDef<T>(string a_name) where T : Def
         {
-            if (m_sceneLookup.ContainsKey(a_name))
+            if (s_sceneLookup.ContainsKey(a_name))
             {
-                T def = m_sceneLookup[a_name] as T;
+                T def = s_sceneLookup[a_name] as T;
                 if (def != null)
                 {
                     return def;
                 }
             }
 
-            if (m_defLookup.ContainsKey(a_name))
+            if (s_defLookup.ContainsKey(a_name))
             {
-                T def = m_defLookup[a_name] as T;
+                T def = s_defLookup[a_name] as T;
                 if (def != null)
                 {
                     return def;
                 }
             }
 
-            Logger.Warning($"FlareCS: Cannot find def of name and type: {a_name}, {typeof(T).ToString()}");
+            Logger.FlareWarning($"Cannot find def of name and type: {a_name}, {typeof(T).ToString()}");
 
             return null;
         }

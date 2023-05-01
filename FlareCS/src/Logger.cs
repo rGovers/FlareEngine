@@ -19,15 +19,36 @@ namespace FlareEngine
 
         internal static void FlareMessage(string a_message)
         {
-            Message($"FlareCS: {a_message}");
+            if (Application.IsEditor)
+            {
+                Message($"FlareCSE: {a_message}");
+            }
+            else
+            {
+                Message($"FlareCS: {a_message}");
+            }
         }
         internal static void FlareWarning(string a_message)
         {
-            Warning($"FlareCS: {a_message}");
+            if (Application.IsEditor)
+            {
+                Warning($"FlareCSE: {a_message}");
+            }
+            else
+            {
+                Warning($"FlareCS: {a_message}");
+            }
         }
         internal static void FlareError(string a_message)
         {
-            Error($"FlareCS: {a_message}");
+            if (Application.IsEditor)
+            {
+                Error($"FlareCSE: {a_message}");
+            }
+            else
+            {
+                Error($"FlareCS: {a_message}");
+            }
         }
 
         public static void Message(string a_message)

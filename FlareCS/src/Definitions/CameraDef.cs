@@ -43,5 +43,17 @@ namespace FlareEngine.Definitions
         {
             ObjectType = typeof(Camera);
         }
+
+        public override void PostResolve()
+        {
+            base.PostResolve();
+
+            if (ObjectType != typeof(Camera) && !ObjectType.IsSubclassOf(typeof(Camera)))
+            {
+                Logger.FlareError($"Camera Def Invalid ObjectType: {ObjectType}");
+
+                return;
+            }
+        }
     }
 }

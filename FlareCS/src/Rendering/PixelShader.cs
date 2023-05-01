@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
@@ -9,9 +8,7 @@ namespace FlareEngine.Rendering
         uint m_internalAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateGLSLShader(string a_shader); 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateFShader(string a_shader);
+        extern static uint GenerateFromFile(string a_path);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
 
@@ -38,30 +35,15 @@ namespace FlareEngine.Rendering
 
         public static PixelShader LoadPixelShader(string a_path)
         {
-            if (File.Exists(a_path))
-            {
-                string str = File.ReadAllText(a_path);
-                if (!string.IsNullOrWhiteSpace(str))
-                {
-                    switch (Path.GetExtension(a_path).ToLower())
-                    {
-                    case ".fpix":
-                    case ".ffrag":
-                    {
-                        return new PixelShader(GenerateFShader(str));
-                    }
-                    }
+            uint addr = GenerateFromFile(a_path);
 
-                    return new PixelShader(GenerateGLSLShader(str));
-                }
-                else
-                {
-                    Logger.FlareError($"PixelShader Empty: {a_path}");
-                }
+            if (addr != uint.MaxValue)
+            {
+                return new PixelShader(addr);
             }
             else
             {
-                Logger.FlareError($"PixelShader does not exist: {a_path}");
+                Logger.FlareError($"Failed to load PixelShader: {a_path}");
             }
 
             return null;

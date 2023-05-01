@@ -75,6 +75,41 @@ namespace FlareEngine.Maths
             }
         }
 
+        public static Matrix4 FromTransform(Vector3 a_translation, Quaternion a_rotation, Vector3 a_scale)
+        {
+            Matrix4 translation = new Matrix4
+            (
+                1.0f, 0.0f, 0.0f, a_translation.X, 
+                0.0f, 1.0f, 0.0f, a_translation.Y,
+                0.0f, 0.0f, 1.0f, a_translation.Z,
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+            Matrix4 scale = new Matrix4
+            (
+                a_scale.X, 0.0f, 0.0f, 0.0f,
+                0.0f, a_scale.Y, 0.0f, 0.0f,
+                0.0f, 0.0f, a_scale.Z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+
+            return translation * a_rotation.ToMatrix() * scale;
+        }
+
+        public static Matrix4 Transpose(Matrix4 a_matrix)
+        {
+            Matrix4 mat = new Matrix4(0.0f);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                for (int j = 0; j < 4; ++j)
+                {
+                    mat.Data[i * 4 + j] = a_matrix.Data[i + j * 4];
+                }
+            }
+
+            return mat;
+        }
+
         public static Matrix4 operator *(Matrix4 a_lhs, Matrix4 a_rhs)
         {
             // Not the fastest matrix multiplication but should work for now

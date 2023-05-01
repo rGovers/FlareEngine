@@ -12,7 +12,7 @@ namespace FlareEngine.Definitions
 
             if (ComponentType == null || !ComponentType.IsSubclassOf(typeof(Component)))
             {
-                Logger.Error("FlareCS: Component Def Invalid ComponentType");
+                Logger.FlareError($"Component Def Invalid ComponentType: {ComponentType}");
 
                 return;
             }

@@ -36,7 +36,7 @@ namespace FlareEngine.Definitions
 
             if (VertexType == null)
             {
-                Logger.Error("FlareCS: Material Def Invalid VertexType");
+                Logger.FlareError("Material Def Invalid VertexType");
 
                 return;
             }
@@ -49,7 +49,9 @@ namespace FlareEngine.Definitions
             MethodInfo methodInfo = VertexType.GetMethod("GetAttributes", BindingFlags.Public | BindingFlags.Static);
             if (methodInfo == null)
             {
-                Logger.Error("FlareCS: Material Def no VertexAttributes");
+                Logger.FlareError("Material Def no VertexAttributes");
+
+                return;
             }
 
             VertexAttributes = new List<VertexInputAttribute>(methodInfo.Invoke(null, null) as VertexInputAttribute[]);

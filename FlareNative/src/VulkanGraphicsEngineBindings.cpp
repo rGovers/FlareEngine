@@ -1,5 +1,8 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngineBindings.h"
 
+#include <fstream>
+#include <sstream>
+
 #include "ColladaLoader.h"
 #include "FlareAssert.h"
 #include "ObjectManager.h"
@@ -28,11 +31,7 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
 // The lazy part of me won against the part that wants to write clean code
 // My apologies to the poor soul that has to decipher this definition
 #define VULKANGRAPHICS_BINDING_FUNCTION_TABLE(F) \
-    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateGLSLShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateGLSLVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
-    F(uint32_t, FlareEngine.Rendering, VertexShader, GenerateFShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateFVertexShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
     F(void, FlareEngine.Rendering, VertexShader, DestroyShader, { Engine->DestroyVertexShader(a_addr); }, uint32_t a_addr) \
-    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateGLSLShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateGLSLPixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
-    F(uint32_t, FlareEngine.Rendering, PixelShader, GenerateFShader, { char* str = mono_string_to_utf8(a_string); const uint32_t ret = Engine->GenerateFPixelShaderAddr(str); mono_free(str); return ret; }, MonoString* a_string) \
     F(void, FlareEngine.Rendering, PixelShader, DestroyShader, { Engine->DestroyPixelShader(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, Material, GenerateInternalProgram, { return Engine->GenerateInternalShaderProgram(a_renderProgram); }, e_InternalRenderProgram a_renderProgram) \
@@ -84,6 +83,85 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, RenderCommand, RTRTBlit, { Engine->BlitRTRT(a_srcAddr, a_dstAddr); }, uint32_t a_srcAddr, uint32_t a_dstAddr)
 
 VULKANGRAPHICS_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION)
+
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(VertexShader, GenerateFromFile), MonoString* a_path)
+{
+    char* str = mono_string_to_utf8(a_path);
+
+    const std::filesystem::path p = std::filesystem::path(str);
+
+    mono_free(str);  
+
+    if (p.extension() == ".fvert")
+    {
+        std::ifstream file = std::ifstream(p);
+        if (file.good() && file.is_open())
+        {
+            std::stringstream ss;
+
+            ss << file.rdbuf();
+
+            file.close();
+
+            return Engine->GenerateFVertexShaderAddr(ss.str());
+        }
+    }
+    else if (p.extension() == ".vert")
+    {
+        std::ifstream file = std::ifstream(p);
+        if (file.good() && file.is_open())
+        {
+            std::stringstream ss;
+
+            ss << file.rdbuf();
+
+            file.close();
+
+            return Engine->GenerateGLSLVertexShaderAddr(ss.str());
+        }
+    }
+
+    return -1;
+}
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(PixelShader, GenerateFromFile), MonoString* a_path)
+{
+    char* str = mono_string_to_utf8(a_path);
+
+    const std::filesystem::path p = std::filesystem::path(str);
+
+    mono_free(str);
+
+    if (p.extension() == ".fpix" || p.extension() == ".ffrag")
+    {
+        std::ifstream file = std::ifstream(p);
+        if (file.good() && file.is_open())
+        {
+            std::stringstream ss;
+
+            ss << file.rdbuf();
+
+            file.close();
+
+            return Engine->GenerateFPixelShaderAddr(ss.str());
+        }
+    }
+    else if (p.extension() == ".pix" || p.extension() == ".frag")
+    {
+        std::ifstream file = std::ifstream(p);
+        if (file.good() && file.is_open())
+        {
+            std::stringstream ss;
+
+            ss << file.rdbuf();
+
+            file.close();
+
+            return Engine->GenerateGLSLPixelShaderAddr(ss.str());
+        }
+    }
+
+    return -1;
+}
 
 // Gonna leave theses functions seperate as there is a bit to it
 FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode, uint32_t a_colorBlendingEnabled)
@@ -222,6 +300,9 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
 
     TRACE("Binding Vulkan functions to C#");
     VULKANGRAPHICS_BINDING_FUNCTION_TABLE(VULKANGRAPHICS_RUNTIME_ATTACH)
+
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, VertexShader, GenerateFromFile);
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, PixelShader, GenerateFromFile);
 
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, GenerateProgram);
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, DestroyProgram);

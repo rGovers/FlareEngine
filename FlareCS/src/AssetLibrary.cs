@@ -2,101 +2,110 @@ using FlareEngine.Definitions;
 using FlareEngine.Mod;
 using FlareEngine.Rendering;
 using FlareEngine.Rendering.UI;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace FlareEngine
 {
     public static class AssetLibrary
     {
-        static Dictionary<string, Material>     Materials;
-        static Dictionary<string, VertexShader> VertexShaders;
-        static Dictionary<string, PixelShader>  PixelShaders;
+        static ConcurrentDictionary<string, Material>     s_materials;
+        static ConcurrentDictionary<string, VertexShader> s_vertexShaders;
+        static ConcurrentDictionary<string, PixelShader>  s_pixelShaders;
      
-        static Dictionary<string, Model>        Models;
+        static ConcurrentDictionary<string, Model>        s_models;
      
-        static Dictionary<string, Font>         Fonts;
+        static ConcurrentDictionary<string, Font>         s_fonts;
 
         internal static void Init()
         {
-            Materials = new Dictionary<string, Material>();
+            s_materials = new ConcurrentDictionary<string, Material>();
 
-            VertexShaders = new Dictionary<string, VertexShader>();
-            PixelShaders = new Dictionary<string, PixelShader>();
+            s_vertexShaders = new ConcurrentDictionary<string, VertexShader>();
+            s_pixelShaders = new ConcurrentDictionary<string, PixelShader>();
 
-            Models = new Dictionary<string, Model>();
+            s_models = new ConcurrentDictionary<string, Model>();
 
-            Fonts = new Dictionary<string, Font>();
+            s_fonts = new ConcurrentDictionary<string, Font>();
+        }
+
+        static string GetPath(string a_path)
+        {
+            if (!Application.IsEditor)
+            {   
+                return ModControl.GetAssetPath(a_path);
+            }
+
+            return a_path;
         }
 
         public static void ClearAssets()
         {
-            foreach (VertexShader vShader in VertexShaders.Values)
+            foreach (VertexShader vShader in s_vertexShaders.Values)
             {
                 if (!vShader.IsDisposed)
                 {
                     vShader.Dispose();
                 }
             }
-            VertexShaders.Clear();
+            s_vertexShaders.Clear();
 
-            foreach (PixelShader pShader in PixelShaders.Values)
+            foreach (PixelShader pShader in s_pixelShaders.Values)
             {
                 if (!pShader.IsDisposed)
                 {
                     pShader.Dispose();
                 }
             }
-            PixelShaders.Clear();
+            s_pixelShaders.Clear();
 
-            foreach (Material mat in Materials.Values)
+            foreach (Material mat in s_materials.Values)
             {
                 if (!mat.IsDisposed)
                 {
                     mat.Dispose();
                 }
             }
-            Materials.Clear();
+            s_materials.Clear();
 
-            foreach (Model model in Models.Values)
+            foreach (Model model in s_models.Values)
             {
                 if (!model.IsDisposed)
                 {
                     model.Dispose();
                 }
             }
-            Models.Clear();
+            s_models.Clear();
 
-            foreach (Font font in Fonts.Values)
+            foreach (Font font in s_fonts.Values)
             {
                 if (!font.IsDisposed)
                 {
                     font.Dispose();
                 }
             }
-            Fonts.Clear();
+            s_fonts.Clear();
         }
 
         public static VertexShader LoadVertexShader(string a_path)
         {
-            if (VertexShaders.ContainsKey(a_path))
+            VertexShader oldShader = null;
+            if (s_vertexShaders.ContainsKey(a_path))
             {
-                VertexShader vShader = VertexShaders[a_path];
-                if (!vShader.IsDisposed)
+                oldShader = s_vertexShaders[a_path];
+                if (!oldShader.IsDisposed)
                 {
-                    return vShader;
+                    return oldShader;
                 }
-
-                VertexShaders.Remove(a_path);
             }
 
-            string filepath = ModControl.GetAssetPath(a_path);
+            string filepath = GetPath(a_path);
             if (string.IsNullOrEmpty(filepath))
             {
                 Logger.FlareError($"Cannot find filepath: {a_path}");
 
                 return null;
             }
-
+            
             VertexShader shader = VertexShader.LoadVertexShader(filepath);
             if (shader == null)
             {
@@ -105,31 +114,37 @@ namespace FlareEngine
                 return null;
             }
 
-            VertexShaders.Add(a_path, shader);
+            if (oldShader == null)
+            {
+                s_vertexShaders.TryAdd(a_path, shader);
+            }
+            else
+            {
+                s_vertexShaders.TryUpdate(a_path, shader, oldShader);
+            }
 
             return shader;
         }
         public static PixelShader LoadPixelShader(string a_path)
         {
-            if (PixelShaders.ContainsKey(a_path))
+            PixelShader oldShader = null;
+            if (s_pixelShaders.ContainsKey(a_path))
             {
-                PixelShader pShader = PixelShaders[a_path];
-                if (!pShader.IsDisposed)
+                oldShader = s_pixelShaders[a_path];
+                if (!oldShader.IsDisposed)
                 {
-                    return pShader;
+                    return oldShader;
                 }
-
-                PixelShaders.Remove(a_path);
             }
 
-            string filepath = ModControl.GetAssetPath(a_path);
+            string filepath = GetPath(a_path);
             if (string.IsNullOrEmpty(filepath))
             {
                 Logger.FlareError($"Cannot find filepath: {a_path}");
 
                 return null;
             }
-
+        
             PixelShader shader = PixelShader.LoadPixelShader(filepath);
             if (shader == null)
             {
@@ -138,24 +153,30 @@ namespace FlareEngine
                 return null;
             }
 
-            PixelShaders.Add(a_path, shader);
+            if (oldShader == null)
+            {
+                s_pixelShaders.TryAdd(a_path, shader);
+            }   
+            else
+            {
+                s_pixelShaders.TryUpdate(a_path, shader, oldShader);
+            }
 
             return shader;
         }
         public static Font LoadFont(string a_path)
         {
-            if (Fonts.ContainsKey(a_path))
+            Font oldFont = null;
+            if (s_fonts.ContainsKey(a_path))
             {
-                Font f = Fonts[a_path];
-                if (!f.IsDisposed)
+                oldFont = s_fonts[a_path];
+                if (!oldFont.IsDisposed)
                 {
-                    return f;
+                    return oldFont;
                 }
-
-                Fonts.Remove(a_path);
             }
 
-            string filepath = ModControl.GetAssetPath(a_path);
+            string filepath = GetPath(a_path);
             if (string.IsNullOrEmpty(filepath))
             {
                 Logger.FlareError($"Cannot find filepath: {a_path}");
@@ -171,31 +192,37 @@ namespace FlareEngine
                 return null;
             }
 
-            Fonts.Add(a_path, font);
+            if (oldFont == null)
+            {
+                s_fonts.TryAdd(a_path, font);
+            }
+            else
+            {
+                s_fonts.TryUpdate(a_path, font, oldFont);
+            }
 
             return font;
         }
 
         public static Model LoadModel(string a_path)
         {
-            if (Models.ContainsKey(a_path))
+            Model oldModel = null;
+            if (s_models.ContainsKey(a_path))
             {
-                Model m = Models[a_path];
-                if (!m.IsDisposed)
+                oldModel = s_models[a_path];
+                if (!oldModel.IsDisposed)
                 {
-                    return m;
+                    return oldModel;
                 }
-
-                Models.Remove(a_path);
             }
 
-            string filepath = ModControl.GetAssetPath(a_path);
+            string filepath = GetPath(a_path);
             if (string.IsNullOrEmpty(filepath))
             {
                 Logger.FlareError($"Cannot find filepath: {a_path}");
 
                 return null;
-            }
+            }        
 
             Model model = Model.LoadModel(filepath);
             if (model == null)
@@ -205,7 +232,14 @@ namespace FlareEngine
                 return null;
             }
 
-            Models.Add(a_path, model);
+            if (oldModel == null)
+            {
+                s_models.TryAdd(a_path, model);
+            }
+            else
+            {
+                s_models.TryUpdate(a_path, model, oldModel);
+            }
 
             return model;
         }
@@ -219,22 +253,28 @@ namespace FlareEngine
                 return null;
             }
 
+            Material oldMat = null;
             string str = $"[{a_def.VertexShaderPath}] [{a_def.PixelShaderPath}]";
-            if (Materials.ContainsKey(str))
+            if (s_materials.ContainsKey(str))
             {
-                Material m = Materials[str];
-                if (!m.IsDisposed)
+                oldMat = s_materials[str];
+                if (!oldMat.IsDisposed)
                 {
-                    return m;
+                    return oldMat;
                 }
-
-                Materials.Remove(str);
             }
 
             Material mat = Material.FromDef(a_def);
             if (mat != null)
             {
-                Materials.Add(str, mat);
+                if (oldMat == null)
+                {
+                    s_materials.TryAdd(str, mat);
+                }
+                else
+                {
+                    s_materials.TryUpdate(str, mat, oldMat);
+                }
             }
 
             return mat;

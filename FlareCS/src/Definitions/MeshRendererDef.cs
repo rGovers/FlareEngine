@@ -19,21 +19,21 @@ namespace FlareEngine.Definitions
         {
             base.PostResolve();
 
-            if (ComponentType == null || !ComponentType.IsSubclassOf(typeof(MeshRenderer)))
+            if (ComponentType != typeof(MeshRenderer) && !ComponentType.IsSubclassOf(typeof(MeshRenderer)))
             {
-                Logger.Error("FlareCS: Component Def Invalid ComponentType");
+                Logger.FlareError($"Mesh Renderer Def Invalid ComponentType: {ComponentType}");
 
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(ModelPath))
             {
-                Logger.Warning("FlareCS: Component Def Invalid ModelPath");
+                Logger.FlareWarning("Mesh Renderer Def Invalid ModelPath");
             }
 
             if (MaterialDef == null)
             {
-                Logger.Warning("FlareCS: Component Def Invalid Material");
+                Logger.FlareWarning("Mesh Renderer Def Invalid Material");
             }
         }
     }

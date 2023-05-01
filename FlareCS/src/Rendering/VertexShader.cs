@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
@@ -9,9 +8,7 @@ namespace FlareEngine.Rendering
         uint m_internalAddr = uint.MaxValue;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateGLSLShader(string a_shader); 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        extern static uint GenerateFShader(string a_shader);
+        extern static uint GenerateFromFile(string a_path);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DestroyShader(uint a_addr);
 
@@ -38,29 +35,15 @@ namespace FlareEngine.Rendering
 
         public static VertexShader LoadVertexShader(string a_path)
         {
-            if (File.Exists(a_path))
-            {
-                string str = File.ReadAllText(a_path);
-                if (!string.IsNullOrWhiteSpace(str))
-                {
-                    switch (Path.GetExtension(a_path).ToLower())
-                    {
-                    case ".fvert":
-                    {
-                        return new VertexShader(GenerateFShader(str));
-                    }
-                    }
+            uint addr = GenerateFromFile(a_path);
 
-                    return new VertexShader(GenerateGLSLShader(str));
-                }
-                else
-                {
-                    Logger.FlareError($"VertexShader Empty: {a_path}");
-                }
+            if (addr != uint.MaxValue)
+            {
+                return new VertexShader(addr);
             }
             else
             {
-                Logger.FlareError($"VertexShader does not exist: {a_path}");
+                Logger.FlareError($"Failed to load VertexShader: {a_path}");
             }
 
             return null;

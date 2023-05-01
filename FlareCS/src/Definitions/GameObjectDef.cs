@@ -25,9 +25,9 @@ namespace FlareEngine.Definitions
         {
             base.PostResolve();
 
-            if (ObjectType == null || !ObjectType.IsSubclassOf(typeof(Object)))
+            if (ObjectType != typeof(GameObject) && !ObjectType.IsSubclassOf(typeof(GameObject)))
             {
-                Logger.FlareError($"Object Def Invalid ObjectType {ObjectType}");
+                Logger.FlareError($"Game Object Def Invalid ObjectType: {ObjectType}");
 
                 return;
             }

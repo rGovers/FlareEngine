@@ -12,5 +12,17 @@ namespace FlareEngine.Definitions
         {
             ComponentType = typeof(SpotLight);
         }
+
+        public override void PostResolve()
+        {
+            base.PostResolve();
+
+            if (ComponentType != typeof(SpotLight) && !ComponentType.IsSubclassOf(typeof(SpotLight)))
+            {
+                Logger.FlareError($"Spot Light Def Invalid ComponentType: {ComponentType}");
+
+                return;
+            }
+        }
     }
 }

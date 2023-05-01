@@ -918,6 +918,13 @@ namespace FlareEngine.Maths
             Z = a_z;
             W = a_w;
         }
+        public Vector4(float a_x, Vector2 a_yz, float a_w)
+        {
+            X = a_x;
+            Y = a_yz.X;
+            Z = a_yz.Y;
+            W = a_w;
+        }
         public Vector4(float a_x, float a_y, Vector2 a_zw)
         {
             X = a_x;
