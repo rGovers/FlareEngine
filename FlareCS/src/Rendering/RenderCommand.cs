@@ -1,3 +1,4 @@
+using FlareEngine.Maths;
 using System.Runtime.CompilerServices;
 
 namespace FlareEngine.Rendering
@@ -12,6 +13,8 @@ namespace FlareEngine.Rendering
         extern static void BindRenderTexture(uint a_addr);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void RTRTBlit(uint a_srcAddr, uint a_dstAddr);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static void DrawModel(float[] a_transform, uint a_modelAddr);
 
         public static void BindMaterial(Material a_material)
         {
@@ -37,6 +40,11 @@ namespace FlareEngine.Rendering
         public static void Blit(IRenderTexture a_srcTexture, IRenderTexture a_dstTexture)
         {
             RTRTBlit(RenderTextureCmd.GetTextureAddr(a_srcTexture), RenderTextureCmd.GetTextureAddr(a_dstTexture));
+        }
+        public static void DrawModel(Matrix4 a_transform, Model a_model)
+        {
+            // TODO: Implement engine version currently only in editor
+            DrawModel(a_transform.ToArray(), a_model.InternalAddr);
         }
     }
 }

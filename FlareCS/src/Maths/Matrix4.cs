@@ -4,7 +4,7 @@ namespace FlareEngine.Maths
     {
         public static readonly Matrix4 Identity = new Matrix4(1.0f);
 
-        float[] Data;
+        float[] m_data;
 
         public Vector4 this[int a_key]
         {
@@ -12,16 +12,16 @@ namespace FlareEngine.Maths
             {
                 int offset = a_key * 4;
 
-                return new Vector4(Data[offset + 0], Data[offset + 1], Data[offset + 2], Data[offset + 3]);
+                return new Vector4(m_data[offset + 0], m_data[offset + 1], m_data[offset + 2], m_data[offset + 3]);
             }
             set
             {
                 int offset = a_key * 4;
 
-                Data[offset + 0] = value.X;
-                Data[offset + 1] = value.Y;
-                Data[offset + 2] = value.Z;
-                Data[offset + 3] = value.W;
+                m_data[offset + 0] = value.X;
+                m_data[offset + 1] = value.Y;
+                m_data[offset + 2] = value.Z;
+                m_data[offset + 3] = value.W;
             }
         }
 
@@ -43,46 +43,51 @@ namespace FlareEngine.Maths
                        float a_2_0, float a_2_1, float a_2_2, float a_2_3,
                        float a_3_0, float a_3_1, float a_3_2, float a_3_3)
         {
-            Data = new float[16];
+            m_data = new float[16];
 
-            Data[0] = a_0_0;
-            Data[1] = a_0_1;
-            Data[2] = a_0_2;
-            Data[3] = a_0_3;
+            m_data[0] = a_0_0;
+            m_data[1] = a_0_1;
+            m_data[2] = a_0_2;
+            m_data[3] = a_0_3;
 
-            Data[4] = a_1_0;
-            Data[5] = a_1_1;
-            Data[6] = a_1_2;
-            Data[7] = a_1_3;
+            m_data[4] = a_1_0;
+            m_data[5] = a_1_1;
+            m_data[6] = a_1_2;
+            m_data[7] = a_1_3;
 
-            Data[8] = a_2_0;
-            Data[9] = a_2_1;
-            Data[10] = a_2_2;
-            Data[11] = a_2_3;
+            m_data[8] = a_2_0;
+            m_data[9] = a_2_1;
+            m_data[10] = a_2_2;
+            m_data[11] = a_2_3;
 
-            Data[12] = a_3_0;
-            Data[13] = a_3_1;
-            Data[14] = a_3_2;
-            Data[15] = a_3_3;
+            m_data[12] = a_3_0;
+            m_data[13] = a_3_1;
+            m_data[14] = a_3_2;
+            m_data[15] = a_3_3;
         }
         public Matrix4(Matrix4 a_other)
         {
-            Data = new float[16];
+            m_data = new float[16];
 
             for (int i = 0; i < 16; ++i)
             {
-                Data[i] = a_other.Data[i];
+                m_data[i] = a_other.m_data[i];
             }
+        }
+
+        public float[] ToArray()
+        {
+            return m_data;
         }
 
         public static Matrix4 FromTransform(Vector3 a_translation, Quaternion a_rotation, Vector3 a_scale)
         {
             Matrix4 translation = new Matrix4
             (
-                1.0f, 0.0f, 0.0f, a_translation.X, 
-                0.0f, 1.0f, 0.0f, a_translation.Y,
-                0.0f, 0.0f, 1.0f, a_translation.Z,
-                0.0f, 0.0f, 0.0f, 1.0f
+                new Vector4(1.0f, 0.0f, 0.0f, 0.0f),
+                new Vector4(0.0f, 1.0f, 0.0f, 0.0f),
+                new Vector4(0.0f, 0.0f, 1.0f, 0.0f),
+                new Vector4(a_translation, 1.0f)
             );
             Matrix4 scale = new Matrix4
             (
@@ -103,7 +108,7 @@ namespace FlareEngine.Maths
             {
                 for (int j = 0; j < 4; ++j)
                 {
-                    mat.Data[i * 4 + j] = a_matrix.Data[i + j * 4];
+                    mat.m_data[i * 4 + j] = a_matrix.m_data[i + j * 4];
                 }
             }
 
@@ -121,7 +126,7 @@ namespace FlareEngine.Maths
                 {
                     for (int k = 0; k < 4; ++k)
                     {
-                        mat.Data[i * 4 + j] += a_lhs.Data[i * 4 + k] * a_rhs.Data[k * 4 + j]; 
+                        mat.m_data[i * 4 + j] += a_lhs.m_data[i * 4 + k] * a_rhs.m_data[k * 4 + j]; 
                     }
                 }
             }
@@ -134,7 +139,7 @@ namespace FlareEngine.Maths
 
             for (int i = 0; i < 16; ++i)
             {
-                mat.Data[i] = a_lhs.Data[i] + a_rhs.Data[i];
+                mat.m_data[i] = a_lhs.m_data[i] + a_rhs.m_data[i];
             }
 
             return mat;
@@ -145,7 +150,7 @@ namespace FlareEngine.Maths
 
             for (int i = 0; i < 16; ++i)
             {
-                mat.Data[i] = a_lhs.Data[i] + a_rhs.Data[i];
+                mat.m_data[i] = a_lhs.m_data[i] + a_rhs.m_data[i];
             }
 
             return mat;
@@ -158,7 +163,7 @@ namespace FlareEngine.Maths
             {
                 for (int j = 0; j < 4; ++j)
                 {
-                    vec[i] += a_lhs.Data[i * 4 + j] * a_rhs[j];
+                    vec[i] += a_lhs.m_data[i * 4 + j] * a_rhs[j];
                 }
             }
 
