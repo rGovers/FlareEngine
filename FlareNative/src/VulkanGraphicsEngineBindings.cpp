@@ -3,10 +3,10 @@
 #include <fstream>
 #include <sstream>
 
-#include "ColladaLoader.h"
-#include "FlareAssert.h"
+#include "Flare/ColladaLoader.h"
+#include "Flare/FlareAssert.h"
+#include "Flare/OBJLoader.h"
 #include "ObjectManager.h"
-#include "OBJLoader.h"
 #include "Shaders/DirectionalLightPixel.h"
 #include "Shaders/PointLightPixel.h"
 #include "Shaders/QuadVertex.h"
@@ -34,9 +34,9 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, VertexShader, DestroyShader, { Engine->DestroyVertexShader(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, PixelShader, DestroyShader, { Engine->DestroyPixelShader(a_addr); }, uint32_t a_addr) \
     \
-    F(uint32_t, FlareEngine.Rendering, Material, GenerateInternalProgram, { return Engine->GenerateInternalShaderProgram(a_renderProgram); }, e_InternalRenderProgram a_renderProgram) \
-    F(RenderProgram, FlareEngine.Rendering, Material, GetProgramBuffer, { return Engine->GetRenderProgram(a_addr); }, uint32_t a_addr) \
-    F(void, FlareEngine.Rendering, Material, SetProgramBuffer, { Engine->SetRenderProgram(a_addr, a_program); }, uint32_t a_addr, RenderProgram a_program) \
+    F(uint32_t, FlareEngine.Rendering, Material, GenerateInternalProgram, { return Engine->GenerateInternalShaderProgram(a_renderProgram); }, FlareBase::e_InternalRenderProgram a_renderProgram) \
+    F(FlareBase::RenderProgram, FlareEngine.Rendering, Material, GetProgramBuffer, { return Engine->GetRenderProgram(a_addr); }, uint32_t a_addr) \
+    F(void, FlareEngine.Rendering, Material, SetProgramBuffer, { Engine->SetRenderProgram(a_addr, a_program); }, uint32_t a_addr, FlareBase::RenderProgram a_program) \
     F(void, FlareEngine.Rendering, Material, SetTexture, { Engine->RenderProgramSetTexture(a_addr, a_shaderSlot, a_samplerAddr); }, uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr) \
     \
     F(uint32_t, FlareEngine.Rendering, Camera, GenerateBuffer, { return Engine->GenerateCameraBuffer(a_transformAddr); }, uint32_t a_transformAddr) \
@@ -166,13 +166,13 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(PixelShader, GenerateFromFile)
 // Gonna leave theses functions seperate as there is a bit to it
 FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), uint32_t a_vertexShader, uint32_t a_pixelShader, uint16_t a_vertexStride, MonoArray* a_vertexInputAttribs, MonoArray* a_shaderInputs, uint32_t a_cullingMode, uint32_t a_primitiveMode, uint32_t a_colorBlendingEnabled)
 {
-    RenderProgram program;
+    FlareBase::RenderProgram program;
     program.VertexShader = a_vertexShader;
     program.PixelShader = a_pixelShader;
     program.VertexStride = a_vertexStride;
-    program.CullingMode = (e_CullMode)a_cullingMode;
-    program.PrimitiveMode = (e_PrimitiveMode)a_primitiveMode;
-    program.EnableColorBlending = a_colorBlendingEnabled;
+    program.CullingMode = (FlareBase::e_CullMode)a_cullingMode;
+    program.PrimitiveMode = (FlareBase::e_PrimitiveMode)a_primitiveMode;
+    program.EnableColorBlending = (uint8_t)a_colorBlendingEnabled;
     program.Flags = 0;
 
     // Need to recreate the array
@@ -197,11 +197,11 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), ui
     if (a_shaderInputs != nullptr)
     {
         program.ShaderBufferInputCount = (uint16_t)mono_array_length(a_shaderInputs);
-        program.ShaderBufferInputs = new ShaderBufferInput[program.ShaderBufferInputCount];
+        program.ShaderBufferInputs = new FlareBase::ShaderBufferInput[program.ShaderBufferInputCount];
 
         for (uint16_t i = 0; i < program.ShaderBufferInputCount; ++i)
         {
-            program.ShaderBufferInputs[i] = mono_array_get(a_shaderInputs, ShaderBufferInput, i);
+            program.ShaderBufferInputs[i] = mono_array_get(a_shaderInputs, FlareBase::ShaderBufferInput, i);
         }
     }
     else
@@ -214,7 +214,7 @@ FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Material, GenerateProgram), ui
 }
 FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Material, DestroyProgram), uint32_t a_addr)
 {
-    const RenderProgram program = Engine->GetRenderProgram(a_addr);
+    const FlareBase::RenderProgram program = Engine->GetRenderProgram(a_addr);
 
     if (program.VertexAttribs != nullptr)
     {
@@ -442,85 +442,85 @@ void VulkanGraphicsEngineBindings::DestroyPixelShader(uint32_t a_addr) const
     a[a_addr] = nullptr;
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const
+uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(FlareBase::e_InternalRenderProgram a_program) const
 {
-    RenderProgram program;
+    FlareBase::RenderProgram program;
     program.VertexStride = 0;
     program.VertexInputCount = 0;
     program.VertexAttribs = nullptr;
-    program.Flags |= 0b1 << RenderProgram::DestroyFlag;
+    program.Flags |= 0b1 << FlareBase::RenderProgram::DestroyFlag;
 
     switch (a_program)
     {
-    case InternalRenderProgram_DirectionalLight:
+    case FlareBase::InternalRenderProgram_DirectionalLight:
     {
         TRACE("Creating Directional Light Shader");
         program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(DIRECTIONALLIGHTPIXEL);
-        program.CullingMode = CullMode_None;
-        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.CullingMode = FlareBase::CullMode_None;
+        program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
         program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;
 
         program.ShaderBufferInputCount = BufferCount;
-        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        program.ShaderBufferInputs = new FlareBase::ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = FlareBase::ShaderBufferInput(i, FlareBase::ShaderBufferType_Texture, FlareBase::ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_DirectionalLightBuffer, ShaderSlot_Pixel, 1);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
+        program.ShaderBufferInputs[TextureCount + 0] = FlareBase::ShaderBufferInput(TextureCount + 0, FlareBase::ShaderBufferType_DirectionalLightBuffer, FlareBase::ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = FlareBase::ShaderBufferInput(TextureCount + 1, FlareBase::ShaderBufferType_CameraBuffer, FlareBase::ShaderSlot_Pixel, 2);
 
         break;
     }
-    case InternalRenderProgram_PointLight:
+    case FlareBase::InternalRenderProgram_PointLight:
     {
         TRACE("Creating Point Light Shader");
         program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(POINTLIGHTPIXEL);
-        program.CullingMode = CullMode_None;
-        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.CullingMode = FlareBase::CullMode_None;
+        program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
         program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;
         
         program.ShaderBufferInputCount = BufferCount;
-        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        program.ShaderBufferInputs = new FlareBase::ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = FlareBase::ShaderBufferInput(i, FlareBase::ShaderBufferType_Texture, FlareBase::ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_PointLightBuffer, ShaderSlot_Pixel, 1);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
+        program.ShaderBufferInputs[TextureCount + 0] = FlareBase::ShaderBufferInput(TextureCount + 0, FlareBase::ShaderBufferType_PointLightBuffer, FlareBase::ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = FlareBase::ShaderBufferInput(TextureCount + 1, FlareBase::ShaderBufferType_CameraBuffer, FlareBase::ShaderSlot_Pixel, 2);
 
         break;
     }
-    case InternalRenderProgram_SpotLight:
+    case FlareBase::InternalRenderProgram_SpotLight:
     {
         TRACE("Creating Spot Light Shader");
         program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(SPOTLIGHTPIXEL);
-        program.CullingMode = CullMode_None;
-        program.PrimitiveMode = PrimitiveMode_TriangleStrip;
+        program.CullingMode = FlareBase::CullMode_None;
+        program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
         program.EnableColorBlending = 1;
 
         constexpr uint32_t TextureCount = 5;
         constexpr uint32_t BufferCount = TextureCount + 2;
 
         program.ShaderBufferInputCount = BufferCount;
-        program.ShaderBufferInputs = new ShaderBufferInput[BufferCount];
+        program.ShaderBufferInputs = new FlareBase::ShaderBufferInput[BufferCount];
         for (uint32_t i = 0; i < TextureCount; ++i)
         {
-            program.ShaderBufferInputs[i] = ShaderBufferInput(i, ShaderBufferType_Texture, ShaderSlot_Pixel);
+            program.ShaderBufferInputs[i] = FlareBase::ShaderBufferInput(i, FlareBase::ShaderBufferType_Texture, FlareBase::ShaderSlot_Pixel);
         }
 
-        program.ShaderBufferInputs[TextureCount + 0] = ShaderBufferInput(TextureCount + 0, ShaderBufferType_SpotLightBuffer, ShaderSlot_Pixel, 1);
-        program.ShaderBufferInputs[TextureCount + 1] = ShaderBufferInput(TextureCount + 1, ShaderBufferType_CameraBuffer, ShaderSlot_Pixel, 2);
+        program.ShaderBufferInputs[TextureCount + 0] = FlareBase::ShaderBufferInput(TextureCount + 0, FlareBase::ShaderBufferType_SpotLightBuffer, FlareBase::ShaderSlot_Pixel, 1);
+        program.ShaderBufferInputs[TextureCount + 1] = FlareBase::ShaderBufferInput(TextureCount + 1, FlareBase::ShaderBufferType_CameraBuffer, FlareBase::ShaderSlot_Pixel, 2);
 
         break;
     }
@@ -532,7 +532,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(e_InternalR
 
     return GenerateShaderProgram(program);
 }
-uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_program) const
+uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(const FlareBase::RenderProgram& a_program) const
 {
     FLARE_ASSERT_MSG(a_program.PixelShader < m_graphicsEngine->m_pixelShaders.Size(), "GenerateShaderProgram PixelShader out of bounds")
     FLARE_ASSERT_MSG(a_program.VertexShader < m_graphicsEngine->m_vertexShaders.Size(), "GenerateShaderProgram VertexShader out of bounds")
@@ -540,11 +540,11 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_pr
     uint32_t size = 0;
     TRACE("Creating Shader Program");
     {
-        TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
+        TLockArray<FlareBase::RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
         size = a.Size();
         for (uint32_t i = 0; i < size; ++i)
         {
-            if (a[i].Flags & 0b1 << RenderProgram::FreeFlag)
+            if (a[i].Flags & 0b1 << FlareBase::RenderProgram::FreeFlag)
             {
                 FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateShaderProgram data not deleted");
 
@@ -556,7 +556,6 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_pr
         }
     }
     
-
     TRACE("Allocating Shader Program");
     m_graphicsEngine->m_shaderPrograms.Push(a_program);
     m_graphicsEngine->m_shaderPrograms[size].Data = new VulkanShaderData(m_graphicsEngine->m_vulkanEngine, m_graphicsEngine, size);
@@ -565,17 +564,17 @@ uint32_t VulkanGraphicsEngineBindings::GenerateShaderProgram(RenderProgram& a_pr
 }
 void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 {
-    TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
+    TLockArray<FlareBase::RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
 
     FLARE_ASSERT_MSG(a_addr < a.Size(), "DestroyShaderProgram out of bounds");
 
-    RenderProgram& program = a[a_addr];
-    if (program.Flags & 0b1 << RenderProgram::DestroyFlag)
+    FlareBase::RenderProgram& program = a[a_addr];
+    if (program.Flags & 0b1 << FlareBase::RenderProgram::DestroyFlag)
     {
         DestroyVertexShader(program.VertexShader);
         DestroyPixelShader(program.PixelShader);
     }
-    program.Flags = 0b1 << RenderProgram::FreeFlag;
+    program.Flags = 0b1 << FlareBase::RenderProgram::FreeFlag;
 
     if (program.Data != nullptr)
     {
@@ -585,11 +584,11 @@ void VulkanGraphicsEngineBindings::DestroyShaderProgram(uint32_t a_addr) const
 }
 void VulkanGraphicsEngineBindings::RenderProgramSetTexture(uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr)
 {
-    TLockArray<RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
+    TLockArray<FlareBase::RenderProgram> a = m_graphicsEngine->m_shaderPrograms.ToLockArray();
 
     FLARE_ASSERT_MSG(a_addr < a.Size(), "RenderProgramSetTexture material out of bounds");
 
-    const RenderProgram& program = a[a_addr];
+    const FlareBase::RenderProgram& program = a[a_addr];
 
     FLARE_ASSERT_MSG(program.Data != nullptr, "RenderProgramSetTexture invalid program");
 
@@ -597,13 +596,13 @@ void VulkanGraphicsEngineBindings::RenderProgramSetTexture(uint32_t a_addr, uint
     FLARE_ASSERT_MSG(a_samplerAddr < m_graphicsEngine->m_textureSampler.Size(), "RenderProgramSetTexture sampler out of bounds");
     data->SetTexture(a_shaderSlot, m_graphicsEngine->m_textureSampler[a_samplerAddr]);
 }
-RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
+FlareBase::RenderProgram VulkanGraphicsEngineBindings::GetRenderProgram(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "GetRenderProgram out of bounds")
 
     return m_graphicsEngine->m_shaderPrograms[a_addr];
 }
-void VulkanGraphicsEngineBindings::SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program) const
+void VulkanGraphicsEngineBindings::SetRenderProgram(uint32_t a_addr, const FlareBase::RenderProgram& a_program) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_shaderPrograms.Size(), "SetRenderProgram out of bounds")
 

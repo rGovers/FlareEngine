@@ -18,7 +18,7 @@
 #include <string>
 
 #include "Application.h"
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "InputManager.h"
 #include "Profiler.h"
 #include "Trace.h"

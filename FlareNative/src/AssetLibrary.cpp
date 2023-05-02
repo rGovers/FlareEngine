@@ -1,6 +1,6 @@
 #include "AssetLibrary.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Rendering/UI/Font.h"
 #include "Runtime/RuntimeManager.h"
 

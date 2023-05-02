@@ -4,7 +4,7 @@
 #include <string>
 
 #include "DataTypes/TUMap.h"
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 
 class RuntimeManager;
 

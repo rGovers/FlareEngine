@@ -5,7 +5,7 @@
 
 #include "Rendering/Vulkan/VulkanConstants.h"
 
-#include "Rendering/ShaderBufferInput.h"
+#include "Flare/ShaderBufferInput.h"
 
 class ObjectManager;
 class VulkanGraphicsEngine;
@@ -31,24 +31,24 @@ private:
     static constexpr uint32_t PushCount = 32;
     static constexpr uint32_t StaticIndex = 0;
 
-    VulkanRenderEngineBackend*  m_engine;
-    VulkanGraphicsEngine*       m_gEngine;
+    VulkanRenderEngineBackend*   m_engine;
+    VulkanGraphicsEngine*        m_gEngine;
+  
+    uint32_t                     m_programAddr;
+  
+    vk::PipelineLayout           m_layout;
  
-    uint32_t                    m_programAddr;
+    std::vector<PushDescriptor>  m_pushDescriptors[VulkanFlightPoolSize];
  
-    vk::PipelineLayout          m_layout;
+    vk::DescriptorSetLayout      m_staticDesciptorLayout;
+    vk::DescriptorPool           m_staticDescriptorPool;
+    vk::DescriptorSet            m_staticDescriptorSet;
 
-    std::vector<PushDescriptor> m_pushDescriptors[VulkanFlightPoolSize];
-
-    vk::DescriptorSetLayout     m_staticDesciptorLayout;
-    vk::DescriptorPool          m_staticDescriptorPool;
-    vk::DescriptorSet           m_staticDescriptorSet;
-
-    ShaderBufferInput           m_cameraBufferInput;
-    ShaderBufferInput           m_transformBufferInput;
-    ShaderBufferInput           m_directionalLightBufferInput;
-    ShaderBufferInput           m_pointLightBufferInput;
-    ShaderBufferInput           m_spotLightBufferInput;
+    FlareBase::ShaderBufferInput m_cameraBufferInput;
+    FlareBase::ShaderBufferInput m_transformBufferInput;
+    FlareBase::ShaderBufferInput m_directionalLightBufferInput;
+    FlareBase::ShaderBufferInput m_pointLightBufferInput;
+    FlareBase::ShaderBufferInput m_spotLightBufferInput;
 
 protected:
 
@@ -61,19 +61,19 @@ public:
         return m_layout;
     }
 
-    inline ShaderBufferInput GetCameraInput() const
+    inline FlareBase::ShaderBufferInput GetCameraInput() const
     {
         return m_cameraBufferInput;
     }
-    inline ShaderBufferInput GetDirectionalLightInput() const
+    inline FlareBase::ShaderBufferInput GetDirectionalLightInput() const
     {
         return m_directionalLightBufferInput;
     }
-    inline ShaderBufferInput GetPointLightInput() const
+    inline FlareBase::ShaderBufferInput GetPointLightInput() const
     {
         return m_pointLightBufferInput;
     }
-    inline ShaderBufferInput GetSpotLightInput() const
+    inline FlareBase::ShaderBufferInput GetSpotLightInput() const
     {
         return m_spotLightBufferInput;
     }

@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanConstants.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"

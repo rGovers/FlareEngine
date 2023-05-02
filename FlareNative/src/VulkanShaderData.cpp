@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanShaderData.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "ObjectManager.h"
 #include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
@@ -10,19 +10,19 @@
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 #include "Trace.h"
 
-constexpr static vk::ShaderStageFlags GetShaderStage(e_ShaderSlot a_slot) 
+constexpr static vk::ShaderStageFlags GetShaderStage(FlareBase::e_ShaderSlot a_slot) 
 {
     switch (a_slot)
     {
-    case ShaderSlot_Vertex:
+    case FlareBase::ShaderSlot_Vertex:
     {
         return vk::ShaderStageFlagBits::eVertex;
     }
-    case ShaderSlot_Pixel:
+    case FlareBase::ShaderSlot_Pixel:
     {
         return vk::ShaderStageFlagBits::eFragment;
     }
-    case ShaderSlot_All:
+    case FlareBase::ShaderSlot_All:
     {
         return vk::ShaderStageFlagBits::eAllGraphics;
     }
@@ -30,27 +30,27 @@ constexpr static vk::ShaderStageFlags GetShaderStage(e_ShaderSlot a_slot)
 
     return vk::ShaderStageFlags();
 }
-constexpr static uint32_t GetBufferSize(e_ShaderBufferType a_type)
+constexpr static uint32_t GetBufferSize(FlareBase::e_ShaderBufferType a_type)
 {
     switch (a_type)
     {
-    case ShaderBufferType_CameraBuffer:
+    case FlareBase::ShaderBufferType_CameraBuffer:
     {
         return sizeof(CameraShaderBuffer);
     }
-    case ShaderBufferType_ModelBuffer:
+    case FlareBase::ShaderBufferType_ModelBuffer:
     {
         return sizeof(ModelShaderBuffer);
     }
-    case ShaderBufferType_DirectionalLightBuffer:
+    case FlareBase::ShaderBufferType_DirectionalLightBuffer:
     {
         return sizeof(DirectionalLightShaderBuffer);
     }
-    case ShaderBufferType_PointLightBuffer:
+    case FlareBase::ShaderBufferType_PointLightBuffer:
     {
         return sizeof(PointLightShaderBuffer);
     }
-    case ShaderBufferType_SpotLightBuffer:
+    case FlareBase::ShaderBufferType_SpotLightBuffer:
     {
         return sizeof(SpotLightShaderBuffer);
     }
@@ -58,12 +58,12 @@ constexpr static uint32_t GetBufferSize(e_ShaderBufferType a_type)
     
     return 0;
 }
-constexpr static vk::DescriptorType GetDescriptorType(e_ShaderBufferType a_bufferType)
+constexpr static vk::DescriptorType GetDescriptorType(FlareBase::e_ShaderBufferType a_bufferType)
 {
     switch (a_bufferType)
     {
-    case ShaderBufferType_Texture:
-    case ShaderBufferType_PushTexture:
+    case FlareBase::ShaderBufferType_Texture:
+    case FlareBase::ShaderBufferType_PushTexture:
     {
         return vk::DescriptorType::eCombinedImageSampler;
     }
@@ -78,15 +78,15 @@ struct Input
     vk::DescriptorSetLayoutBinding Binding;
 };
 
-static void GetLayoutInfo(const RenderProgram& a_program, std::vector<vk::PushConstantRange>& a_pushConstants, std::vector<Input>& a_bindings, std::vector<Input>& a_pushBindings)
+static void GetLayoutInfo(const FlareBase::RenderProgram& a_program, std::vector<vk::PushConstantRange>& a_pushConstants, std::vector<Input>& a_bindings, std::vector<Input>& a_pushBindings)
 {
     for (uint16_t i = 0; i < a_program.ShaderBufferInputCount; ++i)
     {
-        const ShaderBufferInput& input = a_program.ShaderBufferInputs[i];
+        const FlareBase::ShaderBufferInput& input = a_program.ShaderBufferInputs[i];
         
         switch (input.BufferType)
         {
-        case ShaderBufferType_ModelBuffer:
+        case FlareBase::ShaderBufferType_ModelBuffer:
         {
             a_pushConstants.push_back(vk::PushConstantRange
             (
@@ -97,11 +97,11 @@ static void GetLayoutInfo(const RenderProgram& a_program, std::vector<vk::PushCo
 
             break;
         }
-        case ShaderBufferType_CameraBuffer:
-        case ShaderBufferType_DirectionalLightBuffer:
-        case ShaderBufferType_PointLightBuffer:
-        case ShaderBufferType_SpotLightBuffer:
-        case ShaderBufferType_PushTexture:
+        case FlareBase::ShaderBufferType_CameraBuffer:
+        case FlareBase::ShaderBufferType_DirectionalLightBuffer:
+        case FlareBase::ShaderBufferType_PointLightBuffer:
+        case FlareBase::ShaderBufferType_SpotLightBuffer:
+        case FlareBase::ShaderBufferType_PushTexture:
         {
             Input in;
             in.Slot = i;
@@ -149,37 +149,37 @@ VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGr
 
     TRACE("Creating Shader Data");
     const vk::Device device = m_engine->GetLogicalDevice();
-    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    const FlareBase::RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
 
     for (uint16_t i = 0; i < program.ShaderBufferInputCount; ++i)
     {
         switch (program.ShaderBufferInputs[i].BufferType)
         {
-        case ShaderBufferType_CameraBuffer:
+        case FlareBase::ShaderBufferType_CameraBuffer:
         {
             m_cameraBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }
-        case ShaderBufferType_ModelBuffer:
+        case FlareBase::ShaderBufferType_ModelBuffer:
         {
             m_transformBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }
-        case ShaderBufferType_DirectionalLightBuffer:
+        case FlareBase::ShaderBufferType_DirectionalLightBuffer:
         {
             m_directionalLightBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }
-        case ShaderBufferType_PointLightBuffer:
+        case FlareBase::ShaderBufferType_PointLightBuffer:
         {
             m_pointLightBufferInput = program.ShaderBufferInputs[i];
 
             break;
         }
-        case ShaderBufferType_SpotLightBuffer:
+        case FlareBase::ShaderBufferType_SpotLightBuffer:
         {
             m_spotLightBufferInput = program.ShaderBufferInputs[i];
 
@@ -501,7 +501,7 @@ void VulkanShaderData::PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint
 
 void VulkanShaderData::UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_transformAddr, ObjectManager* a_objectManager) const
 {
-    if (m_transformBufferInput.ShaderSlot != ShaderSlot_Null)
+    if (m_transformBufferInput.ShaderSlot != FlareBase::ShaderSlot_Null)
     {
         ModelShaderBuffer buffer;
         buffer.Model = a_objectManager->GetGlobalMatrix(a_transformAddr);

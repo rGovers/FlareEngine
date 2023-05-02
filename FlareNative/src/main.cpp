@@ -3,7 +3,7 @@
 
 #include "Application.h"
 #include "Config.h"
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "FlareNativeConfig.h"
 
 #define STBI_ASSERT(x) FLARE_ASSERT_MSG(x, "STBI Assert")

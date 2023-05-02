@@ -1,10 +1,10 @@
-#include "ColladaLoader.h"
+#include "Flare/ColladaLoader.h"
 
 #include <fstream>
 #include <string>
 #include <tinyxml2.h>
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 
 namespace FlareBase
 {

@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanPixelShader.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/SpirvTools.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"

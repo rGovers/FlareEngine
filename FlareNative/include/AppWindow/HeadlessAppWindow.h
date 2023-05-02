@@ -6,11 +6,12 @@
 #include <cstdint>
 #include <mutex>
 
+#include "Flare/WindowsHeaders.h"
+
 #include "DataTypes/TArray.h"
+#include "Flare/PipeMessage.h"
 #include "Logger.h"
-#include "PipeMessage.h"
 #include "Profiler.h"
-#include "WindowsHeaders.h"
 
 class HeadlessAppWindow : public AppWindow
 {

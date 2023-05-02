@@ -3,7 +3,7 @@
 #include <future>
 #include <mutex>
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "ObjectManager.h"
 #include "Profiler.h"
@@ -152,7 +152,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     TRACE("Checking shader program buffer health");
     for (uint32_t i = 0; i < m_shaderPrograms.Size(); ++i)
     {
-        if (!(m_shaderPrograms[i].Flags & 0b1 << RenderProgram::FreeFlag))
+        if (!(m_shaderPrograms[i].Flags & 0b1 << FlareBase::RenderProgram::FreeFlag))
         {
             Logger::Warning("Shader buffer was not destroyed");
         }
@@ -196,7 +196,7 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
     }
 }
 
-RenderProgram VulkanGraphicsEngine::GetRenderProgram(uint32_t a_addr)
+FlareBase::RenderProgram VulkanGraphicsEngine::GetRenderProgram(uint32_t a_addr)
 {
     FLARE_ASSERT_MSG(a_addr < m_shaderPrograms.Size(), "GetRenderProgram out of bounds");
 
@@ -322,7 +322,7 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     for (const MaterialRenderStack& renderStack : stacks)
     {
         const uint32_t matAddr = renderStack.GetMaterialAddr();
-        const RenderProgram& program = m_shaderPrograms[matAddr];
+        const FlareBase::RenderProgram& program = m_shaderPrograms[matAddr];
         if (camBuffer.RenderLayer & program.RenderLayer)
         {
             const VulkanPipeline* pipeline = renderCommand.BindMaterial(matAddr);
@@ -330,8 +330,8 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
 
             const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
             FLARE_ASSERT(shaderData != nullptr);
-            const ShaderBufferInput camInput = shaderData->GetCameraInput();
-            if (camInput.BufferType == ShaderBufferType_CameraBuffer)
+            const FlareBase::ShaderBufferInput camInput = shaderData->GetCameraInput();
+            if (camInput.BufferType == FlareBase::ShaderBufferType_CameraBuffer)
             {
                 shaderData->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
             }
@@ -418,8 +418,8 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
         const VulkanShaderData* data = pipeline->GetShaderData();
         FLARE_ASSERT(data != nullptr);
-        const ShaderBufferInput camInput = data->GetCameraInput();
-        if (camInput.BufferType == ShaderBufferType_CameraBuffer)
+        const FlareBase::ShaderBufferInput camInput = data->GetCameraInput();
+        if (camInput.BufferType == FlareBase::ShaderBufferType_CameraBuffer)
         {
             data->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
         }
@@ -431,9 +431,9 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         {
             const std::vector<DirectionalLightBuffer> lights = m_directionalLights.ToVector();
 
-            const ShaderBufferInput dirLightInput = data->GetDirectionalLightInput();
+            const FlareBase::ShaderBufferInput dirLightInput = data->GetDirectionalLightInput();
 
-            if (dirLightInput.BufferType == ShaderBufferType_DirectionalLightBuffer)
+            if (dirLightInput.BufferType == FlareBase::ShaderBufferType_DirectionalLightBuffer)
             {
                 const uint32_t dirLightCount = (uint32_t)lights.size();
                 for (uint32_t i = 0; i < dirLightCount; ++i)
@@ -465,9 +465,9 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         {
             const std::vector<PointLightBuffer> lights = m_pointLights.ToVector();
 
-            const ShaderBufferInput pointLightInput = data->GetPointLightInput();
+            const FlareBase::ShaderBufferInput pointLightInput = data->GetPointLightInput();
 
-            if (pointLightInput.BufferType == ShaderBufferType_PointLightBuffer)
+            if (pointLightInput.BufferType == FlareBase::ShaderBufferType_PointLightBuffer)
             {
                 const uint32_t pointLightCount = (uint32_t)lights.size();
                 for (uint32_t i = 0; i < pointLightCount; ++i)
@@ -499,9 +499,9 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
         {
             const std::vector<SpotLightBuffer> lights = m_spotLights.ToVector();
 
-            const ShaderBufferInput spotLightInput = data->GetSpotLightInput();
+            const FlareBase::ShaderBufferInput spotLightInput = data->GetSpotLightInput();
 
-            if (spotLightInput.BufferType == ShaderBufferType_SpotLightBuffer)
+            if (spotLightInput.BufferType == FlareBase::ShaderBufferType_SpotLightBuffer)
             {
                 const uint32_t spotLightCount = (uint32_t)lights.size();
                 for (uint32_t i = 0; i < spotLightCount; ++i)

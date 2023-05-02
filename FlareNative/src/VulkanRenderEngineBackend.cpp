@@ -7,7 +7,7 @@
 
 #include "AppWindow/AppWindow.h"
 #include "Config.h"
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "FlareNativeConfig.h"
 #include "Logger.h"
 #include "Profiler.h"

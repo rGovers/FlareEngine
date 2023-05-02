@@ -1,4 +1,4 @@
-#include "InputBindings.h"
+#include "Flare/InputBindings.h"
 
 namespace FlareBase
 {

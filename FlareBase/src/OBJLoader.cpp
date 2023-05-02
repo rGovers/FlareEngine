@@ -1,11 +1,11 @@
-#include "OBJLoader.h"
+#include "Flare/OBJLoader.h"
 
 #include <fstream>
 #include <string>
 #include <string.h>
 #include <unordered_map>
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 
 namespace FlareBase
 {

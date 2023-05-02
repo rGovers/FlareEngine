@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanPipeline.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPixelShader.h"
@@ -9,68 +9,54 @@
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Trace.h"
 
-static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const RenderProgram& a_program, VulkanGraphicsEngine* a_gEngine)
+static std::vector<vk::PipelineShaderStageCreateInfo> GetStageInfo(const FlareBase::RenderProgram& a_program, VulkanGraphicsEngine* a_gEngine)
 {
     std::vector<vk::PipelineShaderStageCreateInfo> stages;
 
     if (a_program.VertexShader != -1)
     {
         const VulkanShader* vertexShader = a_gEngine->GetVertexShader(a_program.VertexShader);
-        if (vertexShader != nullptr)
-        {
-            stages.emplace_back(vk::PipelineShaderStageCreateInfo
-            (
-                vk::PipelineShaderStageCreateFlags(),
-                vk::ShaderStageFlagBits::eVertex,
-                vertexShader->GetShaderModule(),
-                "main"
-            ));
-        }
-        else 
-        {
-            Logger::Error("Failed to find vertex shader");
+        FLARE_ASSERT_MSG(vertexShader != nullptr, "Failed to find vertex shader")
 
-            assert(0);
-        }
+        stages.emplace_back(vk::PipelineShaderStageCreateInfo
+        (
+            vk::PipelineShaderStageCreateFlags(),
+            vk::ShaderStageFlagBits::eVertex,
+            vertexShader->GetShaderModule(),
+            "main"
+        ));
     }
 
     if (a_program.PixelShader != -1)
     {
         const VulkanShader* pixelShader = a_gEngine->GetPixelShader(a_program.PixelShader);
-        if (pixelShader != nullptr)
-        {
-            stages.emplace_back(vk::PipelineShaderStageCreateInfo
-            (
-                vk::PipelineShaderStageCreateFlags(),
-                vk::ShaderStageFlagBits::eFragment,
-                pixelShader->GetShaderModule(),
-                "main"
-            ));
-        }
-        else
-        {
-            Logger::Error("Failed to find pixel shader");
+        FLARE_ASSERT_MSG(pixelShader != nullptr, "Failed to find pixel shader");
 
-            assert(0);
-        }
+        stages.emplace_back(vk::PipelineShaderStageCreateInfo
+        (
+            vk::PipelineShaderStageCreateFlags(),
+            vk::ShaderStageFlagBits::eFragment,
+            pixelShader->GetShaderModule(),
+            "main"
+        ));
     }
 
     return stages;
 }
 
-constexpr static vk::CullModeFlags GetCullingMode(e_CullMode a_mode)
+constexpr static vk::CullModeFlags GetCullingMode(FlareBase::e_CullMode a_mode)
 {
     switch (a_mode)
     {
-    case CullMode_Front:
+    case FlareBase::CullMode_Front:
     {
         return vk::CullModeFlagBits::eFront;
     }
-    case CullMode_Back:
+    case FlareBase::CullMode_Back:
     {
         return vk::CullModeFlagBits::eBack;
     }
-    case CullMode_Both:
+    case FlareBase::CullMode_Both:
     {
         return vk::CullModeFlagBits::eFrontAndBack;
     }
@@ -79,11 +65,11 @@ constexpr static vk::CullModeFlags GetCullingMode(e_CullMode a_mode)
     return vk::CullModeFlagBits::eNone;
 }
 
-constexpr static vk::PrimitiveTopology GetPrimitiveMode(e_PrimitiveMode a_mode)
+constexpr static vk::PrimitiveTopology GetPrimitiveMode(FlareBase::e_PrimitiveMode a_mode)
 {
     switch (a_mode)
     {
-    case PrimitiveMode_TriangleStrip:
+    case FlareBase::PrimitiveMode_TriangleStrip:
     {
         return vk::PrimitiveTopology::eTriangleStrip;
     }
@@ -182,7 +168,7 @@ VulkanPipeline::VulkanPipeline(VulkanRenderEngineBackend* a_engine, VulkanGraphi
     m_programAddr = a_programAddr;
 
     const vk::Device device = m_engine->GetLogicalDevice();
-    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    const FlareBase::RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
     const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
     FLARE_ASSERT(shaderData != nullptr);
 
@@ -346,14 +332,14 @@ VulkanPipeline::~VulkanPipeline()
 
 VulkanShaderData* VulkanPipeline::GetShaderData() const
 {
-    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    const FlareBase::RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
     FLARE_ASSERT(program.Data != nullptr);
     
     return (VulkanShaderData*)program.Data;
 }
 void VulkanPipeline::Bind(uint32_t a_index, vk::CommandBuffer a_commandBuffer) const
 {
-    const RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
+    const FlareBase::RenderProgram program = m_gEngine->GetRenderProgram(m_programAddr);
 
     const VulkanShaderData* data = (VulkanShaderData*)program.Data;
     FLARE_ASSERT(data != nullptr);

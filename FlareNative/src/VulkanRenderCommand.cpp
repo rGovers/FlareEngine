@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanRenderCommand.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanPipeline.h"
@@ -74,7 +74,7 @@ void VulkanRenderCommand::PushTexture(uint32_t a_slot, const TextureSampler& a_s
 {
     FLARE_ASSERT_MSG_R(m_materialAddr != -1, "PushTexture Material not bound");
 
-    const RenderProgram program = m_gEngine->GetRenderProgram(m_materialAddr);
+    const FlareBase::RenderProgram program = m_gEngine->GetRenderProgram(m_materialAddr);
     VulkanShaderData* data = (VulkanShaderData*)program.Data;
 
     data->PushTexture(m_commandBuffer, a_slot, a_sampler, m_engine->GetCurrentFrame());

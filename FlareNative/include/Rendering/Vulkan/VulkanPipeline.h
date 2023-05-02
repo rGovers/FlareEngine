@@ -2,7 +2,7 @@
 
 #include "Rendering/Vulkan/VulkanConstants.h"
 
-#include "Rendering/RenderProgram.h"
+#include "Flare/RenderProgram.h"
 
 class VulkanGraphicsEngine;
 class VulkanRenderEngineBackend;

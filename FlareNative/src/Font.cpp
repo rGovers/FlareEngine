@@ -3,7 +3,7 @@
 #include <fstream>
 #include <limits>
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Trace.h"
 
 Font::Font(const std::string_view& a_path)

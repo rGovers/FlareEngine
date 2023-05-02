@@ -3,7 +3,7 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 
-#include "InputBindings.h"
+#include "Flare/InputBindings.h"
 
 class RuntimeFunction;
 class RuntimeManager;

@@ -1,6 +1,6 @@
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"

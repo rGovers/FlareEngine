@@ -7,10 +7,10 @@ class VulkanGraphicsEngine;
 class VulkanPixelShader;
 class VulkanVertexShader;
 
+#include "Flare/RenderProgram.h"
 #include "Rendering/CameraBuffer.h"
 #include "Rendering/Light.h"
 #include "Rendering/MeshRenderBuffer.h"
-#include "Rendering/RenderProgram.h"
 #include "Rendering/TextureSampler.h"
 
 class VulkanGraphicsEngineBindings
@@ -32,12 +32,12 @@ public:
     uint32_t GenerateGLSLPixelShaderAddr(const std::string_view& a_str) const;
     void DestroyPixelShader(uint32_t a_addr) const;
 
-    uint32_t GenerateInternalShaderProgram(e_InternalRenderProgram a_program) const;
-    uint32_t GenerateShaderProgram(RenderProgram& a_program) const;
+    uint32_t GenerateInternalShaderProgram(FlareBase::e_InternalRenderProgram a_program) const;
+    uint32_t GenerateShaderProgram(const FlareBase::RenderProgram& a_program) const;
     void DestroyShaderProgram(uint32_t a_addr) const;
     void RenderProgramSetTexture(uint32_t a_addr, uint32_t a_shaderSlot, uint32_t a_samplerAddr);
-    RenderProgram GetRenderProgram(uint32_t a_addr) const;
-    void SetRenderProgram(uint32_t a_addr, const RenderProgram& a_program) const;
+    FlareBase::RenderProgram GetRenderProgram(uint32_t a_addr) const;
+    void SetRenderProgram(uint32_t a_addr, const FlareBase::RenderProgram& a_program) const;
 
     uint32_t GenerateCameraBuffer(uint32_t a_transformAddr) const;
     void DestroyCameraBuffer(uint32_t a_addr) const;

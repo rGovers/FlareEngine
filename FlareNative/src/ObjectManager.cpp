@@ -1,6 +1,6 @@
 #include "ObjectManager.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Runtime/RuntimeManager.h"
 #include "Trace.h"
 

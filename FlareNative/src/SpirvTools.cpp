@@ -1,6 +1,6 @@
 #include "Rendering/SpirvTools.h"
 
-#include "FlareAssert.h"
+#include "Flare/FlareAssert.h"
 #include "Logger.h"
 #include "Rendering/ShaderBuffers.h"
 #include "Trace.h"
