@@ -11,6 +11,16 @@ namespace FlareEngine.Definitions
         [HideInEditor, NonSerialized]
         public string DefParentName = string.Empty;
 
+        public const string SceneDefPath = "[Scene]";
+
+        public bool IsSceneDef
+        {
+            get
+            {
+                return DefPath == SceneDefPath;
+            }
+        }
+
         public virtual void PostResolve() { }
     };
 }

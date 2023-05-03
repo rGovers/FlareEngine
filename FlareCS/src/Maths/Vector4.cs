@@ -72,6 +72,11 @@ namespace FlareEngine.Maths
         public static readonly Vector4 ZeroP = new Vector4(Vector3.Zero, 1.0f);
 
         public static readonly Vector4 Infinity = new Vector4(float.PositiveInfinity);
+
+        public static readonly Vector4 UnitX = new Vector4(1.0f, 0.0f, 0.0f, 0.0f);
+        public static readonly Vector4 UnitY = new Vector4(0.0f, 1.0f, 0.0f, 0.0f);
+        public static readonly Vector4 UnitZ = new Vector4(0.0f, 0.0f, 1.0f, 0.0f);
+        public static readonly Vector4 UnitW = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 #endregion
 
 #region SWIZZLE
@@ -1059,6 +1064,11 @@ namespace FlareEngine.Maths
             float mag = a_vec.Magnitude;
 
             return new Vector4(a_vec.X / mag, a_vec.Y / mag, a_vec.Z / mag, a_vec.W / mag);
+        }
+
+        public Quaternion ToQuaternion()
+        {
+            return new Quaternion(X, Y, Z, W);
         }
     }
 }

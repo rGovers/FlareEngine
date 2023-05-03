@@ -88,24 +88,8 @@ namespace FlareEngine.Maths
         }
         public static Quaternion FromEuler(Vector3 a_euler)
         {
-            Vector3 halfVec = a_euler * 0.5f;
-            double c1 = Math.Cos(halfVec.Y);
-            double s1 = Math.Sin(halfVec.Y);
-            double c2 = Math.Cos(halfVec.X);
-            double s2 = Math.Sin(halfVec.X);
-            double c3 = Math.Cos(halfVec.Z);
-            double s3 = Math.Sin(halfVec.Z);
-
-            double w = Math.Sqrt(1.0 + c1 * c2 + c1 * c3 - s1 * s2 * s3 + c2 * c3) * 0.5;
-            double w4 = 4 * w;
-
-            return new Quaternion
-            (
-                (float)((c2 * s3 + c1 * s3 + s1 * s2 * c3) / w4), 
-                (float)((s1 * c2 + s1 * c3 + c1 * s2 * s3) / w4),
-                (float)((-s1 * s3 + c1 * s2 * c3 + s2) / w4),
-                (float)w
-            );
+            // Not the most efficent but it works and less hair pulling
+            return FromAxisAngle(Vector3.UnitX, a_euler.X) * FromAxisAngle(Vector3.UnitY, a_euler.Y) * FromAxisAngle(Vector3.UnitZ, a_euler.Z);
         }
 
         public float MagnitudeSqr
@@ -162,6 +146,11 @@ namespace FlareEngine.Maths
             return new Quaternion(a_quat.X / mag, a_quat.Y / mag, a_quat.Z / mag, a_quat.W / mag);
         }
 
+        public Vector4 ToVector4()
+        {
+            return new Vector4(X, Y, Z, W);
+        }
+
         public Matrix4 ToMatrix()
         {
             float sqX = X * X;
@@ -173,19 +162,77 @@ namespace FlareEngine.Maths
 
             float v1 = X * Y;
             float v2 = Z * W;
-
-            float p1 = 2.0f * (v1 + v2) * inv;
-            float p2 = 2.0f * (v1 - v2) * inv;
+            float v3 = X * Z;
+            float v4 = Y * W;
+            float v5 = Y * Z;
+            float v6 = X * W;
 
             Matrix4 mat = new Matrix4
             (
-                (sqX - sqY - sqZ + sqW), p2,                             p1,                             0.0f,
-                p1,                      (-sqX + sqY - sqZ + sqW) * inv, p2,                             0.0f,
-                p2,                      p1,                             (-sqX - sqY + sqZ + sqW) * inv, 0.0f,
-                0.0f,                    0.0f,                           0.0f,                           1.0f
+                (sqX - sqY - sqZ + sqW) * inv, 2.0f * (v1 - v2) * inv,         2.0f * (v3 + v4) * inv,         0.0f,
+                2.0f * (v1 + v2) * inv,        (-sqX + sqY - sqZ + sqW) * inv, 2.0f * (v5 - v6) * inv,         0.0f,
+                2.0f * (v3 - v4) * inv,        2.0f * (v5 + v6) * inv,         (-sqX - sqY + sqZ + sqW) * inv, 0.0f,
+                0.0f,                          0.0f,                           0.0f,                           1.0f
             );
 
             return mat;
+        }
+
+        public Vector3 ToEuler()
+        {
+            float np = X * Y + Z * W;
+
+            if (np > 0.5f - float.Epsilon)
+            {
+                return new Vector3
+                (
+                    0.0f,
+                    2 * Mathf.Atan2(X, W),
+                    Mathf.HalfPI
+                );
+            }
+            else if (np < -0.5f + float.Epsilon)
+            {
+                return new Vector3
+                (
+                    0.0f, 
+                    -2 * Mathf.Atan2(X, W),
+                    -Mathf.HalfPI
+                );
+            }
+
+            float sqX = X * X;
+            float sqY = Y * Y;
+            float sqZ = Z * Z;
+
+            return new Vector3
+            (
+                // b
+                Mathf.Atan2(2 * X * W - 2 * Y * Z, 1 - 2 * sqX - 2 * sqZ),
+                // h
+                Mathf.Atan2(2 * Y * W - 2 * X * Z, 1 - 2 * sqY - 2 * sqZ),
+                // a
+                Mathf.Asin(2 * np)
+            );         
+        }
+
+        public Vector4 ToAxisAngle()
+        {
+            if (W >= 1)
+            {
+                return Vector4.Zero;
+            }
+
+            // Use Inverse for div by zero error
+            float sInv = 1 / Mathf.Sqrt(1 - W * W);
+
+            return new Vector4
+            (
+                X * sInv,
+                Y * sInv, 
+                Z * sInv,
+                2 * Mathf.Acos(W)
+            );
         }
 
         public override string ToString()

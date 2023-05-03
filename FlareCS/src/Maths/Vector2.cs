@@ -57,6 +57,9 @@ namespace FlareEngine.Maths
         public static readonly Vector2 Left = new Vector2(-1.0f, 0.0f);
         public static readonly Vector2 Up = new Vector2(0.0f, 1.0f);
         public static readonly Vector2 Down = new Vector2(0.0f, -1.0f);
+
+        public static readonly Vector2 UnitX = new Vector2(1.0f, 0.0f);
+        public static readonly Vector2 UnitY = new Vector2(0.0f, 1.0f);
 #endregion
 
         public float this[int a_key]

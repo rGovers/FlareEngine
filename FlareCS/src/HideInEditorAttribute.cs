@@ -1,6 +1,9 @@
 using System;
 
-public class HideInEditorAttribute : Attribute
+namespace FlareEngine
 {
-    
+    public class HideInEditorAttribute : Attribute
+    {
+
+    }
 }

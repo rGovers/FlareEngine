@@ -1,19 +1,22 @@
 using System;
 
-public class EditorTooltipAttribute : Attribute
+namespace FlareEngine
 {
-    string m_tooltip;
-
-    public string Tooltip 
+    public class EditorTooltipAttribute : Attribute
     {
-        get
+        string m_tooltip;
+    
+        public string Tooltip 
         {
-            return m_tooltip;
+            get
+            {
+                return m_tooltip;
+            }
         }
-    }
-
-    public EditorTooltipAttribute(string a_tooltip)
-    {
-        m_tooltip = a_tooltip;
+    
+        public EditorTooltipAttribute(string a_tooltip)
+        {
+            m_tooltip = a_tooltip;
+        }
     }
 }

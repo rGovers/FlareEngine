@@ -57,80 +57,113 @@ namespace FlareEngine
             }
         }
 
+        void SetTransform(XmlElement a_element, ref SceneObject a_sceneObject)
+        {
+            foreach (XmlNode node in a_element.ChildNodes)
+            {
+                if (node is XmlElement element)
+                {
+                    switch (element.Name)
+                    {
+                    case "Translation":
+                    {
+                        a_sceneObject.Translation = element.ToVector3();
+
+                        break;
+                    }
+                    case "Rotation":
+                    {
+                        a_sceneObject.Rotation = Quaternion.Normalized(element.ToQuaternion());
+
+                        break;
+                    }
+                    case "AxisAngle":
+                    {
+                        Vector4 rot = element.ToVector4(Vector4.Zero);
+
+                        a_sceneObject.Rotation = Quaternion.FromAxisAngle(Vector3.Normalized(rot.XYZ), rot.W);
+
+                        break;
+                    }
+                    case "Scale":
+                    {
+                        a_sceneObject.Scale = element.ToVector3(Vector3.One);
+
+                        break;
+                    }
+                    default:
+                    {
+                        Logger.FlareError($"Invalid Scene Transform: {element.Name}");
+
+                        break;
+                    }
+                    }
+                }                
+            }
+        }
+
+        void LoadSceneObject(XmlElement a_element)
+        {
+            SceneObject obj = new SceneObject();
+            obj.Translation = Vector3.Zero;
+            obj.Rotation = Quaternion.Identity;
+            obj.Scale = Vector3.One;
+
+            foreach (XmlElement node in a_element.ChildNodes)
+            {
+                if (node is XmlElement element)
+                {
+                    switch (element.Name)
+                    {
+                    case "Transform":
+                    {
+                        SetTransform(element, ref obj);
+
+                        break;
+                    }
+                    case "DefName":
+                    {
+                        obj.DefName = element.InnerText;
+
+                        break;
+                    }
+                    default:
+                    {
+                        Logger.FlareError($"Invalid Scene element: {element.Name}");
+
+                        return;
+                    }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(obj.DefName))
+            {
+                m_sceneObjects.Add(obj);
+            }
+            else
+            {
+                Logger.FlareWarning($"Invalid Scene Object");
+            }
+        }
+
         void LoadObjects(XmlElement a_element)
         {
-            foreach (XmlElement element in a_element.ChildNodes)
+            foreach (XmlNode node in a_element.ChildNodes)
             {
-                if (element.Name == "GameObject")
+                if (node is XmlElement element)
                 {
-                    SceneObject obj = new SceneObject();
-                    obj.Translation = Vector3.Zero;
-                    obj.Rotation = Quaternion.Identity;
-                    obj.Scale = Vector3.One;
-
-                    foreach (XmlElement oElement in element.ChildNodes)
+                    if (element.Name == "GameObject")
                     {
-                        switch (oElement.Name)
-                        {
-                        case "Transform":
-                        {
-                            foreach (XmlElement tElement in oElement.ChildNodes)
-                            {
-                                switch (tElement.Name)
-                                {
-                                case "Translation":
-                                {
-                                    obj.Translation = tElement.ToVector3();
-
-                                    break;
-                                }
-                                case "Rotation":
-                                {
-                                    obj.Rotation = tElement.ToQuaternion();
-
-                                    break;
-                                }
-                                case "Scale":
-                                {
-                                    obj.Scale = tElement.ToVector3(Vector3.One);
-
-                                    break;
-                                }
-                                }
-                            }
-
-                            break;
-                        }
-                        case "DefName":
-                        {
-                            obj.DefName = oElement.InnerText;
-
-                            break;
-                        }
-                        default:
-                        {
-                            Logger.FlareError($"Invalid Scene element {oElement.Name}");
-
-                            return;
-                        }
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(obj.DefName))
-                    {
-                        m_sceneObjects.Add(obj);
+                        LoadSceneObject(element);
                     }
                     else
                     {
-                        Logger.FlareWarning($"Invalid Scene Object");
-                    }
-                }
-                else
-                {
-                    Logger.FlareError($"Invalid Scene element {element.Name}");
+                        Logger.FlareError($"Invalid Scene element: {element.Name}");
 
-                    return;
-                }
+                        return;
+                    }
+                }                
             }
         }
         void LoadDefs(XmlElement a_element)
@@ -139,7 +172,7 @@ namespace FlareEngine
 
             foreach (XmlElement element in a_element.ChildNodes)
             {
-                data.Add(DefLibrary.GetDefData("[Scene]", element));
+                data.Add(DefLibrary.GetDefData(Def.SceneDefPath, element));
             }
 
             DefLibrary.LoadSceneDefs(data);
@@ -157,29 +190,32 @@ namespace FlareEngine
             {
                 m_name = root.GetAttribute("Name");
 
-                foreach (XmlElement element in root.ChildNodes)
+                foreach (XmlNode node in root.ChildNodes)
                 {
-                    switch (element.Name)
+                    if (node is XmlElement element)
                     {
-                    case "Objects":
-                    {
-                        LoadObjects(element);
+                        switch (element.Name)
+                        {
+                        case "Objects":
+                        {
+                            LoadObjects(element);
 
-                        break;
-                    }
-                    case "Defs":
-                    {
-                        LoadDefs(element);
+                            break;
+                        }
+                        case "Defs":
+                        {
+                            LoadDefs(element);
 
-                        break;
-                    }
-                    default:
-                    {
-                        Logger.FlareError($"Invalid scene element {element.Name}");
+                            break;
+                        }
+                        default:
+                        {
+                            Logger.FlareError($"Invalid scene element {element.Name}");
 
-                        break;
-                    }
-                    }
+                            break;
+                        }
+                        }
+                    }                    
                 }
             }
         }

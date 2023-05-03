@@ -97,7 +97,7 @@ namespace FlareEngine.Maths
                 0.0f, 0.0f, 0.0f, 1.0f
             );
 
-            return translation * a_rotation.ToMatrix() * scale;
+            return scale * a_rotation.ToMatrix() * translation;
         }
 
         public static Matrix4 Transpose(Matrix4 a_matrix)
