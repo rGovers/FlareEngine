@@ -7,7 +7,7 @@ using System.Xml;
 
 namespace FlareEngine
 {
-    public struct SceneObject
+    public class SceneObject
     {
         public Vector3 Translation;
         public Quaternion Rotation;
@@ -170,9 +170,12 @@ namespace FlareEngine
         {
             List<DefData> data = new List<DefData>();
 
-            foreach (XmlElement element in a_element.ChildNodes)
+            foreach (XmlNode node in a_element.ChildNodes)
             {
-                data.Add(DefLibrary.GetDefData(Def.SceneDefPath, element));
+                if (node is XmlElement element)
+                {
+                    data.Add(DefLibrary.GetDefData(Def.SceneDefPath, element));
+                }
             }
 
             DefLibrary.LoadSceneDefs(data);

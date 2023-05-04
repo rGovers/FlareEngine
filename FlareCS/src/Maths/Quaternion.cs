@@ -130,6 +130,45 @@ namespace FlareEngine.Maths
             return new Vector4(a_lhs * a_rhs.XYZ, a_rhs.W);
         }
 
+        public static bool operator ==(Quaternion a_lhs, Quaternion a_rhs)
+        {
+            return a_lhs.X == a_rhs.X && a_lhs.Y == a_rhs.Y && a_lhs.Z == a_rhs.Z && a_lhs.W == a_rhs.W;
+        }
+        public static bool operator !=(Quaternion a_lhs, Quaternion a_rhs)
+        {
+            return a_lhs.X != a_rhs.X || a_lhs.Y != a_rhs.Y || a_lhs.Z != a_rhs.Z || a_lhs.W != a_rhs.W;
+        }
+
+        public override bool Equals(object a_obj)
+        {
+            if (a_obj == null || !this.GetType().Equals(a_obj.GetType()))
+            {
+                return false;
+            }
+            
+            Quaternion vec = (Quaternion)a_obj;
+
+            return X == vec.X && Y == vec.Y && Z == vec.Z && W == vec.W;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                // Lazy so just prime hash till it bites me
+                int hash = 73;
+                hash = hash * 79 + X.GetHashCode();
+                hash = hash * 79 + Y.GetHashCode();
+                hash = hash * 79 + Z.GetHashCode();
+                hash = hash * 79 + W.GetHashCode();
+                return hash;
+            }
+        }
+        public override string ToString()
+        {
+            return $"({X}, {Y}, {Z}, {W})";
+        }
+
         public void Normalize()
         {
             float mag = Magnitude;
@@ -233,11 +272,6 @@ namespace FlareEngine.Maths
                 Z * sInv,
                 2 * Mathf.Acos(W)
             );
-        }
-
-        public override string ToString()
-        {
-            return $"({X}, {Y}, {Z}, {W})";
         }
     }
 }

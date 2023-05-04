@@ -29,8 +29,18 @@ namespace FlareEngine.Definitions
 
     public static class DefLibrary
     {
-        static ConcurrentBag<Def>                s_sceneDefs;
-        static ConcurrentBag<Def>                s_defs;
+        // Yes I know I had them as ConcurrentBags.
+        // Yes I know they are better then using locks in a threaded context.
+        // However....
+        // It seems that ConcurrentBags are causing a SIGBUS crash when the assembly size gets too large.
+        // The weird part but after much hair pulling but, the crash seems to happen in the VTable and not the actual data type.
+        // Not completely sure what is happening and not gonna debug it got stuff to do and locked lists are good enough.
+        // And people still tell me that C and C++ are bad atleast in those I have address sanitizers and leak detection to debug this stuff.
+        // 
+        // ------------------------------------
+        // TLDR: Concurrent types cause crashes do not change unless the root cause has been found and fixed.
+        static List<Def>                         s_sceneDefs;
+        static List<Def>                         s_defs;
 
         static ConcurrentDictionary<string, Def> s_sceneLookup;
         static ConcurrentDictionary<string, Def> s_defLookup;
@@ -527,9 +537,9 @@ namespace FlareEngine.Definitions
 
         internal static void Init()
         {
-            s_defs = new ConcurrentBag<Def>();
+            s_defs = new List<Def>();
             s_defLookup = new ConcurrentDictionary<string, Def>();
-            s_sceneDefs = new ConcurrentBag<Def>();
+            s_sceneDefs = new List<Def>();
             s_sceneLookup = new ConcurrentDictionary<string, Def>();
         }
 
@@ -537,7 +547,10 @@ namespace FlareEngine.Definitions
         {
             FlushSceneDefs();
 
-            s_defs = new ConcurrentBag<Def>();
+            lock (s_defs)
+            {
+                s_defs.Clear();
+            }
             s_defLookup.Clear();
         }
 
@@ -553,7 +566,10 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, a_data);
                 if (def != null)
                 {
-                    s_defs.Add(def);
+                    lock (s_defs)
+                    {
+                        s_defs.Add(def);
+                    }
                     s_defLookup.TryAdd(def.DefName, def);
                 }
                 else
@@ -574,7 +590,10 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, a_data);
                 if (def != null)
                 {
-                    s_sceneDefs.Add(def);
+                    lock (s_sceneDefs)
+                    {
+                        s_sceneDefs.Add(def);
+                    }
                     s_sceneLookup.TryAdd(def.DefName, def);
                 }
                 else
@@ -586,7 +605,10 @@ namespace FlareEngine.Definitions
 
         public static void FlushSceneDefs()
         {
-            s_sceneDefs = new ConcurrentBag<Def>();
+            lock (s_sceneDefs)
+            {
+                s_sceneDefs.Clear();
+            }
             s_sceneLookup.Clear();
         }
 
@@ -645,7 +667,10 @@ namespace FlareEngine.Definitions
                 Def def = CreateDef(dat, defData);
                 if (def != null)
                 {
-                    s_defs.Add(def);
+                    lock (s_defs)
+                    {
+                        s_defs.Add(def);
+                    }
                     s_defLookup.TryAdd(def.DefName, def);
                 }
             }
@@ -768,12 +793,19 @@ namespace FlareEngine.Definitions
 
         public static void ResolveDefs()
         {
-            foreach (Def def in s_defs)
+            List<Def> defs = new List<Def>();
+
+            lock (s_defs)
+            {
+                defs.AddRange(s_defs);
+            }
+            
+            foreach (Def def in defs)
             {
                 ResolveDefs(def);
             }
 
-            foreach (Def def in s_defs)
+            foreach (Def def in defs)
             {
                 def.PostResolve();
             }
@@ -790,12 +822,19 @@ namespace FlareEngine.Definitions
         }
         public static void ResolveSceneDefs()
         {
-            foreach (Def def in s_sceneDefs)
+            List<Def> defs = new List<Def>();
+
+            lock (s_sceneDefs)
+            {
+                defs.AddRange(s_sceneDefs);
+            }   
+
+            foreach (Def def in defs)
             {
                 ResolveDefs(def);
             }
 
-            foreach (Def def in s_sceneDefs)
+            foreach (Def def in defs)
             {
                 def.PostResolve();
             }
@@ -805,28 +844,41 @@ namespace FlareEngine.Definitions
         {
             List<T> defs = new List<T>();
             
-            foreach (Def sDef in s_sceneDefs)
+            lock (s_sceneDefs)
             {
-                if (sDef is T t)
+                foreach (Def sDef in s_sceneDefs)
                 {
-                    defs.Add(t);
+                    if (sDef is T t)
+                    {
+                        defs.Add(t);
+                    }
                 }
             }
             
-            foreach (Def def in s_defs)
+            lock (s_defs)
             {
-                if (def is T t)
+                foreach (Def def in s_defs)
                 {
-                    defs.Add(t);
+                    if (def is T t)
+                    {
+                        defs.Add(t);
+                    }
                 }
             }
-
+            
             return defs;
         }
         public static List<Def> GetDefs()
         {
-            List<Def> defs = new List<Def>(s_defs);
-            defs.AddRange(s_sceneDefs);
+            List<Def> defs = new List<Def>();
+            lock (s_defs)
+            {
+                defs.AddRange(s_defs);
+            }
+            lock (s_sceneDefs)
+            {
+                defs.AddRange(s_sceneDefs);
+            }
 
             return defs;
         }
