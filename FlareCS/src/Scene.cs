@@ -21,23 +21,22 @@ namespace FlareEngine
 
         List<Def>         m_defs;
 
-        string            m_name;
         List<SceneObject> m_sceneObjects;
         List<GameObject>  m_objects;
-
-        public string Name
-        {
-            get
-            {
-                return m_name;
-            }
-        }
 
         public bool IsDisposed 
         {
             get
             {
                 return m_disposed;
+            }
+        }
+
+        public IEnumerable<Def> Defs
+        {
+            get
+            {
+                return m_defs;
             }
         }
 
@@ -156,6 +155,16 @@ namespace FlareEngine
             DefLibrary.LoadSceneDefs(data);
 
             DefLibrary.ResolveSceneDefs();
+
+            foreach (DefData dat in data)
+            {
+                Def def = DefLibrary.GetDef(dat.Name);
+
+                if (def != null)
+                {
+                    m_defs.Add(def);
+                }
+            }
         }
 
         public Scene(XmlDocument a_doc)
@@ -166,8 +175,6 @@ namespace FlareEngine
 
             if (a_doc.DocumentElement is XmlElement root)
             {
-                m_name = root.GetAttribute("Name");
-
                 foreach (XmlNode node in root.ChildNodes)
                 {
                     if (node is XmlElement element)
