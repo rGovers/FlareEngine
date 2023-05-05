@@ -57,51 +57,6 @@ namespace FlareEngine
             }
         }
 
-        void SetTransform(XmlElement a_element, ref SceneObject a_sceneObject)
-        {
-            foreach (XmlNode node in a_element.ChildNodes)
-            {
-                if (node is XmlElement element)
-                {
-                    switch (element.Name)
-                    {
-                    case "Translation":
-                    {
-                        a_sceneObject.Translation = element.ToVector3();
-
-                        break;
-                    }
-                    case "Rotation":
-                    {
-                        a_sceneObject.Rotation = Quaternion.Normalized(element.ToQuaternion());
-
-                        break;
-                    }
-                    case "AxisAngle":
-                    {
-                        Vector4 rot = element.ToVector4(Vector4.Zero);
-
-                        a_sceneObject.Rotation = Quaternion.FromAxisAngle(Vector3.Normalized(rot.XYZ), rot.W);
-
-                        break;
-                    }
-                    case "Scale":
-                    {
-                        a_sceneObject.Scale = element.ToVector3(Vector3.One);
-
-                        break;
-                    }
-                    default:
-                    {
-                        Logger.FlareError($"Invalid Scene Transform: {element.Name}");
-
-                        break;
-                    }
-                    }
-                }                
-            }
-        }
-
         void LoadSceneObject(XmlElement a_element)
         {
             SceneObject obj = new SceneObject();
@@ -115,9 +70,29 @@ namespace FlareEngine
                 {
                     switch (element.Name)
                     {
-                    case "Transform":
+                    case "Translation":
                     {
-                        SetTransform(element, ref obj);
+                        obj.Translation = element.ToVector3();
+
+                        break;
+                    }
+                    case "Rotation":
+                    {
+                        obj.Rotation = Quaternion.Normalized(element.ToQuaternion());
+
+                        break;
+                    }
+                    case "AxisAngle":
+                    {
+                        Vector4 rot = element.ToVector4(Vector4.Zero);
+
+                        obj.Rotation = Quaternion.FromAxisAngle(Vector3.Normalized(rot.XYZ), rot.W);
+
+                        break;
+                    }
+                    case "Scale":
+                    {
+                        obj.Scale = element.ToVector3(Vector3.One);
 
                         break;
                     }
