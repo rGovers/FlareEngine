@@ -15,17 +15,18 @@ class VulkanRenderCommand;
 class VulkanRenderEngineBackend;
 class VulkanRenderTexture;
 class VulkanSwapchain;
+class VulkanTexture;
 class VulkanUniformBuffer;
 class VulkanVertexShader;
 
 #include "DataTypes/TArray.h"
 #include "DataTypes/TStatic.h"
 #include "Flare/RenderProgram.h"
+#include "Flare/TextureSampler.h"
 #include "Rendering/CameraBuffer.h"
 #include "Rendering/Light.h"
 #include "Rendering/MaterialRenderStack.h"
 #include "Rendering/MeshRenderBuffer.h"
-#include "Rendering/TextureSampler.h"
 
 class VulkanGraphicsEngine
 {
@@ -59,9 +60,10 @@ private:
     TArray<VulkanVertexShader*>                   m_vertexShaders;
     TArray<VulkanPixelShader*>                    m_pixelShaders;
      
-    TArray<TextureSampler>                        m_textureSampler;
+    TArray<FlareBase::TextureSampler>             m_textureSampler;
 
     TArray<VulkanModel*>                          m_models;
+    TArray<VulkanTexture*>                        m_textures;
     TArray<VulkanRenderTexture*>                  m_renderTextures;
 
     TArray<MeshRenderBuffer>                      m_renderBuffers;
@@ -106,5 +108,6 @@ public:
     FlareBase::RenderProgram GetRenderProgram(uint32_t a_addr);
     VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
     
+    VulkanTexture* GetTexture(uint32_t a_addr);
     VulkanRenderTexture* GetRenderTexture(uint32_t a_addr);
 };

@@ -6,13 +6,12 @@
 #include "Rendering/Vulkan/VulkanConstants.h"
 
 #include "Flare/ShaderBufferInput.h"
+#include "Flare/TextureSampler.h"
 
 class ObjectManager;
 class VulkanGraphicsEngine;
 class VulkanRenderEngineBackend;
 class VulkanUniformBuffer;
-
-struct TextureSampler;
 
 class VulkanShaderData
 {
@@ -78,9 +77,9 @@ public:
         return m_spotLightBufferInput;
     }
 
-    void SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const;
+    void SetTexture(uint32_t a_slot, const FlareBase::TextureSampler& a_sampler) const;
 
-    void PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler, uint32_t a_index) const;
+    void PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const FlareBase::TextureSampler& a_sampler, uint32_t a_index) const;
     void PushUniformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, VulkanUniformBuffer* a_buffer, uint32_t a_index) const;
 
     void UpdateTransformBuffer(vk::CommandBuffer a_commandBuffer, uint32_t a_transformAddr, ObjectManager* a_objectManager) const;

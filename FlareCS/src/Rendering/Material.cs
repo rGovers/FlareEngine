@@ -184,6 +184,15 @@ namespace FlareEngine.Rendering
         {
             if (string.IsNullOrWhiteSpace(a_def.PixelShaderPath) || string.IsNullOrWhiteSpace(a_def.VertexShaderPath))
             {
+                Logger.FlareWarning("Material invalid shader path");
+
+                return null;
+            }
+
+            if (a_def.VertexType == null)
+            {
+                Logger.FlareWarning("Material no vertex type");
+
                 return null;
             }
 
@@ -199,11 +208,45 @@ namespace FlareEngine.Rendering
                 vertexInputAttributes = a_def.VertexAttributes.ToArray();
             }
 
-            return new Material(AssetLibrary.LoadVertexShader(a_def.VertexShaderPath), AssetLibrary.LoadPixelShader(a_def.PixelShaderPath), (ushort)Marshal.SizeOf(a_def.VertexType), vertexInputAttributes, shaderInput, a_def.CullingMode, a_def.PrimitiveMode, a_def.EnableColorBlending)
+            VertexShader vertexShader = AssetLibrary.LoadVertexShader(a_def.VertexShaderPath);
+            if (vertexShader == null)
+            {
+                Logger.FlareError("Material invalid vertex shader");
+
+                return null;
+            }
+
+            PixelShader pixelShader = AssetLibrary.LoadPixelShader(a_def.PixelShaderPath);
+            if (pixelShader == null)
+            {
+                Logger.FlareError("Material invalid pixel shader");
+
+                return null;
+            }
+
+            Material mat = new Material(vertexShader, pixelShader, (ushort)Marshal.SizeOf(a_def.VertexType), vertexInputAttributes, shaderInput, a_def.CullingMode, a_def.PrimitiveMode, a_def.EnableColorBlending)
             {
                 m_def = a_def,
                 RenderLayer = a_def.RenderLayer
             };
+
+            if (a_def.TextureInputs != null)
+            {
+                foreach (TextureInput texInput in a_def.TextureInputs)
+                {
+                    TextureSampler sampler = AssetLibrary.GetSampler(texInput);
+                    if (sampler == null)
+                    {
+                        Logger.FlareWarning("Material invalid sampler");
+
+                        return mat;
+                    }
+
+                    mat.SetTexture(texInput.Slot, sampler);
+                }
+            }
+            
+            return mat; 
         }
 
         public void Dispose()

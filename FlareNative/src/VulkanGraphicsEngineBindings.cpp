@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <stb_image.h>
 
 #include "Flare/ColladaLoader.h"
 #include "Flare/FlareAssert.h"
@@ -19,6 +20,7 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanShaderData.h"
+#include "Rendering/Vulkan/VulkanTexture.h"
 #include "Rendering/Vulkan/VulkanTextureSampler.h"
 #include "Rendering/Vulkan/VulkanVertexShader.h"
 #include "Runtime/RuntimeManager.h"
@@ -50,8 +52,11 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, MeshRenderer, GenerateRenderStack, { Engine->GenerateRenderStack(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, MeshRenderer, DestroyRenderStack, { Engine->DestroyRenderStack(a_addr); }, uint32_t a_addr) \
     \
-    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureSampler, { return Engine->GenerateRenderTextureSampler(a_renderTexture, a_textureIndex, (e_TextureFilter)a_filter, (e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_textureIndex, uint32_t a_filter, uint32_t a_addressMode) \
-    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureDepthSampler, { return Engine->GenerateRenderTextureDepthSampler(a_renderTexture, (e_TextureFilter)a_filter, (e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_filter, uint32_t a_addressMode) \
+    F(void, FlareEngine.Rendering, Texture, DestroyTexture, { Engine->DestroyTexture(a_addr); }, uint32_t a_addr) \
+    \
+    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateTextureSampler, { return Engine->GenerateTextureSampler(a_texture, (FlareBase::e_TextureFilter)a_filter, (FlareBase::e_TextureAddress)a_addressMode ); }, uint32_t a_texture, uint32_t a_filter, uint32_t a_addressMode) \
+    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureSampler, { return Engine->GenerateRenderTextureSampler(a_renderTexture, a_textureIndex, (FlareBase::e_TextureFilter)a_filter, (FlareBase::e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_textureIndex, uint32_t a_filter, uint32_t a_addressMode) \
+    F(uint32_t, FlareEngine.Rendering, TextureSampler, GenerateRenderTextureDepthSampler, { return Engine->GenerateRenderTextureDepthSampler(a_renderTexture, (FlareBase::e_TextureFilter)a_filter, (FlareBase::e_TextureAddress)a_addressMode); }, uint32_t a_renderTexture, uint32_t a_filter, uint32_t a_addressMode) \
     F(void, FlareEngine.Rendering, TextureSampler, DestroySampler, { Engine->DestroyTextureSampler(a_addr); }, uint32_t a_addr) \
     \
     F(uint32_t, FlareEngine.Rendering, RenderTextureCmd, GenerateRenderTexture, { return Engine->GenerateRenderTexture(a_count, a_width, a_height, (bool)a_depthTexture, (bool)a_hdr); }, uint32_t a_count, uint32_t a_width, uint32_t a_height, uint32_t a_depthTexture, uint32_t a_hdr) \
@@ -228,6 +233,32 @@ FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Material, DestroyProgram), uint32_
     Engine->DestroyShaderProgram(a_addr);
 }
 
+FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Texture, GenerateFromFile), MonoString* a_path)
+{
+    char* str = mono_string_to_utf8(a_path);
+    const std::filesystem::path p = std::filesystem::path(str);
+    mono_free(str);
+
+    uint32_t addr = -1;
+
+    if (p.extension() == ".png")
+    {
+        int width;
+        int height;
+        int channels;
+
+        stbi_uc* pixels = stbi_load(p.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        if (pixels != nullptr)
+        {
+            addr = Engine->GenerateTexture((uint32_t)width, (uint32_t)height, pixels);
+
+            stbi_image_free(pixels);
+        }
+    }
+
+    return addr;
+}
+
 FLARE_MONO_EXPORT(uint32_t, RUNTIME_FUNCTION_NAME(Model, GenerateModel), MonoArray* a_vertices, MonoArray* a_indices, uint16_t a_vertexStride)
 {
     const uint32_t vertexCount = (uint32_t)mono_array_length(a_vertices);
@@ -306,6 +337,8 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
 
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, GenerateProgram);
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Material, DestroyProgram);
+    
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Texture, GenerateFromFile);
 
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateModel);
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateFromFile);
@@ -805,15 +838,85 @@ void VulkanGraphicsEngineBindings::DestroyRenderStack(uint32_t a_meshAddr) const
     }
 }
 
-uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const
+uint32_t VulkanGraphicsEngineBindings::GenerateTexture(uint32_t a_width, uint32_t a_height, const void* a_data)
+{
+    VulkanTexture* texture = new VulkanTexture(m_graphicsEngine->m_vulkanEngine, a_width, a_height, a_data);
+
+    uint32_t size = 0;
+    {
+        TLockArray<VulkanTexture*> a = m_graphicsEngine->m_textures.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i] == nullptr)
+            {
+                a[i] = texture;
+
+                return i;
+            }
+        }
+    }
+
+    m_graphicsEngine->m_textures.Push(texture);
+
+    return size;
+}
+void VulkanGraphicsEngineBindings::DestroyTexture(uint32_t a_addr) const
+{
+    FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_textures.Size(), "DestroyTexture Texture out of bounds");
+    
+    VulkanTexture* texture = m_graphicsEngine->m_textures[a_addr];
+
+    FLARE_ASSERT_MSG(texture != nullptr, "DestroyTexture already destroyed");
+
+    m_graphicsEngine->m_textures[a_addr] = nullptr;
+    delete texture;
+}
+
+uint32_t VulkanGraphicsEngineBindings::GenerateTextureSampler(uint32_t a_texture, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const
+{
+    FLARE_ASSERT_MSG(a_texture < m_graphicsEngine->m_textures.Size(), "GenerateTextureSampler Texture out of bounds");
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_textures[a_texture] != nullptr, "GenerateTextureSampler, Texture destroyed");
+
+    FlareBase::TextureSampler sampler;
+    sampler.Addr = a_texture;
+    sampler.TextureMode = FlareBase::TextureMode_Texture;
+    sampler.FilterMode = a_filter;
+    sampler.AddressMode = a_addressMode;
+    sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
+
+    uint32_t size = 0;
+    {
+        TLockArray<FlareBase::TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
+
+        size = a.Size();
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            if (a[i].TextureMode == FlareBase::TextureMode_Null)
+            {
+                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateTextureSampler null sampler with data");
+
+                a[i] = sampler;
+
+                return i;
+            }
+        }
+    }
+
+    m_graphicsEngine->m_textureSampler.Push(sampler);
+
+    return size;
+}
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const
 { 
     FLARE_ASSERT_MSG(a_renderTexture < m_graphicsEngine->m_renderTextures.Size(), "GenerateRenderTextureSampler RenderTexture out of bounds");
     FLARE_ASSERT_MSG(m_graphicsEngine->m_renderTextures[a_renderTexture] != nullptr, "GenerateRenderTextureSampler RenderTexture destroyed");
     FLARE_ASSERT_MSG(a_textureIndex < m_graphicsEngine->m_renderTextures[a_renderTexture]->GetTextureCount(), "GenerateRenderTextureSampler texture index out of bounds");
 
-    TextureSampler sampler;
+    FlareBase::TextureSampler sampler;
     sampler.Addr = a_renderTexture;
-    sampler.TextureMode = TextureMode_RenderTexture;
+    sampler.TextureMode = FlareBase::TextureMode_RenderTexture;
     sampler.TSlot = a_textureIndex;
     sampler.FilterMode = a_filter;
     sampler.AddressMode = a_addressMode;
@@ -821,14 +924,14 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_r
 
     uint32_t size = 0;
     {
-        TLockArray<TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
+        TLockArray<FlareBase::TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
 
         size = a.Size();
         for (uint32_t i = 0; i < size; ++i)
         {
-            if (a[i].TextureMode == TextureMode_Null)
+            if (a[i].TextureMode == FlareBase::TextureMode_Null)
             {
-                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateRenderTextureSampler null sampler with data")
+                FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateRenderTextureSampler null sampler with data");
 
                 a[i] = sampler;
 
@@ -841,26 +944,26 @@ uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureSampler(uint32_t a_r
 
     return size;
 }
-uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const
+uint32_t VulkanGraphicsEngineBindings::GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const
 {
     FLARE_ASSERT_MSG(a_renderTexture < m_graphicsEngine->m_renderTextures.Size(), "GenerateRenderTextureDepthSampler out of bounds");
     FLARE_ASSERT_MSG(m_graphicsEngine->m_renderTextures[a_renderTexture] != nullptr, "GenerateRenderTextureDepthSampler RenderTexture destroyed");
 
-    TextureSampler sampler;
+    FlareBase::TextureSampler sampler;
     sampler.Addr = a_renderTexture;
-    sampler.TextureMode = TextureMode_RenderTextureDepth;
+    sampler.TextureMode = FlareBase::TextureMode_RenderTextureDepth;
     sampler.FilterMode = a_filter;
     sampler.AddressMode = a_addressMode;
     sampler.Data = new VulkanTextureSampler(m_graphicsEngine->m_vulkanEngine, sampler);
 
     uint32_t size = 0;
     {
-        TLockArray<TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
+        TLockArray<FlareBase::TextureSampler> a = m_graphicsEngine->m_textureSampler.ToLockArray();
 
         size = a.Size();
         for (uint32_t i = 0; i < size; ++i)
         {
-            if (a[i].TextureMode == TextureMode_Null)
+            if (a[i].TextureMode == FlareBase::TextureMode_Null)
             {
                 FLARE_ASSERT_MSG(a[i].Data == nullptr, "GenerateRenderTextureDepthSampler null sampler with data")
 
@@ -879,11 +982,11 @@ void VulkanGraphicsEngineBindings::DestroyTextureSampler(uint32_t a_addr) const
 {
     FLARE_ASSERT_MSG(a_addr < m_graphicsEngine->m_textureSampler.Size(), "DestroyTextureSampler out of bounds");
     
-    TextureSampler nullSampler;
-    nullSampler.TextureMode = TextureMode_Null;
+    FlareBase::TextureSampler nullSampler;
+    nullSampler.TextureMode = FlareBase::TextureMode_Null;
     nullSampler.Data = nullptr;
 
-    const TextureSampler sampler = m_graphicsEngine->m_textureSampler[a_addr];
+    const FlareBase::TextureSampler sampler = m_graphicsEngine->m_textureSampler[a_addr];
 
     m_graphicsEngine->m_textureSampler.LockSet(a_addr, nullSampler);
 

@@ -5,6 +5,27 @@ using FlareEngine.Rendering;
 
 namespace FlareEngine.Definitions
 {
+    public struct TextureInput
+    {
+        public uint Slot;
+        public string Path;
+        public TextureAddress AddressMode;
+        public TextureFilter FilterMode;
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                // Do not need the slot for the hash probably not the best idea but doing anyway
+                int hash = 73;
+                hash = hash * 79 + Path.GetHashCode();
+                hash = hash * 79 + AddressMode.GetHashCode();
+                hash = hash * 79 + FilterMode.GetHashCode();
+                return hash;
+            }
+        }
+    }
+
     public class MaterialDef : Def
     {
         [EditorTooltip("Path relative to the project for the vertex shader file to be used.")]
@@ -27,8 +48,11 @@ namespace FlareEngine.Definitions
 
         public PrimitiveMode PrimitiveMode = PrimitiveMode.Triangles;
 
-        [EditorTooltip("Enables color blending")]
+        [EditorTooltip("Enables color blending.")]
         public bool EnableColorBlending = false;
+
+        [EditorTooltip("Textures the material uses.")]
+        public List<TextureInput> TextureInputs = null;
 
         public override void PostResolve()
         {

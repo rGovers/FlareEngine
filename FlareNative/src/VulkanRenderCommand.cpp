@@ -70,7 +70,7 @@ VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
     return pipeline;
 }
 
-void VulkanRenderCommand::PushTexture(uint32_t a_slot, const TextureSampler& a_sampler) const
+void VulkanRenderCommand::PushTexture(uint32_t a_slot, const FlareBase::TextureSampler& a_sampler) const
 {
     FLARE_ASSERT_MSG_R(m_materialAddr != -1, "PushTexture Material not bound");
 

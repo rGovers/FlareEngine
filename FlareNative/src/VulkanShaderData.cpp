@@ -6,6 +6,7 @@
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
+#include "Rendering/Vulkan/VulkanTexture.h"
 #include "Rendering/Vulkan/VulkanTextureSampler.h"
 #include "Rendering/Vulkan/VulkanUniformBuffer.h"
 #include "Trace.h"
@@ -135,6 +136,50 @@ static void GetLayoutInfo(const FlareBase::RenderProgram& a_program, std::vector
         }
         }
     }
+}
+
+static vk::DescriptorImageInfo GetDescriptorImageInfo(const FlareBase::TextureSampler& a_baseSampler, const VulkanTextureSampler* a_sampler, VulkanGraphicsEngine* a_engine)
+{
+    vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(a_sampler->GetSampler());
+
+    switch (a_baseSampler.TextureMode)
+    {
+    case FlareBase::TextureMode_Texture:
+    {
+        const VulkanTexture* texture = a_engine->GetTexture(a_baseSampler.Addr);
+
+        imageInfo.imageView = texture->GetImageView();
+        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+        break;
+    }
+    case FlareBase::TextureMode_RenderTexture:
+    {
+        const VulkanRenderTexture* renderTexture = a_engine->GetRenderTexture(a_baseSampler.Addr);
+
+        imageInfo.imageView = renderTexture->GetImageView(a_baseSampler.TSlot);
+        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+        break;
+    }
+    case FlareBase::TextureMode_RenderTextureDepth:
+    {
+        const VulkanRenderTexture* renderTexture = a_engine->GetRenderTexture(a_baseSampler.Addr);
+
+        imageInfo.imageView = renderTexture->GetDepthImageView();
+        imageInfo.imageLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
+
+        break;
+    }
+    default:
+    {
+        FLARE_ASSERT_MSG(0, "Invalid texture mode");
+
+        return vk::DescriptorImageInfo();
+    }
+    }
+
+    return imageInfo;
 }
 
 VulkanShaderData::VulkanShaderData(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, uint32_t a_programAddr)
@@ -331,44 +376,16 @@ VulkanShaderData::~VulkanShaderData()
     device.destroyPipelineLayout(m_layout);
 }
 
-void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampler) const
+void VulkanShaderData::SetTexture(uint32_t a_slot, const FlareBase::TextureSampler& a_sampler) const
 {
     const vk::Device device = m_engine->GetLogicalDevice();
 
     const VulkanTextureSampler* vSampler = (VulkanTextureSampler*)a_sampler.Data;
     FLARE_ASSERT(vSampler != nullptr);
 
-    vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(vSampler->GetSampler());
+    const vk::DescriptorImageInfo imageInfo = GetDescriptorImageInfo(a_sampler, vSampler, m_gEngine);
 
-    switch (a_sampler.TextureMode)
-    {
-    case TextureMode_RenderTexture:
-    {
-        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
-
-        imageInfo.imageView = renderTexture->GetImageView(a_sampler.TSlot);
-        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-
-        break;
-    }
-    case TextureMode_RenderTextureDepth:
-    {
-        const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
-
-        imageInfo.imageView = renderTexture->GetDepthImageView();
-        imageInfo.imageLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
-
-        break;
-    }
-    default:
-    {
-        FLARE_ASSERT_MSG(0, "SetTexture invalid texture mode");
-
-        return;
-    }
-    }
-
-    TRACE("Setting material render texture");
+    TRACE("Setting material texture");
     const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
     (
         m_staticDescriptorSet,
@@ -382,7 +399,7 @@ void VulkanShaderData::SetTexture(uint32_t a_slot, const TextureSampler& a_sampl
     device.updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const TextureSampler& a_sampler, uint32_t a_index) const
+void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a_slot, const FlareBase::TextureSampler& a_sampler, uint32_t a_index) const
 {   
     const vk::Device device = m_engine->GetLogicalDevice();
 
@@ -403,35 +420,8 @@ void VulkanShaderData::PushTexture(vk::CommandBuffer a_commandBuffer, uint32_t a
             vk::DescriptorSet descriptorSet;
             FLARE_ASSERT_R(device.allocateDescriptorSets(&descriptorSetInfo, &descriptorSet) == vk::Result::eSuccess);
 
-            vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(vSampler->GetSampler());
-            switch (a_sampler.TextureMode)
-            {
-            case TextureMode_RenderTexture:
-            {
-                const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
-
-                imageInfo.imageView = renderTexture->GetImageView(a_sampler.TSlot);
-                imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-
-                break;
-            }
-            case TextureMode_RenderTextureDepth:
-            {
-                const VulkanRenderTexture* renderTexture = m_gEngine->GetRenderTexture(a_sampler.Addr);
-
-                imageInfo.imageView = renderTexture->GetDepthImageView();
-                imageInfo.imageLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
-
-                break;
-            }
-            default:
-            {
-                FLARE_ASSERT_MSG(0, "PushTexture invalid texture mode");
-
-                return;
-            }
-            }
-
+            const vk::DescriptorImageInfo imageInfo = GetDescriptorImageInfo(a_sampler, vSampler, m_gEngine);
+            
             const vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet
             (
                 descriptorSet,

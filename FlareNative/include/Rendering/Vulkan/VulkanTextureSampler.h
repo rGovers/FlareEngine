@@ -2,7 +2,7 @@
 
 #include "Rendering/Vulkan/VulkanConstants.h"
 
-#include "Rendering/TextureSampler.h"
+#include "Flare/TextureSampler.h"
 
 class VulkanRenderEngineBackend;
 
@@ -16,7 +16,7 @@ private:
 protected:
 
 public:
-    VulkanTextureSampler(VulkanRenderEngineBackend* a_engine, const TextureSampler& a_sampler);
+    VulkanTextureSampler(VulkanRenderEngineBackend* a_engine, const FlareBase::TextureSampler& a_sampler);
     ~VulkanTextureSampler();
     
     inline vk::Sampler GetSampler() const

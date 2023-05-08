@@ -4,11 +4,11 @@
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Trace.h"
 
-constexpr static vk::Filter GetFilterMode(e_TextureFilter a_filter)
+constexpr static vk::Filter GetFilterMode(FlareBase::e_TextureFilter a_filter)
 {
     switch (a_filter)
     {
-    case TextureFilter_Linear:
+    case FlareBase::TextureFilter_Linear:
     {
         return vk::Filter::eLinear;
     }
@@ -17,15 +17,15 @@ constexpr static vk::Filter GetFilterMode(e_TextureFilter a_filter)
     return vk::Filter::eNearest;
 } 
 
-constexpr static vk::SamplerAddressMode GetAddressMode(e_TextureAddress a_address)
+constexpr static vk::SamplerAddressMode GetAddressMode(FlareBase::e_TextureAddress a_address)
 {
     switch (a_address)
     {
-    case TextureAddress_MirroredRepeat:
+    case FlareBase::TextureAddress_MirroredRepeat:
     {
         return vk::SamplerAddressMode::eMirroredRepeat;
     }
-    case TextureAddress_ClampToEdge:
+    case FlareBase::TextureAddress_ClampToEdge:
     {
         return vk::SamplerAddressMode::eClampToEdge;
     }
@@ -34,7 +34,7 @@ constexpr static vk::SamplerAddressMode GetAddressMode(e_TextureAddress a_addres
     return vk::SamplerAddressMode::eRepeat;
 }
 
-VulkanTextureSampler::VulkanTextureSampler(VulkanRenderEngineBackend* a_engine, const TextureSampler& a_sampler)
+VulkanTextureSampler::VulkanTextureSampler(VulkanRenderEngineBackend* a_engine, const FlareBase::TextureSampler& a_sampler)
 {
     TRACE("Creating texture sampler");
     m_engine = a_engine;

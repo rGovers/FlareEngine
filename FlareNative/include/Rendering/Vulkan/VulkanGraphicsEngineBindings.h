@@ -8,10 +8,10 @@ class VulkanPixelShader;
 class VulkanVertexShader;
 
 #include "Flare/RenderProgram.h"
+#include "Flare/TextureSampler.h"
 #include "Rendering/CameraBuffer.h"
 #include "Rendering/Light.h"
 #include "Rendering/MeshRenderBuffer.h"
-#include "Rendering/TextureSampler.h"
 
 class VulkanGraphicsEngineBindings
 {
@@ -53,8 +53,12 @@ public:
     void GenerateRenderStack(uint32_t a_meshAddr) const;
     void DestroyRenderStack(uint32_t a_meshAddr) const;
 
-    uint32_t GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const;
-    uint32_t GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, e_TextureFilter a_filter, e_TextureAddress a_addressMode) const;
+    uint32_t GenerateTexture(uint32_t a_width, uint32_t a_height, const void* a_data);
+    void DestroyTexture(uint32_t a_addr) const;
+
+    uint32_t GenerateTextureSampler(uint32_t a_texture, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const;
+    uint32_t GenerateRenderTextureSampler(uint32_t a_renderTexture, uint32_t a_textureIndex, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const;
+    uint32_t GenerateRenderTextureDepthSampler(uint32_t a_renderTexture, FlareBase::e_TextureFilter a_filter, FlareBase::e_TextureAddress a_addressMode) const;
     void DestroyTextureSampler(uint32_t a_addr) const;
 
     uint32_t GenerateRenderTexture(uint32_t a_count, uint32_t a_width, uint32_t a_height, bool a_depthTexture, bool a_hdr) const;

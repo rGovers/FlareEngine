@@ -178,10 +178,21 @@ VulkanGraphicsEngine::~VulkanGraphicsEngine()
         }
     }
 
+    TRACE("Checking if textures where deleted");
+    for (uint32_t i = 0; i < m_textures.Size(); ++i)
+    {
+        if (m_textures[i] != nullptr)
+        {
+            Logger::Warning("Texture was not destroyed");
+            
+            delete m_textures[i];
+            m_textures[i] = nullptr;
+        }
+    }
     TRACE("Checking if texture samplers where deleted");
     for (uint32_t i = 0; i < m_textureSampler.Size(); ++i)
     {
-        if (m_textureSampler[i].TextureMode != TextureMode_Null)
+        if (m_textureSampler[i].TextureMode != FlareBase::TextureMode_Null)
         {
             Logger::Warning("Texture sampler was not destroyed");
         }
@@ -801,6 +812,17 @@ VulkanPixelShader* VulkanGraphicsEngine::GetPixelShader(uint32_t a_addr)
     return m_pixelShaders[a_addr];
 }
 
+VulkanTexture* VulkanGraphicsEngine::GetTexture(uint32_t a_addr)
+{
+    if (a_addr == -1)
+    {
+        return nullptr;
+    }
+
+    FLARE_ASSERT_MSG(a_addr < m_textures.Size(), "GetTexture out of bounds");
+
+    return m_textures[a_addr];
+}
 VulkanRenderTexture* VulkanGraphicsEngine::GetRenderTexture(uint32_t a_addr)
 {
     if (a_addr == -1)

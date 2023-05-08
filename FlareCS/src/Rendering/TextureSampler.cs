@@ -15,8 +15,12 @@ namespace FlareEngine.Rendering
         ClampToEdge = 2
     };
 
+    // Type exists for Vulkan in the engine
+    // May not work properly in the editor due to editor using OpenGL
     public class TextureSampler : IDestroy
     {
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        extern static uint GenerateTextureSampler(uint a_texture, uint a_filter, uint a_addressMode);
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static uint GenerateRenderTextureSampler(uint a_renderTexture, uint a_textureIndex, uint a_filter, uint a_addressMode);
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -47,6 +51,17 @@ namespace FlareEngine.Rendering
             m_bufferAddr = a_bufferAddr;
         }
 
+        public static TextureSampler GeneretateTextureSampler(Texture a_texture, TextureFilter a_filter = TextureFilter.Linear, TextureAddress a_addressMode = TextureAddress.Repeat)
+        {
+            if (a_texture == null)
+            {
+                Logger.FlareWarning("GeneretateTextureSampler null Texture");
+
+                return null;
+            }
+
+            return new TextureSampler(GenerateTextureSampler(a_texture.BufferAddr, (uint)a_filter, (uint) a_addressMode));
+        }
         public static TextureSampler GenerateRenderTextureSampler(RenderTexture a_renderTexture, TextureFilter a_filter = TextureFilter.Linear, TextureAddress a_addressMode = TextureAddress.Repeat)
         {
             if (a_renderTexture == null)
