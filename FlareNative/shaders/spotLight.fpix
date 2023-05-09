@@ -47,7 +47,7 @@ void main()
 
     vec3 hD = normalize(lDir + camBuffer.View[2].xyz);
     float sA = max(dot(hD, normal.xyz), 0.0f);
-    float s = pow(sA, spec.w);
+    float s = max(pow(sA, spec.w), 0.0);
 
     float dI = max((spotLightBuffer.CutoffAngle.z - dL) / spotLightBuffer.CutoffAngle.z, 0.0f);
 

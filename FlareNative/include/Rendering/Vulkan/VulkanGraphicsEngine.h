@@ -108,6 +108,14 @@ public:
     FlareBase::RenderProgram GetRenderProgram(uint32_t a_addr);
     VulkanPipeline* GetPipeline(uint32_t a_renderTexture, uint32_t a_pipeline);
     
+    CameraBuffer GetCameraBuffer(uint32_t a_addr);
+    inline VulkanUniformBuffer* GetCameraUniformBuffer(uint32_t a_addr) const
+    {
+        return m_cameraUniforms[a_addr];
+    }
+
+    VulkanModel* GetModel(uint32_t a_addr);
+
     VulkanTexture* GetTexture(uint32_t a_addr);
     VulkanRenderTexture* GetRenderTexture(uint32_t a_addr);
 };

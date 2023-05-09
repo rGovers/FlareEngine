@@ -251,35 +251,6 @@ VulkanPipeline* VulkanGraphicsEngine::GetPipeline(uint32_t a_renderTexture, uint
     return pipeline;
 }
 
-static glm::ivec2 SetViewport(VulkanRenderCommand& a_renderCommand, const CameraBuffer& a_buffer, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_commandBuffer)
-{
-    glm::ivec2 renderSize = a_swapchain->GetSize();
-    const VulkanRenderTexture* renderTexture = a_renderCommand.GetRenderTexture();
-    if (renderTexture != nullptr)
-    {
-        renderSize = glm::ivec2((int)renderTexture->GetWidth(), (int)renderTexture->GetHeight());
-    }
-
-    const glm::vec2 screenPos = a_buffer.View.Position * (glm::vec2)renderSize;
-    const glm::vec2 screenSize = a_buffer.View.Size * (glm::vec2)renderSize;
-
-    const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
-    a_commandBuffer.setScissor(0, 1, &scissor);
-
-    const vk::Viewport viewport = vk::Viewport
-    (
-        screenPos.x,
-        screenPos.y,
-        screenSize.x,
-        screenSize.y,
-        a_buffer.View.MinDepth,
-        a_buffer.View.MaxDepth
-    );
-    a_commandBuffer.setViewport(0, 1, &viewport);
-
-    return renderSize;
-}
-
 vk::CommandBuffer VulkanGraphicsEngine::StartCommandBuffer(uint32_t a_bufferIndex, uint32_t a_index) const
 {
     const vk::CommandBuffer commandBuffer = m_commandBuffers[a_index][a_bufferIndex];
@@ -306,7 +277,9 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     
     const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
 
-    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer, a_bufferIndex));
+
+    renderCommand.SetCameraData(a_camIndex);
 
     void* camArgs[] = 
     { 
@@ -314,18 +287,6 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
     };
 
     m_preRenderFunc->Exec(camArgs);
-
-    const glm::vec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);  
-
-    CameraShaderBuffer camShaderData;
-    camShaderData.InvView = objectManager->GetGlobalMatrix(camBuffer.TransformAddr);
-    camShaderData.View = glm::inverse(camShaderData.InvView);
-    camShaderData.Proj = camBuffer.ToProjection(screenSize);
-    camShaderData.InvProj = glm::inverse(camShaderData.Proj);
-    camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
-
-    VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
-    cameraUniformBuffer->SetData(a_index, &camShaderData);
 
     const std::vector<MaterialRenderStack> stacks = m_renderStacks.ToVector();
 
@@ -341,11 +302,6 @@ vk::CommandBuffer VulkanGraphicsEngine::DrawPass(uint32_t a_camIndex, uint32_t a
 
             const VulkanShaderData* shaderData = (VulkanShaderData*)program.Data;
             FLARE_ASSERT(shaderData != nullptr);
-            const FlareBase::ShaderBufferInput camInput = shaderData->GetCameraInput();
-            if (camInput.BufferType == FlareBase::ShaderBufferType_CameraBuffer)
-            {
-                shaderData->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
-            }
             
             const std::vector<ModelBuffer> modelBuffers = renderStack.GetModelBuffers();
             for (const ModelBuffer& modelBuff : modelBuffers)
@@ -389,7 +345,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
     const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
 
-    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer, a_bufferIndex));
 
     void* lightSetupArgs[] =
     {
@@ -398,17 +354,7 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
     m_lightSetupFunc->Exec(lightSetupArgs);
 
-    const glm::ivec2 screenSize = SetViewport(renderCommand, camBuffer, m_swapchain, commandBuffer);
-
-    CameraShaderBuffer camShaderData;
-    camShaderData.InvView = objectManager->GetGlobalMatrix(camBuffer.TransformAddr);
-    camShaderData.View = glm::inverse(camShaderData.InvView);
-    camShaderData.Proj = camBuffer.ToProjection(screenSize);
-    camShaderData.InvProj = glm::inverse(camShaderData.Proj);
-    camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
-
-    VulkanUniformBuffer* cameraUniformBuffer = m_cameraUniforms[a_bufferIndex];
-    cameraUniformBuffer->SetData(a_index, &camShaderData);
+    renderCommand.SetCameraData(a_camIndex);
 
     for (uint32_t i = 0; i < LightType_End; ++i)
     // for (uint32_t i = 0; i < 1; ++i)
@@ -429,11 +375,6 @@ vk::CommandBuffer VulkanGraphicsEngine::LightPass(uint32_t a_camIndex, uint32_t 
 
         const VulkanShaderData* data = pipeline->GetShaderData();
         FLARE_ASSERT(data != nullptr);
-        const FlareBase::ShaderBufferInput camInput = data->GetCameraInput();
-        if (camInput.BufferType == FlareBase::ShaderBufferType_CameraBuffer)
-        {
-            data->PushUniformBuffer(commandBuffer, camInput.Set, cameraUniformBuffer, a_index);
-        }
 
         // TODO: Could probably batch this down the line
         switch ((e_LightType)i)
@@ -563,7 +504,9 @@ vk::CommandBuffer VulkanGraphicsEngine::PostPass(uint32_t a_camIndex, uint32_t a
 
     const vk::CommandBuffer commandBuffer = StartCommandBuffer(a_bufferIndex, a_index);
 
-    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer));
+    VulkanRenderCommand& renderCommand = m_renderCommands.Push(VulkanRenderCommand(m_vulkanEngine, this, m_swapchain, commandBuffer, a_bufferIndex));
+
+    renderCommand.SetCameraData(a_camIndex);
 
     void* camArgs[] = 
     { 
@@ -810,6 +753,25 @@ VulkanPixelShader* VulkanGraphicsEngine::GetPixelShader(uint32_t a_addr)
     FLARE_ASSERT_MSG(a_addr < m_pixelShaders.Size(), "GetPixelShader out of bounds");
 
     return m_pixelShaders[a_addr];
+}
+
+CameraBuffer VulkanGraphicsEngine::GetCameraBuffer(uint32_t a_addr)
+{
+    FLARE_ASSERT_MSG(a_addr < m_cameraBuffers.Size(), "GetCameraBuffer out of bounds");
+
+    return m_cameraBuffers[a_addr];
+}
+
+VulkanModel* VulkanGraphicsEngine::GetModel(uint32_t a_addr)
+{
+    if (a_addr == -1)
+    {
+        return nullptr;
+    }
+
+    FLARE_ASSERT_MSG(a_addr < m_models.Size(), "GetModel out of bounds");
+
+    return m_models[a_addr];
 }
 
 VulkanTexture* VulkanGraphicsEngine::GetTexture(uint32_t a_addr)

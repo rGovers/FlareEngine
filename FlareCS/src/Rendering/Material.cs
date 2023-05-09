@@ -60,7 +60,8 @@ namespace FlareEngine.Rendering
     {
         DirectionalLight = 0,
         PointLight = 1,
-        SpotLight = 2
+        SpotLight = 2,
+        Post = 3
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -77,6 +78,7 @@ namespace FlareEngine.Rendering
         public static Material DirectionalLightMaterial = null;
         public static Material PointLightMaterial = null;
         public static Material SpotLightMaterial = null;
+        public static Material PostMaterial = null;
 
         MaterialDef m_def = null;
 
@@ -140,12 +142,14 @@ namespace FlareEngine.Rendering
             DirectionalLightMaterial = new Material(InternalRenderProgram.DirectionalLight);
             PointLightMaterial = new Material(InternalRenderProgram.PointLight);
             SpotLightMaterial = new Material(InternalRenderProgram.SpotLight);
+            PostMaterial = new Material(InternalRenderProgram.Post);
         }
         internal static void Destroy()
         {
             DirectionalLightMaterial.Dispose();
             PointLightMaterial.Dispose();
             SpotLightMaterial.Dispose();
+            PostMaterial.Dispose();
         }
 
         Material(InternalRenderProgram a_program)

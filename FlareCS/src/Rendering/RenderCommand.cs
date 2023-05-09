@@ -16,6 +16,9 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static void DrawModel(float[] a_transform, uint a_modelAddr);
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public extern static void DrawMaterial();
+
         public static void BindMaterial(Material a_material)
         {
             if (a_material != null)
@@ -30,6 +33,13 @@ namespace FlareEngine.Rendering
 
         public static void PushTexture(uint a_slot, TextureSampler a_sampler)
         {
+            if (a_sampler == null)
+            {
+                Logger.FlareWarning("PushTexture null sampler");
+
+                return;
+            }
+
             PushTexture(a_slot, a_sampler.BufferAddr);
         }
 
@@ -43,7 +53,6 @@ namespace FlareEngine.Rendering
         }
         public static void DrawModel(Matrix4 a_transform, Model a_model)
         {
-            // TODO: Implement engine version currently only in editor
             DrawModel(a_transform.ToArray(), a_model.InternalAddr);
         }
     }

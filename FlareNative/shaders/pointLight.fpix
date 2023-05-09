@@ -36,8 +36,8 @@ void main()
     float l = max(dot(lDir, normal.xyz), 0.0f);
 
     vec3 hD = normalize(lDir + camBuffer.View[2].xyz);
-    float sA = max(dot(hD, normal.xyz), 0.0f);
-    float s = pow(sA, spec.w);
+    float sA = dot(hD, normal.xyz);
+    float s = max(pow(sA, spec.w), 0.0);
 
     float i = max((pointLightBuffer.Radius - dL) / pointLightBuffer.Radius, 0.0f);
 

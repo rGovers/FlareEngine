@@ -10,6 +10,7 @@
 #include "ObjectManager.h"
 #include "Shaders/DirectionalLightPixel.h"
 #include "Shaders/PointLightPixel.h"
+#include "Shaders/PostPixel.h"
 #include "Shaders/QuadVertex.h"
 #include "Shaders/SpotLightPixel.h"
 #include "Rendering/RenderEngine.h"
@@ -85,7 +86,8 @@ static VulkanGraphicsEngineBindings* Engine = nullptr;
     F(void, FlareEngine.Rendering, RenderCommand, BindMaterial, { Engine->BindMaterial(a_addr); }, uint32_t a_addr) \
     F(void, FlareEngine.Rendering, RenderCommand, PushTexture, { Engine->PushTexture(a_slot, a_samplerAddr); }, uint32_t a_slot, uint32_t a_samplerAddr) \
     F(void, FlareEngine.Rendering, RenderCommand, BindRenderTexture, { Engine->BindRenderTexture(a_addr); }, uint32_t a_addr) \
-    F(void, FlareEngine.Rendering, RenderCommand, RTRTBlit, { Engine->BlitRTRT(a_srcAddr, a_dstAddr); }, uint32_t a_srcAddr, uint32_t a_dstAddr)
+    F(void, FlareEngine.Rendering, RenderCommand, RTRTBlit, { Engine->BlitRTRT(a_srcAddr, a_dstAddr); }, uint32_t a_srcAddr, uint32_t a_dstAddr) \
+    F(void, FlareEngine.Rendering, RenderCommand, DrawMaterial, { Engine->DrawMaterial(); }) 
 
 VULKANGRAPHICS_BINDING_FUNCTION_TABLE(RUNTIME_FUNCTION_DEFINITION)
 
@@ -323,6 +325,19 @@ FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(Model, DestroyModel), uint32_t a_a
     Engine->DestroyModel(a_addr);
 }
 
+FLARE_MONO_EXPORT(void, RUNTIME_FUNCTION_NAME(RenderCommand, DrawModel), MonoArray* a_transform, uint32_t a_addr)
+{
+    glm::mat4 transform;
+
+    float* f = (float*)&transform;
+    for (int i = 0; i < 16; ++i)
+    {
+        f[i] = mono_array_get(a_transform, float, i);
+    }
+
+    Engine->DrawModel(transform, a_addr);
+}
+
 VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_runtime, VulkanGraphicsEngine* a_graphicsEngine)
 {
     m_graphicsEngine = a_graphicsEngine;
@@ -343,6 +358,8 @@ VulkanGraphicsEngineBindings::VulkanGraphicsEngineBindings(RuntimeManager* a_run
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateModel);
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, GenerateFromFile);
     BIND_FUNCTION(a_runtime, FlareEngine.Rendering, Model, DestroyModel);
+
+    BIND_FUNCTION(a_runtime, FlareEngine.Rendering, RenderCommand, DrawModel);
 }
 VulkanGraphicsEngineBindings::~VulkanGraphicsEngineBindings()
 {
@@ -488,7 +505,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(FlareBase::
     case FlareBase::InternalRenderProgram_DirectionalLight:
     {
         TRACE("Creating Directional Light Shader");
-        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.VertexShader = GenerateGLSLVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(DIRECTIONALLIGHTPIXEL);
         program.CullingMode = FlareBase::CullMode_None;
         program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
@@ -512,7 +529,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(FlareBase::
     case FlareBase::InternalRenderProgram_PointLight:
     {
         TRACE("Creating Point Light Shader");
-        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.VertexShader = GenerateGLSLVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(POINTLIGHTPIXEL);
         program.CullingMode = FlareBase::CullMode_None;
         program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
@@ -536,7 +553,7 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(FlareBase::
     case FlareBase::InternalRenderProgram_SpotLight:
     {
         TRACE("Creating Spot Light Shader");
-        program.VertexShader = GenerateFVertexShaderAddr(QUADVERTEX);
+        program.VertexShader = GenerateGLSLVertexShaderAddr(QUADVERTEX);
         program.PixelShader = GenerateFPixelShaderAddr(SPOTLIGHTPIXEL);
         program.CullingMode = FlareBase::CullMode_None;
         program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
@@ -554,6 +571,29 @@ uint32_t VulkanGraphicsEngineBindings::GenerateInternalShaderProgram(FlareBase::
 
         program.ShaderBufferInputs[TextureCount + 0] = FlareBase::ShaderBufferInput(TextureCount + 0, FlareBase::ShaderBufferType_SpotLightBuffer, FlareBase::ShaderSlot_Pixel, 1);
         program.ShaderBufferInputs[TextureCount + 1] = FlareBase::ShaderBufferInput(TextureCount + 1, FlareBase::ShaderBufferType_CameraBuffer, FlareBase::ShaderSlot_Pixel, 2);
+
+        break;
+    }
+    case FlareBase::InternalRenderProgram_Post:
+    {
+        TRACE("Creating Post Shader");
+        program.VertexShader = GenerateGLSLVertexShaderAddr(QUADVERTEX);
+        program.PixelShader = GenerateFPixelShaderAddr(POSTPIXEL);
+        program.CullingMode = FlareBase::CullMode_None;
+        program.PrimitiveMode = FlareBase::PrimitiveMode_TriangleStrip;
+        program.EnableColorBlending = 1;
+
+        constexpr uint32_t TextureCount = 4;
+        constexpr uint32_t BufferCount = TextureCount + 1;
+
+        program.ShaderBufferInputCount = BufferCount;
+        program.ShaderBufferInputs = new FlareBase::ShaderBufferInput[BufferCount];
+        for (uint32_t i = 0; i < TextureCount; ++i)
+        {
+            program.ShaderBufferInputs[i] = FlareBase::ShaderBufferInput(i, FlareBase::ShaderBufferType_Texture, FlareBase::ShaderSlot_Pixel);
+        }
+
+        program.ShaderBufferInputs[TextureCount + 0] = FlareBase::ShaderBufferInput(TextureCount + 0, FlareBase::ShaderBufferType_CameraBuffer, FlareBase::ShaderSlot_Pixel, 1);
 
         break;
     }
@@ -1269,4 +1309,16 @@ void VulkanGraphicsEngineBindings::BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAd
     }
 
     m_graphicsEngine->m_renderCommands->Blit(srcTex, dstTex);
+}
+void VulkanGraphicsEngineBindings::DrawMaterial()
+{
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "DrawMaterial RenderCommand does not exist");
+
+    m_graphicsEngine->m_renderCommands->DrawMaterial();
+}
+void VulkanGraphicsEngineBindings::DrawModel(const glm::mat4& a_transform, uint32_t a_addr)
+{
+    FLARE_ASSERT_MSG(m_graphicsEngine->m_renderCommands.Exists(), "DrawModel RenderCommand does not exist");
+
+    m_graphicsEngine->m_renderCommands->DrawModel(a_transform, a_addr);
 }

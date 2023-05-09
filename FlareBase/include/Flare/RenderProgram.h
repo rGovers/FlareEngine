@@ -11,7 +11,8 @@ namespace FlareBase
     {
         InternalRenderProgram_DirectionalLight = 0,
         InternalRenderProgram_PointLight = 1,
-        InternalRenderProgram_SpotLight = 2
+        InternalRenderProgram_SpotLight = 2,
+        InternalRenderProgram_Post = 3
     };
 
     enum e_CullMode : uint16_t

@@ -88,4 +88,6 @@ public:
     void PushTexture(uint32_t a_slot, uint32_t a_samplerAddr) const;
     void BindRenderTexture(uint32_t a_addr) const;
     void BlitRTRT(uint32_t a_srcAddr, uint32_t a_dstAddr) const;
+    void DrawMaterial();
+    void DrawModel(const glm::mat4& a_transform, uint32_t a_addr);
 };

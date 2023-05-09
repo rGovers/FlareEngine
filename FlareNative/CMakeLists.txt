@@ -51,10 +51,11 @@ if (GENERATE_CONFIG)
 endif()
 
 FileToHeader(
-    SOURCE_FILE "shaders/quad.fvert"
+    SOURCE_FILE "shaders/quad.vert"
     HEADER_FILE "include/Shaders/QuadVertex.h"
     VARIABLE_NAME "QuadVertex"
 )
+
 FileToHeader(
     SOURCE_FILE "shaders/directionalLight.fpix"
     HEADER_FILE "include/Shaders/DirectionalLightPixel.h"
@@ -69,6 +70,12 @@ FileToHeader(
     SOURCE_FILE "shaders/spotLight.fpix"
     HEADER_FILE "include/Shaders/SpotLightPixel.h"
     VARIABLE_NAME "SpotLightPixel"
+)
+
+FileToHeader(
+    SOURCE_FILE "shaders/post.fpix"
+    HEADER_FILE "include/Shaders/PostPixel.h"
+    VARIABLE_NAME "PostPixel"
 )
 
 if (MINGW)

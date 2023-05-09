@@ -36,6 +36,14 @@ namespace FlareEngine.Rendering
         [MethodImpl(MethodImplOptions.InternalCall)]
         extern static Vector3 ScreenToWorld(uint a_addr, Vector3 a_screenPos, Vector2 a_screenSize);
 
+        internal uint BufferAddr
+        {
+            get
+            {
+                return m_bufferAddr;
+            }
+        }
+
         public Viewport Viewport
         {
             get

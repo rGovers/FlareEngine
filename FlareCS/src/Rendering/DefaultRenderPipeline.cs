@@ -14,6 +14,8 @@ namespace FlareEngine.Rendering
         TextureSampler     m_emissionSampler;
         TextureSampler     m_depthSampler;
 
+        TextureSampler     m_lightColorSampler;
+
         void SetTextures(Material a_mat)
         {
             a_mat.SetTexture(0, m_colorSampler);
@@ -21,6 +23,16 @@ namespace FlareEngine.Rendering
             a_mat.SetTexture(2, m_specularSampler);
             a_mat.SetTexture(3, m_emissionSampler);
             a_mat.SetTexture(4, m_depthSampler);
+        }
+
+        void SetPostTextures()
+        {
+            Material postMat = Material.PostMaterial;
+
+            postMat.SetTexture(0, m_lightColorSampler);
+            postMat.SetTexture(1, m_normalSampler);
+            postMat.SetTexture(2, m_emissionSampler);
+            postMat.SetTexture(3, m_depthSampler);
         }
 
         public DefaultRenderPipeline()
@@ -34,9 +46,13 @@ namespace FlareEngine.Rendering
             m_emissionSampler = TextureSampler.GenerateRenderTextureSampler(m_drawRenderTexture, 3);
             m_depthSampler = TextureSampler.GenerateRenderTextureDepthSampler(m_drawRenderTexture);
 
+            m_lightColorSampler = TextureSampler.GenerateRenderTextureSampler(m_lightRenderTexture);
+
             SetTextures(Material.DirectionalLightMaterial);
             SetTextures(Material.PointLightMaterial);
             SetTextures(Material.SpotLightMaterial);
+
+            SetPostTextures();
         }
 
         public override void Resize(uint a_width, uint a_height)
@@ -47,6 +63,8 @@ namespace FlareEngine.Rendering
             SetTextures(Material.DirectionalLightMaterial);
             SetTextures(Material.PointLightMaterial);
             SetTextures(Material.SpotLightMaterial);
+
+            SetPostTextures();
         }
 
         public override void PreShadow(Camera a_camera) 
@@ -107,7 +125,10 @@ namespace FlareEngine.Rendering
 
         public override void PostProcess(Camera a_camera)
         {
-            RenderCommand.Blit(m_lightRenderTexture, a_camera.RenderTexture);
+            RenderCommand.BindRenderTexture(a_camera.RenderTexture);
+            RenderCommand.BindMaterial(Material.PostMaterial);
+
+            RenderCommand.DrawMaterial();
         }
 
         public virtual void Dispose()
@@ -120,6 +141,8 @@ namespace FlareEngine.Rendering
             m_specularSampler.Dispose();
             m_emissionSampler.Dispose();
             m_depthSampler.Dispose();
+
+            m_lightColorSampler.Dispose();
         }
     }
 }

@@ -623,11 +623,11 @@ namespace FlareBase
                                 {
                                     if (normalOffset[j] == 1)
                                     {
-                                        v.Normal[normalOffset[j]] = -((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
+                                        v.Normal[normalOffset[j]] = ((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
                                     }
                                     else
                                     {
-                                        v.Normal[normalOffset[j]] = ((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
+                                        v.Normal[normalOffset[j]] = -((float *)normalSource.Data.Data)[(normIndex * normalSource.Accessor.Stride) + j];
                                     }
                                 }
 
@@ -763,11 +763,11 @@ namespace FlareBase
                                     {
                                         if (posOffset[j] == 1)
                                         {
-                                            v.Position[posOffset[j]] = -((float *)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                            v.Position[posOffset[j]] = -((float*)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
                                         }
                                         else
                                         {
-                                            v.Position[posOffset[j]] = ((float *)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
+                                            v.Position[posOffset[j]] = ((float*)posSource.Data.Data)[(posIndices[i] * posSource.Accessor.Stride) + j] * scale;
                                         }
                                     }
 
@@ -775,17 +775,17 @@ namespace FlareBase
                                     {
                                         if (normalOffset[j] == 1)
                                         {
-                                            v.Normal[normalOffset[j]] = -((float *)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                            v.Normal[normalOffset[j]] = ((float*)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
                                         }
                                         else
                                         {
-                                            v.Normal[normalOffset[j]] = ((float *)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
+                                            v.Normal[normalOffset[j]] = -((float*)normalSource.Data.Data)[(normalIndices[i] * normalSource.Accessor.Stride) + j];
                                         }
                                     }
 
                                     for (int j = 0; j < texVCount; ++j)
                                     {
-                                        v.TexCoords[texcoordOffset[j]] = ((float *)texcoordSource.Data.Data)[(texcoordIndices[i] * texcoordSource.Accessor.Stride) + j];
+                                        v.TexCoords[texcoordOffset[j]] = ((float*)texcoordSource.Data.Data)[(texcoordIndices[i] * texcoordSource.Accessor.Stride) + j];
                                     }
 
                                     a_vertices->emplace_back(v);

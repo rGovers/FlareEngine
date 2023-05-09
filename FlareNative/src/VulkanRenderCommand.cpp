@@ -2,37 +2,82 @@
 
 #include "Flare/FlareAssert.h"
 #include "Logger.h"
+#include "ObjectManager.h"
+#include "Rendering/RenderEngine.h"
+#include "Rendering/ShaderBuffers.h"
 #include "Rendering/Vulkan/VulkanGraphicsEngine.h"
+#include "Rendering/Vulkan/VulkanModel.h"
 #include "Rendering/Vulkan/VulkanPipeline.h"
 #include "Rendering/Vulkan/VulkanRenderEngineBackend.h"
 #include "Rendering/Vulkan/VulkanRenderTexture.h"
 #include "Rendering/Vulkan/VulkanShaderData.h"
 #include "Rendering/Vulkan/VulkanSwapchain.h"
+#include "Rendering/Vulkan/VulkanUniformBuffer.h"
 
-VulkanRenderCommand::VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer)
+VulkanRenderCommand::VulkanRenderCommand(VulkanRenderEngineBackend* a_engine, VulkanGraphicsEngine* a_gEngine, VulkanSwapchain* a_swapchain, vk::CommandBuffer a_buffer, uint32_t a_bufferIndex)
 {
     m_engine = a_engine;
     m_gEngine = a_gEngine;
     m_swapchain = a_swapchain;
+
     m_commandBuffer = a_buffer;
+
+    m_bufferIndex = a_bufferIndex;
 
     m_renderTexAddr = -1;
     m_materialAddr = -1;
-    m_flushed = true;
+    
+    m_flags = 0;
+
+    SetFlushedState(true);
 }
 VulkanRenderCommand::~VulkanRenderCommand()
 {
     
 }
 
+void VulkanRenderCommand::SetFlushedState(bool a_value)
+{
+    if (a_value)
+    {
+        m_flags |= 0b1 << FlushedBit;
+    }
+    else
+    {
+        m_flags &= ~(0b1 << FlushedBit);
+    }
+}
+void VulkanRenderCommand::SetViewportState(bool a_value)
+{
+    if (a_value)
+    {
+        m_flags |= 0b1 << ViewportBit;
+    }
+    else
+    {
+        m_flags &= ~(0b1 << ViewportBit);
+    }
+}
+void VulkanRenderCommand::SetCameraState(bool a_value)
+{
+    if (a_value)
+    {
+        m_flags |= 0b1 << CameraBit;
+    }
+    else
+    {
+        m_flags &= ~(0b1 << CameraBit);
+    }
+}
+
 void VulkanRenderCommand::Flush()
 {
-    if (!m_flushed)
+    if (!IsFlushed())
     {
         m_commandBuffer.endRenderPass();
     }
 
-    m_flushed = true;
+    SetFlushedState(true);
 
     m_renderTexAddr = -1;
 }
@@ -64,10 +109,70 @@ VulkanPipeline* VulkanRenderCommand::BindMaterial(uint32_t a_materialAddr)
     VulkanPipeline* pipeline = m_gEngine->GetPipeline(m_renderTexAddr, m_materialAddr);
     if (bind)
     {
+        const VulkanShaderData* shaderData = pipeline->GetShaderData();
+        const FlareBase::ShaderBufferInput camInput = shaderData->GetCameraInput();
+        if (camInput.BufferType == FlareBase::ShaderBufferType_CameraBuffer)
+        {
+            shaderData->PushUniformBuffer(m_commandBuffer, camInput.Set, m_gEngine->GetCameraUniformBuffer(m_bufferIndex), m_engine->GetCurrentFrame());
+        }
+
         pipeline->Bind(m_engine->GetCurrentFrame(), m_commandBuffer);
     }
 
     return pipeline;
+}
+
+void VulkanRenderCommand::SetCameraData(uint32_t a_bufferAddr)
+{
+    const RenderEngine* renderEngine = m_engine->GetRenderEngine();
+    ObjectManager* objectManager = renderEngine->GetObjectManager();
+
+    const CameraBuffer buffer = m_gEngine->GetCameraBuffer(a_bufferAddr);
+
+    glm::ivec2 size = m_swapchain->GetSize();
+
+    const VulkanRenderTexture* texture = GetRenderTexture();
+    if (texture != nullptr)
+    {
+        size = glm::ivec2(texture->GetWidth(), texture->GetHeight());
+    }
+
+    if (!IsViewportSet())
+    {
+        const glm::vec2 screenPos = buffer.View.Position * (glm::vec2)size;
+        const glm::vec2 screenSize = buffer.View.Size * (glm::vec2)size;
+
+        const vk::Rect2D scissor = vk::Rect2D({ (int32_t)screenPos.x, (int32_t)screenPos.y }, { (uint32_t)screenSize.x, (uint32_t)screenSize.y });
+        m_commandBuffer.setScissor(0, 1, &scissor);
+
+        const vk::Viewport viewport = vk::Viewport
+        (
+            screenPos.x,
+            screenPos.y,
+            screenSize.x,
+            screenSize.y,
+            buffer.View.MinDepth,
+            buffer.View.MaxDepth
+        );
+        m_commandBuffer.setViewport(0, 1, &viewport);
+
+        SetViewportState(true);
+    }
+
+    if (!IsCameraSet())
+    {
+        CameraShaderBuffer camShaderData;
+        camShaderData.InvView = objectManager->GetGlobalMatrix(buffer.TransformAddr);
+        camShaderData.View = glm::inverse(camShaderData.InvView);
+        camShaderData.Proj = buffer.ToProjection(size);
+        camShaderData.InvProj = glm::inverse(camShaderData.Proj);
+        camShaderData.ViewProj = camShaderData.Proj * camShaderData.View;
+
+        VulkanUniformBuffer* cameraUniformBuffer = m_gEngine->GetCameraUniformBuffer(m_bufferIndex);
+        cameraUniformBuffer->SetData(m_engine->GetCurrentFrame(), &camShaderData);
+
+        SetCameraState(true);
+    }
 }
 
 void VulkanRenderCommand::PushTexture(uint32_t a_slot, const FlareBase::TextureSampler& a_sampler) const
@@ -84,7 +189,8 @@ void VulkanRenderCommand::BindRenderTexture(uint32_t a_renderTexAddr)
 {
     Flush();
 
-    m_flushed = false;
+    SetFlushedState(false);
+    SetViewportState(false);
 
     m_renderTexAddr = a_renderTexAddr;
 
@@ -227,4 +333,26 @@ void VulkanRenderCommand::Blit(const VulkanRenderTexture* a_src, const VulkanRen
 
     m_commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &srcFinalMemoryBarrier);
     m_commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &dstFinalMemoryBarrier);
+}
+
+void VulkanRenderCommand::DrawMaterial()
+{
+    m_commandBuffer.draw(4, 1, 0, 0);
+}
+void VulkanRenderCommand::DrawModel(const glm::mat4& a_transform, uint32_t a_addr)
+{
+    const RenderEngine* renderEngine = m_engine->GetRenderEngine();
+    ObjectManager* objectManager = renderEngine->GetObjectManager();
+
+    const VulkanModel* model = m_gEngine->GetModel(a_addr);
+
+    model->Bind(m_commandBuffer);
+
+    const uint32_t indexCount = model->GetIndexCount();
+
+    const VulkanPipeline* pipeline = GetPipeline();
+    const VulkanShaderData* shaderData = pipeline->GetShaderData();
+    shaderData->UpdateTransformBuffer(m_commandBuffer, a_addr, objectManager);
+
+    m_commandBuffer.drawIndexed(indexCount, 1, 0, 0, 0);
 }
