@@ -140,6 +140,14 @@ namespace FlareEngine
             }
         }
 
+        public Matrix4 ToMatrix()
+        {
+            // Probably better to do it on the C++ side but will work
+            TransformBuffer buffer = GetTransformBuffer(m_bufferAddr);
+
+            return Matrix4.FromTransform(buffer.Translation, buffer.Rotation, buffer.Scale);
+        }
+
         internal Transform(GameObject a_object)
         {
             m_object = a_object;

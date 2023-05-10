@@ -207,7 +207,7 @@ namespace FlareEngine
 
         public static Scene LoadScene(string a_path)
         {
-            string path = ModControl.GetAssetPath(a_path);
+            string path = ModControl.GetScenePath(a_path);
 
             if (string.IsNullOrEmpty(path))
             {
@@ -222,21 +222,67 @@ namespace FlareEngine
             return new Scene(doc);
         }
 
+        void GenerateGameObject(Matrix4 a_transform, GameObjectDef a_def)
+        {
+            GameObject obj = GameObject.FromDef(a_def);
+            if (obj != null)
+            {
+                Matrix4 t = obj.Transform.ToMatrix() * a_transform;
+
+                Vector3 translation;
+                Quaternion rotation;
+                Vector3 scale;
+                t.Decompose(out translation, out rotation, out scale);
+
+                obj.Transform.Translation = translation;
+                obj.Transform.Rotation = rotation;
+                obj.Transform.Scale = scale;
+
+                m_objects.Add(obj);
+            }
+            else
+            {
+                Logger.FlareWarning($"GenerateGameObject null obj");
+            }
+        }
+        public void GenerateScene(Matrix4 a_transform)
+        {
+            foreach (SceneObject obj in m_sceneObjects)
+            {
+                GameObjectDef def = DefLibrary.GetDef<GameObjectDef>(obj.DefName);
+                if (def != null)
+                {
+                    Matrix4 t = Matrix4.FromTransform(obj.Translation, obj.Rotation, obj.Scale) * a_transform;
+
+                    GenerateGameObject(t, def);
+                }
+                else
+                {
+                    Logger.FlareWarning($"SceneObject invalid def: {obj.DefName}");
+                }
+            }
+        }
+
+        public void FlushScene()
+        {
+            foreach (GameObject obj in m_objects)
+            {
+                if (obj != null && !obj.IsDisposed)
+                {
+                    obj.Dispose();
+                }
+            }
+
+            m_objects.Clear();
+        }
+
         void Dispose(bool a_disposing)
         {
             if (!m_disposed)
             {
                 if (a_disposing)
                 {
-                    foreach (GameObject obj in m_objects)
-                    {
-                        if (obj != null && !obj.IsDisposed)
-                        {
-                            obj.Dispose();
-                        }
-                    }
-
-                    m_objects.Clear();
+                    FlushScene();
                 }
                 else
                 {

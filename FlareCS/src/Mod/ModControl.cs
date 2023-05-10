@@ -108,5 +108,46 @@ namespace FlareEngine.Mod
 
             return null;
         } 
+        public static string GetScenePath(string a_path, string a_modID)
+        {
+            if (a_modID == CoreAssembly.AssemblyInfo.ID)
+            {
+                return Path.Combine(CoreAssembly.AssemblyInfo.Path, "Scenes", a_path);
+            }
+
+            foreach (FlareAssembly asm in Assemblies)
+            {
+                if (asm.AssemblyInfo.ID == a_modID)
+                {
+                    return Path.Combine(asm.AssemblyInfo.ID, "Scenes", a_path);
+                }
+            }
+
+            return null;
+        }
+        public static string GetScenePath(string a_path)
+        {
+            if (File.Exists(a_path))
+            {
+                return a_path;
+            }
+
+            for (int i = Assemblies.Count - 1; i >= 0; --i)
+            {
+                string mPath = Path.Combine(Assemblies[i].AssemblyInfo.Path, "Scenes", a_path);
+                if (File.Exists(mPath))
+                {
+                    return mPath;
+                }
+            }
+
+            string cPath = Path.Combine(CoreAssembly.AssemblyInfo.Path, "Scenes", a_path);
+            if (File.Exists(cPath))
+            {
+                return cPath;
+            }
+
+            return null;
+        }
     }
 }

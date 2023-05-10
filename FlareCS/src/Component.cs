@@ -41,9 +41,9 @@ namespace FlareEngine
 
         public virtual void Init() { }
 
-        internal static T FromDef<T>(ComponentDef a_def) where T : Component
+        internal static Component FromDef(ComponentDef a_def) 
         {
-            T comp = Activator.CreateInstance(a_def.ComponentType) as T;
+            Component comp = Activator.CreateInstance(a_def.ComponentType) as Component;
 
             if (comp != null)
             {
@@ -51,6 +51,10 @@ namespace FlareEngine
             }
 
             return comp;
+        }
+        internal static T FromDef<T>(ComponentDef a_def) where T : Component
+        {
+            return FromDef(a_def) as T;
         }
     }
 }

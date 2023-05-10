@@ -60,7 +60,14 @@ namespace FlareEngine
             }
             set
             {
-                m_transform.Parent = value.m_transform;
+                if (value == null)
+                {
+                    m_transform.Parent = null;
+                }
+                else
+                {
+                    m_transform.Parent = value.m_transform;
+                }
             }
         }
 
@@ -113,6 +120,27 @@ namespace FlareEngine
         public virtual void Init() { }
         public virtual void Update() { }
 
+        Component AddComponentN(ComponentDef a_def)
+        {
+            Component comp = Component.FromDef(a_def);
+            if (comp != null)
+            {
+                comp.Object = this;
+
+                if (comp != null)
+                {
+                    m_components.Add(comp);
+                }
+
+                if (comp is Scriptable script)
+                {
+                    ScriptableComps.Add(script);
+                }
+            }
+            
+            return comp;
+        }
+
         public T AddComponent<T>() where T : Component
         {
             T comp = Activator.CreateInstance<T>();
@@ -134,26 +162,15 @@ namespace FlareEngine
         }
         public Component AddComponent(ComponentDef a_def)
         {
-            return AddComponent<Component>(a_def);
-        }
-        public T AddComponent<T>(ComponentDef a_def) where T : Component
-        {
-            T comp = Component.FromDef<T>(a_def);
-            comp.Object = this;
-
-            if (comp != null)
-            {
-                m_components.Add(comp);
-            }
-
-            if (comp is Scriptable script)
-            {
-                ScriptableComps.Add(script);
-            }
-
+            Component comp = AddComponentN(a_def);
+            
             comp.Init();
 
             return comp;
+        }
+        public T AddComponent<T>(ComponentDef a_def) where T : Component
+        {
+            return AddComponent(a_def) as T;
         }
 
         public T GetComponent<T>() where T : Component
@@ -257,26 +274,77 @@ namespace FlareEngine
             return obj;
         }   
 
+        public static GameObject ChildDef(GameObjectDef a_def, ref List<Component> a_comps, ref List<GameObject> a_objs)
+        {
+            GameObject obj = Activator.CreateInstance(a_def.ObjectType) as GameObject;
+            if (obj != null)
+            {
+                obj.m_def = a_def;
+
+                obj.m_transform.Translation = a_def.Translation;
+                obj.m_transform.Rotation = a_def.Rotation;
+                obj.m_transform.Scale = a_def.Scale;
+
+                if (a_def.Children != null)
+                {
+                    foreach (GameObjectDef child in a_def.Children)
+                    {
+                        GameObject c = ChildDef(child, ref a_comps, ref a_objs);
+                        if (c != null)
+                        {
+                            c.Parent = obj;
+                        }
+                    }
+                }
+
+                if (a_def.Components != null)
+                {
+                    foreach(ComponentDef def in a_def.Components)
+                    {
+                        a_comps.Add(obj.AddComponentN(def));
+                    }
+                }
+
+                a_objs.Add(obj);
+            }
+            
+            return obj;
+        }
         public static GameObject FromDef(GameObjectDef a_def, string a_tag = null)
         {
-            return FromDef<GameObject>(a_def, a_tag);
+            List<Component> comps = new List<Component>();
+            List<GameObject> objs = new List<GameObject>();
+
+            // Want to defer initialization until the hierarchy is built so that GetComponent works properly and can get parents and children
+            GameObject obj = ChildDef(a_def, ref comps, ref objs);
+
+            foreach (Component comp in comps)
+            {
+                comp.Init();
+            }
+
+            foreach (GameObject gameObject in objs)
+            {
+                gameObject.Init();
+
+                Objs.Add(gameObject);
+            }
+
+            if (obj != null)
+            {
+                if (!string.IsNullOrEmpty(a_tag))
+                {
+                    ObjDictionary.Add(a_tag, obj);
+                }
+
+                return obj;
+            }
+            
+            return null;
         }
         public static T FromDef<T>(GameObjectDef a_def, string a_tag = null) where T : GameObject
         {
-            T obj = Activator.CreateInstance(a_def.ObjectType) as T;
-
-            obj.m_def = a_def;
-
-            if (!string.IsNullOrEmpty(a_tag))
-            {
-                ObjDictionary.Add(a_tag, obj);
-            }
-
-            Objs.Add(obj);
-
-            obj.Init();
-
-            return obj;
+            return FromDef(a_def, a_tag) as T;
         }
 
         public void Dispose()
@@ -324,6 +392,7 @@ namespace FlareEngine
                             disp.Dispose();
                         }
                     }
+                    
                     m_components.Clear();
                 }
                 else

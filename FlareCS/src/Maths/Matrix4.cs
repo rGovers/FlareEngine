@@ -99,6 +99,23 @@ namespace FlareEngine.Maths
 
             return scale * a_rotation.ToMatrix() * translation;
         }
+        public static void Decompose(Matrix4 a_mat, out Vector3 a_translation, out Quaternion a_rotation, out Vector3 a_scale)
+        {
+            a_translation = a_mat[3].XYZ;
+
+            Vector3 scalarX = a_mat[0].XYZ;
+            Vector3 scalarY = a_mat[1].XYZ;
+            Vector3 scalarZ = a_mat[2].XYZ;
+
+            a_scale = new Vector3(scalarX.Magnitude, scalarY.Magnitude, scalarZ.Magnitude);
+
+            a_rotation = Quaternion.FromDirectionVectors(scalarX / a_scale.X, scalarY / a_scale.Y, scalarZ / a_scale.Z);
+        }
+
+        public void Decompose(out Vector3 a_translation, out Quaternion a_rotation, out Vector3 a_scale)
+        {
+            Decompose(this, out a_translation, out a_rotation, out a_scale);
+        }
 
         public static Matrix4 Transpose(Matrix4 a_matrix)
         {

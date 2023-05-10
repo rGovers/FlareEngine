@@ -78,6 +78,61 @@ namespace FlareEngine.Maths
             W = a_w;
         }
 
+        public static Quaternion FromDirectionVectors(Vector3 a_right, Vector3 a_up, Vector3 a_forward)
+        {
+            float tr = a_right.X + a_up.Y + a_forward.Z;
+
+            if (tr > 0)
+            {
+                float s = Mathf.Sqrt(1 + tr) * 2;
+
+                return new Quaternion
+                (
+                    (a_forward.Y - a_up.Z) / s,
+                    (a_right.Z - a_forward.X) / s,
+                    (a_up.X - a_right.Y) / s,
+                    s * 0.25f
+                );
+            }
+            else if (a_right.X > a_up.Y && a_forward.X > a_forward.Z)
+            {
+                float s = Mathf.Sqrt(1 + a_right.X - a_up.Y - a_forward.Z) * 2;
+
+                return new Quaternion
+                (
+                    s * 0.25f,
+                    (a_right.Y + a_up.X) / s,
+                    (a_right.Z + a_forward.X) / s,
+                    (a_forward.Y - a_up.Z) / s
+                );
+            }
+            else if (a_up.Y > a_forward.Z)
+            {
+                float s = Mathf.Sqrt(1 + a_up.Y - a_right.X - a_forward.Z) * 2;
+
+                return new Quaternion
+                (
+                    (a_right.Y + a_up.X) / s,
+                    s * 0.25f,
+                    (a_up.Z + a_forward.Y) / s,
+                    (a_right.Z - a_forward.X) / s
+                );
+            }
+
+            float sV = Mathf.Sqrt(1 + a_forward.Z - a_right.X - a_up.Y) * 2;
+
+            return new Quaternion
+            (
+                (a_right.Z + a_forward.X) / sV,
+                (a_up.Z + a_forward.Y) / sV,
+                sV * 0.25f,
+                (a_up.X - a_right.Y) / sV
+            );
+        }
+        public static Quaternion FromMatrix(Matrix4 a_mat)
+        {
+            return FromDirectionVectors(a_mat[0].XYZ, a_mat[1].XYZ, a_mat[2].XYZ);
+        }
         public static Quaternion FromAxisAngle(Vector3 a_axis, float a_angle)
         {
             float halfAngle = a_angle * 0.5f;

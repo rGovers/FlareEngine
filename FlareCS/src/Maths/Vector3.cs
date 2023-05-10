@@ -328,7 +328,7 @@ namespace FlareEngine.Maths
         {
             get
             {
-                return X + X * Y * Y + Z * Z;
+                return X * X + Y * Y + Z * Z;
             }
         }
 
