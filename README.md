@@ -1,3 +1,6 @@
+# Old repo moved and renamed
+https://github.com/rGovers/IcarianEngine
+
 # FlareEngine
 Flare Engine is a cross platform game engine to allow ease of modding.
 
